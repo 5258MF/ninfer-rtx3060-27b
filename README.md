@@ -7,9 +7,9 @@
 
 ## 📦 懒人包下载
 
-- **百度网盘**：ninfer-3060-12g-oneclick.zip（2026-10-01 新版：上下文上限更大，见第三节）
-- **链接**：https://pan.baidu.com/s/1FUgXGaS2SApBcS_qe5tjVQ
-- **提取码**：**3jt1**
+- **百度网盘**：ninfer-3060-12g-oneclick.zip（2026-10-01 新版：上下文上限更大，KVMem 默认回答 32K，见第三节）
+- **链接**：https://pan.baidu.com/s/1p4OL2EzR0h4iCD2Mu40Ecw
+- **提取码**：**9vc5**
 
 使用须知：
 
