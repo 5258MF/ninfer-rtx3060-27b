@@ -9,8 +9,8 @@
 ## 📦 懒人包下载
 
 - **百度网盘**：ninfer-3060-8g-oneclick.zip
-- **链接**：https://pan.baidu.com/s/1VdDgskOXF2cSzL-JybaUSA
-- **提取码**：**qt3n**
+- **链接**：https://pan.baidu.com/s/1_ZIDNnMaaOGRk-YnHb0jUA
+- **提取码**：**gkyy**
 
 使用须知：
 
