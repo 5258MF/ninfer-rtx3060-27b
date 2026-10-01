@@ -17,6 +17,7 @@
 - 只需装好 NVIDIA 显卡驱动 580 以上，不用配其他环境。
 - 解压到剩余空间 10 GB 以上的盘，别放 `C:\Program Files` 里。双击 `启动.bat`，第一次会自动下载模型（7.7 GiB，魔搭社区，国内直连）。
 - 详细说明见包里的 `使用说明.txt`，或下面第五节。
+- **8GB 显存的 3060**：请用 8G 版懒人包，见 [README-8GB.md](README-8GB.md)（网盘链接 https://pan.baidu.com/s/1VdDgskOXF2cSzL-JybaUSA ，提取码 **qt3n**）。
 
 ---
 
