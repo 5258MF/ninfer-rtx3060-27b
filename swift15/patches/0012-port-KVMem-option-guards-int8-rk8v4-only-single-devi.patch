@@ -1,0 +1,38 @@
+From 2d6e226bc3c3240b0276493138c2d0f9a4d108dc Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Thu, 1 Oct 2026 17:11:36 +0000
+Subject: [PATCH 12/14] port: KVMem option guards (int8/rk8v4 only, single
+ device, legacy cache, no lease growth)
+
+---
+ src/runtime/engine/model_instance.cpp | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/src/runtime/engine/model_instance.cpp b/src/runtime/engine/model_instance.cpp
+index f4a2e52b..0a5bc570 100644
+--- a/src/runtime/engine/model_instance.cpp
++++ b/src/runtime/engine/model_instance.cpp
+@@ -256,6 +256,20 @@ EngineOptions normalize_engine_options(EngineOptions options) {
+         if (!options.context_cache.enabled || options.context_cache.host_kv_capacity_bytes == 0) {
+             throw std::invalid_argument("KVMem requires an enabled Host KV arena");
+         }
++        // Port limits (ninfer-all base): hole pages are honored only by the INT8-family attention
++        // kernels (int8 / rk8v4), the sparse working set is single-device, and the hybrid prefix
++        // cache snapshots device-only state. KV lease growth is subsumed by the window.
++        if (options.kv_cache != KvCacheStorage::Int8Group64 &&
++            options.kv_cache != KvCacheStorage::RotatedInt8KeyInt4ValueGroup64) {
++            throw std::invalid_argument("KVMem requires --kv-dtype int8 or rk8v4");
++        }
++        if (options.devices.size() > 1) {
++            throw std::invalid_argument("KVMem supports a single device only");
++        }
++        if (options.context_cache.mode != ContextCacheMode::Legacy) {
++            throw std::invalid_argument("KVMem cannot be combined with --use-alt-prefix-caching");
++        }
++        options.context_cache.kv_lease_growth = false;
+     }
+     switch (options.purpose) {
+     case EnginePurpose::Generation:
+-- 
+2.47.3
+

@@ -1,0 +1,196 @@
+From 4771947b540aaa76718b5d553ab5485233306ced Mon Sep 17 00:00:00 2001
+From: port <p@p>
+Date: Fri, 2 Oct 2026 11:27:15 +0000
+Subject: [PATCH] diag: KV9_QMAX (up to 2048) + KV9_QSHADOW probe ranks for
+ smaller query sizes
+
+---
+ src/models/qwen3_5/program/prefill.cpp        | 93 +++++++++++++++++++
+ src/models/qwen3_5/program/program_impl.cpp   |  2 +-
+ src/models/qwen3_5/program/program_impl.h     |  3 +
+ .../qwen3_5/program/retrieval/kv9_plan.h      | 17 +++-
+ 4 files changed, 110 insertions(+), 5 deletions(-)
+
+diff --git a/src/models/qwen3_5/program/prefill.cpp b/src/models/qwen3_5/program/prefill.cpp
+index 1d12b525..7adec475 100644
+--- a/src/models/qwen3_5/program/prefill.cpp
++++ b/src/models/qwen3_5/program/prefill.cpp
+@@ -1930,6 +1930,22 @@ void ProgramImpl::plan_kv9_query(KvmemLaneState& sparse, const PreparedPromptDat
+     };
+     if (kv9_enabled() && have_ids) {
+         const Kv9Plan plan = kv9_make_plan(ids);
++        sparse.kv9_shadow.clear();
++        if (const char* sh = std::getenv("KV9_QSHADOW"); sh != nullptr && *sh != '\0') {
++            for (const char* cur = sh; cur != nullptr && *cur != '\0';) {
++                char* next = nullptr;
++                const auto q = static_cast<std::int32_t>(std::strtol(cur, &next, 10));
++                cur = (next != nullptr && *next == ',') ? next + 1 : nullptr;
++                if (q < 8 || q >= kv9_query_max()) { continue; }
++                const Kv9Plan sp = kv9_make_plan(ids, q);
++                std::vector<std::uint32_t> segs;
++                for (std::uint32_t i = 0; i < sp.nseg; ++i) {
++                    segs.push_back(sp.begin[i]);
++                    segs.push_back(std::min(sp.end[i], prompt_tokens));
++                }
++                sparse.kv9_shadow.emplace_back(static_cast<std::uint32_t>(q), std::move(segs));
++            }
++        }
+         sparse.kv9_tool = plan.tool;
+         sparse.msg_b[0] = plan.msg_begin;
+         sparse.msg_e[0] = plan.msg_end;
+@@ -2344,6 +2360,83 @@ void ProgramImpl::apply_kvmem_retrieval_placement(SequenceState& sequence) {
+             seg_log += line;
+         }
+         }
++        // KV9_QSHADOW: the same probe ranks for smaller query sizes (split merge), on the same
++        // window, candidates and captured rows.
++        for (const auto& [qsize, segs] : sparse.kv9_shadow) {
++            std::vector<Kv9RowView> sv;
++            for (std::size_t s2 = 0; s2 + 1 < segs.size(); s2 += 2) {
++                const std::uint32_t b = segs[s2], e = segs[s2 + 1];
++                for (const std::uint32_t k : active) {
++                    const std::uint32_t n = sparse.seg_rows_n[k];
++                    if (n == 0 || n != sparse.seg_count[k]) { continue; }
++                    std::uint32_t B = 0;
++                    const std::uint16_t* base = nullptr;
++                    std::size_t stride = 0;
++                    if (sparse.seg_slot[k] < 0) {
++                        if (sparse.seg_rows[k].empty()) { continue; }
++                        B = sparse.seg_range[2U * k];
++                        base = sparse.seg_rows[k].data();
++                        stride = n;
++                    } else {
++                        const auto slot = static_cast<std::uint32_t>(sparse.seg_slot[k]);
++                        if (sparse.slot_row0[slot] == UINT32_MAX || !sparse.q_rows) { continue; }
++                        B = sparse.acc_range[2U * slot];
++                        base = sparse.q_rows.get() + static_cast<std::size_t>(sparse.slot_row0[slot]) * attention.query_width();
++                        stride = sparse.q_rows_cap;
++                    }
++                    if (b < B || e > B + n || e <= b) { continue; }
++                    sv.push_back({base + static_cast<std::size_t>(b - B) * attention.query_width(), e - b, stride});
++                    break;
++                }
++            }
++            char line[200];
++            if (sv.size() * 2 != segs.size() || sv.empty()) {
++                std::snprintf(line, sizeof(line), " shadow q%u: %zu/%zu segs not nested;", qsize, sv.size(), segs.size() / 2);
++                seg_log += line;
++                continue;
++            }
++            std::vector<std::vector<float>> out;
++            kv9_eq10_scores(sparse.index, sv, attention.num_attention_heads, include, out);
++            std::vector<std::uint32_t> best(blocks, blocks);
++            std::vector<double> mean(blocks, 0.0);
++            std::vector<std::uint32_t> order;
++            for (std::size_t j = 0; j < sv.size(); ++j) {
++                order.clear();
++                double total = 0.0;
++                for (std::uint32_t block = 0; block < blocks; ++block) {
++                    if (include[block] && sparse.index.block(block).full) { order.push_back(block); total += std::fabs(out[j][block]); }
++                }
++                std::stable_sort(order.begin(), order.end(), [&](std::uint32_t x, std::uint32_t y) { return out[j][x] > out[j][y]; });
++                for (std::uint32_t r = 0; r < order.size(); ++r) {
++                    best[order[r]] = std::min(best[order[r]], r);
++                    if (total > 0.0) { mean[order[r]] += out[j][order[r]] / total / static_cast<double>(sv.size()); }
++                }
++            }
++            std::vector<float> sc(blocks, std::numeric_limits<float>::quiet_NaN());
++            for (std::uint32_t block = 0; block < blocks; ++block) {
++                if (best[block] >= blocks) { continue; }
++                sc[block] = sv.size() == 1U ? static_cast<float>(mean[block])
++                                            : static_cast<float>(blocks - best[block]) + 0.5F * static_cast<float>(mean[block]);
++            }
++            std::snprintf(line, sizeof(line), " shadow q%u (%zu segs):", qsize, sv.size());
++            seg_log += line;
++            for (const char* cur = probe; cur != nullptr && *cur != '\0';) {
++                char* next = nullptr;
++                const std::uint32_t pb = static_cast<std::uint32_t>(std::strtoul(cur, &next, 10)) / kBlockTokens;
++                cur = (next != nullptr && *next == ',') ? next + 1 : nullptr;
++                if (pb >= blocks) { continue; }
++                std::uint32_t rank = blocks;
++                if (!std::isnan(sc[pb])) {
++                    rank = 0;
++                    for (std::uint32_t block = 0; block < blocks; ++block) {
++                        if (!std::isnan(sc[block]) && sc[block] > sc[pb]) { ++rank; }
++                    }
++                }
++                std::snprintf(line, sizeof(line), " b%u %u", pb, rank);
++                seg_log += line;
++            }
++            seg_log += ";";
++        }
+     }
+     if (sparse.kv9_plan) {
+         std::fprintf(stderr,
+diff --git a/src/models/qwen3_5/program/program_impl.cpp b/src/models/qwen3_5/program/program_impl.cpp
+index 17c9b0b8..a2858ea9 100644
+--- a/src/models/qwen3_5/program/program_impl.cpp
++++ b/src/models/qwen3_5/program/program_impl.cpp
+@@ -251,7 +251,7 @@ ProgramImpl::ProgramImpl(const execution::Parameters& parameters_in, const Seque
+         });
+         if (plan.kvmem_window_pages != 0 && kv9_enabled() && kv9_env_i32("NINFER_KVMEM_EQ10", 1) != 0) {
+             // kv9 Eq.10: pinned host rows for the query segments (= the plan's QUERY_MAX cap).
+-            constexpr std::uint32_t kRows = kKv9QueryRowsMax;
++            const std::uint32_t kRows = static_cast<std::uint32_t>(kv9_query_max());
+             const std::size_t bytes = static_cast<std::size_t>(kRows) * config.full_attention_layers *
+                                       config.attention->query_width() * sizeof(std::uint16_t);
+             void* rows = nullptr;
+diff --git a/src/models/qwen3_5/program/program_impl.h b/src/models/qwen3_5/program/program_impl.h
+index 7d260624..42f6994b 100644
+--- a/src/models/qwen3_5/program/program_impl.h
++++ b/src/models/qwen3_5/program/program_impl.h
+@@ -510,6 +510,9 @@ struct KvmemLaneState {
+     // ([layers][q_rows_cap][query_width]) at slot_row0; injected ones own seg_rows ([layers][n][qw]).
+     std::shared_ptr<std::uint16_t> q_rows;
+     std::uint32_t q_rows_cap = 0;
++    // KV9_QSHADOW diagnostic: query segments [b,e) of smaller QUERY_MAX plans, scored on the
++    // captured rows (their head/aligned-tail ranges nest inside the main plan's).
++    std::vector<std::pair<std::uint32_t, std::vector<std::uint32_t>>> kv9_shadow;
+     std::uint32_t slot_row0[4] = {UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX};
+     std::int32_t seg_msg[4] = {-1, -1, -1, -1};   // 0 = newest message, 1 = real user message (tool round)
+     std::vector<std::uint16_t> seg_rows[4];
+diff --git a/src/models/qwen3_5/program/retrieval/kv9_plan.h b/src/models/qwen3_5/program/retrieval/kv9_plan.h
+index d87770e6..d5eb8a06 100644
+--- a/src/models/qwen3_5/program/retrieval/kv9_plan.h
++++ b/src/models/qwen3_5/program/retrieval/kv9_plan.h
+@@ -95,7 +95,15 @@ inline std::uint64_t kv9_hash(std::span<const TokenId> ids, std::uint32_t b, std
+ }
+ 
+ // Query rows captured per request (pinned host buffer per lane: rows x 16 layers x 6144 bf16).
+-inline constexpr std::uint32_t kKv9QueryRowsMax = 512;
++// Hard cap 2048; the effective size is kv9_query_max() (default 512, 96 MiB pinned).
++inline constexpr std::uint32_t kKv9QueryRowsMax = 2048;
++
++// QUERY_MAX: KV9_QMAX (diagnostic, survives the launcher) or NINFER_KVMEM_QUERY_MAX, default 512.
++inline std::int32_t kv9_query_max() noexcept {
++    std::int32_t q = kv9_env_i32("KV9_QMAX", 0);
++    if (q <= 0) { q = kv9_env_i32("NINFER_KVMEM_QUERY_MAX", 512); }
++    return std::clamp(q, 8, static_cast<std::int32_t>(kKv9QueryRowsMax));
++}
+ 
+ struct Kv9Plan {
+     std::uint32_t nseg = 0;
+@@ -116,7 +124,7 @@ struct Kv9Plan {
+ //   tool round   : the newest tool result (whole if <= 256 else head 128 + tail 128) plus the
+ //                  last real user message (whole if <= 256 else head 128 + tail 128; these rows
+ //                  are a subset of the normal round's, so they come from the stash).
+-inline Kv9Plan kv9_make_plan(std::span<const TokenId> ids) noexcept {
++inline Kv9Plan kv9_make_plan(std::span<const TokenId> ids, std::int32_t qmax_override = 0) noexcept {
+     Kv9Plan plan;
+     const auto n = static_cast<std::int64_t>(ids.size());
+     const std::int64_t g = kv9_generation_prompt(ids);
+@@ -208,8 +216,9 @@ inline Kv9Plan kv9_make_plan(std::span<const TokenId> ids) noexcept {
+         }
+         push(tb, ce);
+     };
+-    const std::int64_t qmax = std::clamp(kv9_env_i32("NINFER_KVMEM_QUERY_MAX", 512), 8,
+-                                         static_cast<std::int32_t>(kKv9QueryRowsMax));
++    const std::int64_t qmax = qmax_override > 0
++        ? std::clamp(qmax_override, 8, static_cast<std::int32_t>(kKv9QueryRowsMax))
++        : kv9_query_max();
+     if (plan.tool && real_cb >= 0) {
+         // kv9: tool result head/tail + the real user message's head/tail (half budget each).
+         cur_msg = 0;
+-- 
+2.47.3
+

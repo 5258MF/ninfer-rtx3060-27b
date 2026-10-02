@@ -1,0 +1,284 @@
+From fd9374a8b153072c8426a692a33df8a8bd0c59f4 Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Thu, 1 Oct 2026 16:59:55 +0000
+Subject: [PATCH 01/14] feat(ops): honor KVMem hole block-table entries in
+ INT8/RK8V4 small_t, prompt and prompt_fast attention (port of qz 66f63675)
+
+---
+ src/core/paged_kv_cache.h                     |  8 +++++
+ src/ops/kernel/paged_kv_address.cuh           |  8 +++++
+ .../dense/causal_cache/prompt_i8.cuh          | 21 +++++++-----
+ .../dense/causal_cache/prompt_i8_fast.cuh     | 18 +++++++----
+ .../dense/causal_cache/small_t_i8.cuh         | 32 +++++++++++++------
+ 5 files changed, 62 insertions(+), 25 deletions(-)
+
+diff --git a/src/core/paged_kv_cache.h b/src/core/paged_kv_cache.h
+index 219d5a37..71d3626c 100644
+--- a/src/core/paged_kv_cache.h
++++ b/src/core/paged_kv_cache.h
+@@ -18,6 +18,14 @@ namespace ninfer {
+ 
+ inline constexpr std::int32_t kPagedKVPageSize = 64;
+ 
++// A block-table entry equal to kPagedKVPageHole marks the logical page as not materialized in
++// the device pool. Attention consumers treat every key of a hole page as invisible (no score
++// contribution, never dereferenced) instead of decoding it as a physical page ID. Cache-append
++// writers never target a hole page: a growing sequence materializes each page it will write
++// before the launch that writes it, so holes only ever cover historical pages outside the
++// active working-set window.
++inline constexpr std::int32_t kPagedKVPageHole = -1;
++
+ /** Non-owning, single-sequence view consumed by growing-cache Ops. */
+ struct PagedKVLayerView {
+     Tensor k_pages;
+diff --git a/src/ops/kernel/paged_kv_address.cuh b/src/ops/kernel/paged_kv_address.cuh
+index 8c5c4036..96538dc4 100644
+--- a/src/ops/kernel/paged_kv_address.cuh
++++ b/src/ops/kernel/paged_kv_address.cuh
+@@ -10,6 +10,14 @@ inline constexpr int kPagedKVPageShift = 6;
+ inline constexpr int kPagedKVPageMask  = kPagedKVPageSize - 1;
+ 
+ static_assert(kPagedKVPageSize == (1 << kPagedKVPageShift));
++static_assert(kPagedKVPageSize == 64 && kPagedKVPageHole == -1);
++
++// kPagedKVPageHole semantics (a hole entry marks the logical page as not materialized; keys of
++// that page are invisible to attention and never dereferenced) are defined with the block-table
++// types in core/paged_kv_cache.h; see the constant there.
++__device__ __forceinline__ bool paged_kv_page_is_hole(std::int32_t physical_page) {
++    return physical_page < 0;
++}
+ 
+ struct PagedKVDirectMetadata {
+     const std::int32_t* table;
+diff --git a/src/ops/softmax_attention/dense/causal_cache/prompt_i8.cuh b/src/ops/softmax_attention/dense/causal_cache/prompt_i8.cuh
+index fd890d68..62b6f1f8 100644
+--- a/src/ops/softmax_attention/dense/causal_cache/prompt_i8.cuh
++++ b/src/ops/softmax_attention/dense/causal_cache/prompt_i8.cuh
+@@ -291,11 +291,13 @@ __global__ __maxnreg__(NINFER_PROMPT_I8_MAXNREG) void causal_attention_prompt_i8
+ 
+     auto issue_kv_tile = [&](int tile_k0) {
+         const int physical_page = block_table[tile_k0 >> kPagedKVPageShift];
++        // KVMem: hole pages are never dereferenced; their tile stages zeros.
++        const bool tile_live = !paged_kv_page_is_hole(physical_page);
+         for (int key_l = tid; key_l < Bc; key_l += kCausalPromptI8Threads) {
+             const int key = tile_k0 + key_l;
+             __half* kd    = &k_scale_s[key_l * Groups];
+             __half* vd    = &v_scale_s[key_l * VGroups];
+-            if (key <= max_query_abs) {
++            if (key <= max_query_abs && tile_live) {
+                 const std::int64_t off =
+                     kv_cache_int8_quant_scale_index<Geometry>(physical_page, kv_head, 0, key_l);
+                 ninfer::ops::cp_async<8>(kd, &cache_k_scale[off]);
+@@ -326,7 +328,7 @@ __global__ __maxnreg__(NINFER_PROMPT_I8_MAXNREG) void causal_attention_prompt_i8
+                     const int d     = dc * 16;
+                     const int key   = tile_k0 + key_l;
+                     k_packed[i]     = KeyChunk{};
+-                    if (key <= max_query_abs) {
++                    if (key <= max_query_abs && tile_live) {
+                         const std::int64_t key_off =
+                             kv_cache_packed_key_chunk_index<Geometry, Keys>(physical_page, kv_head,
+                                                                             d, key_l);
+@@ -353,7 +355,7 @@ __global__ __maxnreg__(NINFER_PROMPT_I8_MAXNREG) void causal_attention_prompt_i8
+             const int key   = tile_k0 + key_l;
+             std::int8_t* kd = &k_i8[(key_l * DB16 + causal_prompt_swz(key_l, dc * 8)) * 2];
+             std::int8_t* vd = &v_i8[key_l * D + d];
+-            if (key <= max_query_abs) {
++            if (key <= max_query_abs && tile_live) {
+                 const std::int64_t off =
+                     kv_cache_int8_quant_code_index<Geometry>(physical_page, kv_head, d, key_l);
+                 cp_async<16, Cache::cg>(kd, &cache_k[off]);
+@@ -420,6 +422,8 @@ __global__ __maxnreg__(NINFER_PROMPT_I8_MAXNREG) void causal_attention_prompt_i8
+     const float scale_l2 = scale * Log2E;
+     for (int kb = 0; kb < key_blocks; ++kb) {
+         const int k0 = kb * Bc;
++        // KVMem hole page: the tile stages zeros and every score is masked.
++        const bool tile_hole = paged_kv_page_is_hole(block_table[k0 >> kPagedKVPageShift]);
+         if (warp < ProducerWarps) {
+             const int row_base = warp * 16;
+             float score[QKNt][4];
+@@ -484,7 +488,8 @@ __global__ __maxnreg__(NINFER_PROMPT_I8_MAXNREG) void causal_attention_prompt_i8
+             const int qabs0            = row0 < tile_rows ? base_pos + row_token(row0) : -1;
+             const int qabs1            = row1 < tile_rows ? base_pos + row_token(row1) : -1;
+             const bool full_score_tile =
+-                q0 + Br <= valid_rows && k0 + Bc - 1 <= base_pos + row_token(0);
++                !tile_hole && q0 + Br <= valid_rows &&
++                k0 + Bc - 1 <= base_pos + row_token(0);
+             float bm0                  = -CUDART_INF_F;
+             float bm1                  = -CUDART_INF_F;
+ #pragma unroll
+@@ -492,10 +497,10 @@ __global__ __maxnreg__(NINFER_PROMPT_I8_MAXNREG) void causal_attention_prompt_i8
+                 const int key0 = k0 + nt * 8 + 2 * lid;
+                 const int key1 = key0 + 1;
+                 if (!full_score_tile) {
+-                    score[nt][0] = key0 <= qabs0 ? score[nt][0] : -CUDART_INF_F;
+-                    score[nt][1] = key1 <= qabs0 ? score[nt][1] : -CUDART_INF_F;
+-                    score[nt][2] = key0 <= qabs1 ? score[nt][2] : -CUDART_INF_F;
+-                    score[nt][3] = key1 <= qabs1 ? score[nt][3] : -CUDART_INF_F;
++                    score[nt][0] = key0 <= qabs0 && !tile_hole ? score[nt][0] : -CUDART_INF_F;
++                    score[nt][1] = key1 <= qabs0 && !tile_hole ? score[nt][1] : -CUDART_INF_F;
++                    score[nt][2] = key0 <= qabs1 && !tile_hole ? score[nt][2] : -CUDART_INF_F;
++                    score[nt][3] = key1 <= qabs1 && !tile_hole ? score[nt][3] : -CUDART_INF_F;
+                 }
+                 bm0 = fmaxf(bm0, fmaxf(score[nt][0], score[nt][1]));
+                 bm1 = fmaxf(bm1, fmaxf(score[nt][2], score[nt][3]));
+diff --git a/src/ops/softmax_attention/dense/causal_cache/prompt_i8_fast.cuh b/src/ops/softmax_attention/dense/causal_cache/prompt_i8_fast.cuh
+index 4953390c..3424d0a2 100644
+--- a/src/ops/softmax_attention/dense/causal_cache/prompt_i8_fast.cuh
++++ b/src/ops/softmax_attention/dense/causal_cache/prompt_i8_fast.cuh
+@@ -274,8 +274,10 @@ __global__ __launch_bounds__(
+         std::int8_t* v_s    = k_s + kCausalPromptI8FastTileBytes;
+         __half* ks_s        = reinterpret_cast<__half*>(base + Stage::KScaleOffset);
+         __half* vs_s        = ks_s + Bc * Groups;
+-        const int page      = block_table[kb];
+-        const int valid     = min(Bc, max_query_abs + 1 - kb * Bc);
++        // KVMem: a hole entry (page < 0) is never dereferenced; the whole tile zero-fills.
++        const int raw_page  = block_table[kb];
++        const int page      = raw_page < 0 ? 0 : raw_page;
++        const int valid     = raw_page < 0 ? 0 : min(Bc, max_query_abs + 1 - kb * Bc);
+         if constexpr (PackedKeys) {
+ #pragma unroll
+             for (int i = 0; i < KChunksPerThread; ++i) {
+@@ -433,7 +435,9 @@ __global__ __launch_bounds__(
+             }
+         }
+ 
+-        const bool full_tile = k0 + Bc - 1 <= warp_min_qabs;
++        // KVMem hole page: every score of the tile is masked (uniform across the warp).
++        const bool kv_hole   = paged_kv_page_is_hole(block_table[kb]);
++        const bool full_tile = !kv_hole && k0 + Bc - 1 <= warp_min_qabs;
+         float bm0            = -CUDART_INF_F;
+         float bm1            = -CUDART_INF_F;
+ #pragma unroll
+@@ -441,10 +445,10 @@ __global__ __launch_bounds__(
+             if (!full_tile) {
+                 const int key0 = k0 + nt * 8 + 2 * lid;
+                 const int key1 = key0 + 1;
+-                score[nt][0]   = key0 <= qabs0 ? score[nt][0] : -CUDART_INF_F;
+-                score[nt][1]   = key1 <= qabs0 ? score[nt][1] : -CUDART_INF_F;
+-                score[nt][2]   = key0 <= qabs1 ? score[nt][2] : -CUDART_INF_F;
+-                score[nt][3]   = key1 <= qabs1 ? score[nt][3] : -CUDART_INF_F;
++                score[nt][0]   = key0 <= qabs0 && !kv_hole ? score[nt][0] : -CUDART_INF_F;
++                score[nt][1]   = key1 <= qabs0 && !kv_hole ? score[nt][1] : -CUDART_INF_F;
++                score[nt][2]   = key0 <= qabs1 && !kv_hole ? score[nt][2] : -CUDART_INF_F;
++                score[nt][3]   = key1 <= qabs1 && !kv_hole ? score[nt][3] : -CUDART_INF_F;
+             }
+             bm0 = fmaxf(bm0, fmaxf(score[nt][0], score[nt][1]));
+             bm1 = fmaxf(bm1, fmaxf(score[nt][2], score[nt][3]));
+diff --git a/src/ops/softmax_attention/dense/causal_cache/small_t_i8.cuh b/src/ops/softmax_attention/dense/causal_cache/small_t_i8.cuh
+index b9b3656e..da71c030 100644
+--- a/src/ops/softmax_attention/dense/causal_cache/small_t_i8.cuh
++++ b/src/ops/softmax_attention/dense/causal_cache/small_t_i8.cuh
+@@ -431,6 +431,8 @@ __launch_bounds__(WarpsPerCta * 32, MinBlocksPerSm) __global__
+     const int key_tid     = LoaderKeys ? tid - ProducerThreads : tid;
+     const int loader_tid  = tid - ProducerThreads;
+     auto load_k_tile = [&](int tile_k0, int physical_page) {
++        // KVMem: a hole table entry (page < 0) is never dereferenced; staged as out-of-split.
++        const bool page_live = !paged_kv_page_is_hole(physical_page);
+         if constexpr (PackedKeys) {
+             if (!key_thread) { return; }
+ #pragma unroll
+@@ -441,7 +443,7 @@ __launch_bounds__(WarpsPerCta * 32, MinBlocksPerSm) __global__
+                     const int key_l = chunk / (D / 16);
+                     const int d     = (chunk - key_l * (D / 16)) * 16;
+                     const int key   = tile_k0 + key_l;
+-                    if (key >= split_start && key < split_end) {
++                    if (key >= split_start && key < split_end && page_live) {
+                         const std::int64_t off = kv_cache_packed_key_chunk_index<Geometry, Keys>(
+                             physical_page, kv_head, d, key & kPagedKVPageMask);
+                         // A plain load: the fused append above may have written these bytes in
+@@ -495,12 +497,14 @@ __launch_bounds__(WarpsPerCta * 32, MinBlocksPerSm) __global__
+     int2 k_scale_next{};
+     ValueScaleRow v_scale_next{};
+     auto fetch_next_tile = [&](int tile_k0, int page) {
++        // KVMem: a hole table entry (page < 0) is never dereferenced; staged as out-of-split.
++        const bool page_live = !paged_kv_page_is_hole(page);
+         if constexpr (EarlyFetch) {
+             if (tid < Bc) {
+                 const int key = tile_k0 + tid;
+                 k_scale_next  = int2{};
+                 v_scale_next  = ValueScaleRow{};
+-                if (key >= split_start && key < split_end) {
++                if (key >= split_start && key < split_end && page_live) {
+                     const std::int64_t off = kv_cache_int8_quant_scale_index<Geometry>(
+                         page, kv_head, 0, key & kPagedKVPageMask);
+                     k_scale_next = load_vec<int2>(&cache_k_scale[off]);
+@@ -521,7 +525,7 @@ __launch_bounds__(WarpsPerCta * 32, MinBlocksPerSm) __global__
+                     const int key_l = chunk / (D / 16);
+                     const int d     = (chunk - key_l * (D / 16)) * 16;
+                     const int key   = tile_k0 + key_l;
+-                    if (key >= split_start && key < split_end) {
++                    if (key >= split_start && key < split_end && page_live) {
+                         if constexpr (PackedValues) {
+                             v_next[i] = load_vec<int2>(
+                                 reinterpret_cast<const std::uint8_t*>(cache_v_i8) +
+@@ -560,9 +564,11 @@ __launch_bounds__(WarpsPerCta * 32, MinBlocksPerSm) __global__
+     };
+ 
+     auto issue_kv_tile = [&](int tile_k0, int physical_page) {
++        // KVMem: a hole table entry (page < 0) is never dereferenced; staged as out-of-split.
++        const bool page_live = !paged_kv_page_is_hole(physical_page);
+         for (int key_l = tid; key_l < Bc; key_l += Threads) {
+             const int key = tile_k0 + key_l;
+-            if (key >= split_start && key < split_end) {
++            if (key >= split_start && key < split_end && page_live) {
+                 const std::int64_t off = kv_cache_int8_quant_scale_index<Geometry>(
+                     physical_page, kv_head, 0, key & kPagedKVPageMask);
+                 ninfer::ops::cp_async<8>(&k_scale_s[key_l * Groups], &cache_k_scale[off]);
+@@ -590,7 +596,7 @@ __launch_bounds__(WarpsPerCta * 32, MinBlocksPerSm) __global__
+                 const int key_l = chunk / (D / 16);
+                 const int d     = (chunk - key_l * (D / 16)) * 16;
+                 const int key   = tile_k0 + key_l;
+-                if (key >= split_start && key < split_end) {
++                if (key >= split_start && key < split_end && page_live) {
+                     const std::int64_t off = kv_cache_int4_value_code_index<Geometry>(
+                         physical_page, kv_head, d >> 1, key & kPagedKVPageMask);
+                     ninfer::ops::cp_async<8>(
+@@ -609,7 +615,7 @@ __launch_bounds__(WarpsPerCta * 32, MinBlocksPerSm) __global__
+             const int dc    = chunk - key_l * (D / 16);
+             const int d     = dc * 16;
+             const int key   = tile_k0 + key_l;
+-            if (key >= split_start && key < split_end) {
++            if (key >= split_start && key < split_end && page_live) {
+                 const std::int64_t off = kv_cache_int8_quant_code_index<Geometry>(
+                     physical_page, kv_head, d, key & kPagedKVPageMask);
+                 std::int8_t* dst = &k_i8[key_l * D + causal_small_t_tc_swz(key_l, dc * 8) * 2];
+@@ -678,6 +684,8 @@ __launch_bounds__(WarpsPerCta * 32, MinBlocksPerSm) __global__
+ 
+     for (int kb = 0; kb < key_blocks; ++kb) {
+         const int k0        = first_tile + kb * Bc;
++        // KVMem hole page: every key of the tile is masked (page-level, uniform over the CTA).
++        const bool tile_hole = paged_kv_page_is_hole(page_at(k0));
+         const bool has_next = kb + 1 < key_blocks;
+         if constexpr (PackedKeys || EarlyFetch) {
+             // Prefetch the next tile now; see load_k_tile and EarlyFetch.
+@@ -763,19 +771,23 @@ __launch_bounds__(WarpsPerCta * 32, MinBlocksPerSm) __global__
+                 const int key0 = k0 + col0;
+                 const int key1 = k0 + col1;
+                 score[nt][0] =
+-                    (row0 < RowCount && key0 >= split_start && key0 < split_end && key0 <= qabs0)
++                    (row0 < RowCount && !tile_hole && key0 >= split_start && key0 < split_end &&
++                     key0 <= qabs0)
+                         ? score[nt][0] * scale
+                         : -CUDART_INF_F;
+                 score[nt][1] =
+-                    (row0 < RowCount && key1 >= split_start && key1 < split_end && key1 <= qabs0)
++                    (row0 < RowCount && !tile_hole && key1 >= split_start && key1 < split_end &&
++                     key1 <= qabs0)
+                         ? score[nt][1] * scale
+                         : -CUDART_INF_F;
+                 score[nt][2] =
+-                    (row1 < RowCount && key0 >= split_start && key0 < split_end && key0 <= qabs1)
++                    (row1 < RowCount && !tile_hole && key0 >= split_start && key0 < split_end &&
++                     key0 <= qabs1)
+                         ? score[nt][2] * scale
+                         : -CUDART_INF_F;
+                 score[nt][3] =
+-                    (row1 < RowCount && key1 >= split_start && key1 < split_end && key1 <= qabs1)
++                    (row1 < RowCount && !tile_hole && key1 >= split_start && key1 < split_end &&
++                     key1 <= qabs1)
+                         ? score[nt][3] * scale
+                         : -CUDART_INF_F;
+                 bm0 = fmaxf(bm0, fmaxf(score[nt][0], score[nt][1]));
+-- 
+2.47.3
+

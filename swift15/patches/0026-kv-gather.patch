@@ -1,0 +1,444 @@
+From e7d9c8e116e884cd9f5655bf94e4db7c7ea1e3ae Mon Sep 17 00:00:00 2001
+From: p <p@l>
+Date: Fri, 2 Oct 2026 15:23:47 +0000
+Subject: [PATCH] 3060 KVMem: batched H2D page gather through mapped pinned
+ staging (one kernel per batch instead of per-plane copies)
+
+---
+ src/core/CMakeLists.txt                       |   1 +
+ src/core/paged_kv_cache.cpp                   | 230 ++++++++++++++++++
+ src/core/paged_kv_cache.h                     |  10 +
+ src/core/paged_kv_gather.cu                   |  56 +++++
+ src/core/paged_kv_gather.h                    |  28 +++
+ .../qwen3_5/program/storage/host_kv_store.h   |  26 +-
+ 6 files changed, 350 insertions(+), 1 deletion(-)
+ create mode 100644 src/core/paged_kv_gather.cu
+ create mode 100644 src/core/paged_kv_gather.h
+
+diff --git a/src/core/CMakeLists.txt b/src/core/CMakeLists.txt
+index 11a5a189..febb5193 100644
+--- a/src/core/CMakeLists.txt
++++ b/src/core/CMakeLists.txt
+@@ -14,6 +14,7 @@ add_library(ninfer_core STATIC
+   direct_storage_reader.cpp
+   token_logprobs.cpp
+   paged_kv_cache.cpp
++  paged_kv_gather.cu
+   linear_attention_state.cpp
+   layout.cpp
+   tensor.cpp
+diff --git a/src/core/paged_kv_cache.cpp b/src/core/paged_kv_cache.cpp
+index 4224dc62..6ea92bf4 100644
+--- a/src/core/paged_kv_cache.cpp
++++ b/src/core/paged_kv_cache.cpp
+@@ -2,9 +2,18 @@
+ 
+ #include "core/device.h"
+ #include "core/host_kv_arena.h"
++#include "core/host_worker_pool.h"
++#include "core/paged_kv_gather.h"
+ #include "ninfer/types.h"
+ 
+ #include <algorithm>
++#include <chrono>
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++#include <future>
++#include <mutex>
++#include <thread>
+ #include <exception>
+ #include <limits>
+ #include <new>
+@@ -839,6 +848,223 @@ void DeviceKVPagePool::copy_to_host_records(std::span<const DeviceKVPageHandle>
+     }
+ }
+ 
++namespace {
++
++// 3060 batched H2D gather (see paged_kv_gather.cu). Two mapped pinned staging buffers are filled
++// alternately by host workers while the kernel drains the other one. Process lifetime: the buffers
++// are never freed because static destruction may run after the CUDA context is gone.
++struct KvGatherStaging {
++    static constexpr std::size_t kBufferBytes = std::size_t{32} << 20;
++    std::mutex mutex;
++    bool tried = false;
++    bool ok    = false;
++    int device = -1;
++    std::byte* host[2]{};
++    std::byte* mapped[2]{};
++    cudaEvent_t done[2]{};
++    bool pending[2]{};
++    std::unique_ptr<HostWorkerPool> workers;
++    std::uint32_t worker_count = 0;
++};
++
++KvGatherStaging& kv_gather_staging() {
++    static auto* staging = new KvGatherStaging();
++    return *staging;
++}
++
++bool kv_gather_disabled() {
++    static const bool disabled = std::getenv("KV9_NOGATHER") != nullptr;
++    return disabled;
++}
++
++bool kv_gather_init(KvGatherStaging& s) {
++    if (s.tried) { return s.ok; }
++    s.tried = true;
++    if (cudaGetDevice(&s.device) != cudaSuccess) { return false; }
++    for (int b = 0; b < 2; ++b) {
++        void* host = nullptr;
++        if (cudaHostAlloc(&host, KvGatherStaging::kBufferBytes,
++                          cudaHostAllocMapped | cudaHostAllocPortable) != cudaSuccess) {
++            (void)cudaGetLastError();
++            return false;
++        }
++        void* mapped = nullptr;
++        if (cudaHostGetDevicePointer(&mapped, host, 0) != cudaSuccess ||
++            cudaEventCreateWithFlags(&s.done[b], cudaEventDisableTiming) != cudaSuccess) {
++            (void)cudaGetLastError();
++            return false;
++        }
++        s.host[b]   = static_cast<std::byte*>(host);
++        s.mapped[b] = static_cast<std::byte*>(mapped);
++    }
++    const unsigned hw = std::thread::hardware_concurrency();
++    // Packing is bound by soft faults on the pageable Host KV arena; 4 -> 8 threads gained ~12%.
++    s.worker_count    = std::max(1U, std::min(8U, hw > 2 ? hw / 2 : 1U));
++    if (const char* v = std::getenv("KV9_GATHER_THREADS")) {
++        s.worker_count = std::max(1U, std::min(16U, static_cast<unsigned>(std::strtoul(v, nullptr, 10))));
++    }
++    s.workers         = std::make_unique<HostWorkerPool>(s.worker_count, 64);
++    s.ok              = true;
++    return true;
++}
++
++constexpr bool aligned16(std::uintptr_t value) noexcept { return (value & 15U) == 0; }
++
++} // namespace
++
++bool DeviceKVPagePool::gather_from_host(std::span<const std::byte* const> records,
++                                        std::span<const DeviceKVPageHandle> destination,
++                                        const HostKVPageLayout& layout, std::size_t plane_begin,
++                                        std::size_t plane_end, RankStreams streams) const {
++    if (kv_gather_disabled() || destination.empty() || records.size() != destination.size() ||
++        layout.geometry != geometry() || plane_begin >= plane_end || plane_end > planes_.size() ||
++        layout.planes.size() != planes_.size()) {
++        return false;
++    }
++    const std::size_t rank = plane_ranks_[plane_begin];
++    for (std::size_t p = plane_begin; p < plane_end; ++p) {
++        if (plane_ranks_[p] != rank) { return false; }
++    }
++    const bool head_major = geometry().device_plane_order == PagedKVPlaneOrder::HeadMajor;
++    const std::size_t stride = layout.page_stride;
++    if (!aligned16(stride)) { return false; }
++    std::vector<detail::KvGatherPlane> table;
++    table.reserve(plane_end - plane_begin);
++    for (std::size_t p = plane_begin; p < plane_end; ++p) {
++        const Tensor& plane           = planes_[p];
++        const HostKVPlaneLayout& host = layout.planes[p];
++        const auto heads              = static_cast<std::int64_t>(head_major ? plane.ne[3] : plane.ne[2]);
++        if (heads <= 0 || host.head_payload_bytes * static_cast<std::size_t>(heads) != host.page_payload_bytes ||
++            !aligned16(reinterpret_cast<std::uintptr_t>(plane.data)) ||
++            !aligned16(static_cast<std::uintptr_t>(plane.nb[2])) ||
++            !aligned16(static_cast<std::uintptr_t>(plane.nb[3])) || !aligned16(host.offset) ||
++            !aligned16(host.head_payload_bytes) || !aligned16(host.page_payload_bytes) ||
++            host.offset + host.page_payload_bytes > stride) {
++            return false;
++        }
++        if (!head_major && static_cast<std::size_t>(plane.nb[3]) < host.page_payload_bytes) { return false; }
++        if (head_major && static_cast<std::size_t>(plane.nb[2]) < host.head_payload_bytes) { return false; }
++        table.push_back(detail::KvGatherPlane{
++            .base        = static_cast<unsigned char*>(plane.data),
++            .nb2         = plane.nb[2],
++            .nb3         = plane.nb[3],
++            .host_offset = static_cast<long long>(host.offset),
++            .head_bytes  = static_cast<long long>(host.head_payload_bytes),
++            .page_bytes  = static_cast<long long>(host.page_payload_bytes),
++            .heads       = static_cast<int>(heads),
++            .pad         = 0,
++        });
++    }
++    for (const std::byte* record : records) {
++        if (record == nullptr || !aligned16(reinterpret_cast<std::uintptr_t>(record))) { return false; }
++    }
++    const std::size_t table_bytes = (table.size() * sizeof(detail::KvGatherPlane) + 255) & ~std::size_t{255};
++    if (table_bytes + 256 + stride > KvGatherStaging::kBufferBytes) { return false; }
++    std::size_t per_batch = (KvGatherStaging::kBufferBytes - table_bytes - 256) / (stride + sizeof(int));
++    while (per_batch > 0 &&
++           table_bytes + ((per_batch * sizeof(int) + 255) & ~std::size_t{255}) + per_batch * stride >
++               KvGatherStaging::kBufferBytes) {
++        --per_batch;
++    }
++    if (per_batch == 0) { return false; }
++    static const bool gather_trace = std::getenv("KV9_XFER_TRACE") != nullptr;
++    std::size_t gather_runs = 0;
++    // Only fragmented sets win: measured on the 3060 (PCIe zero-copy reads ~5.5 GB/s) the
++    // per-run path already reaches 6.5-7.8 GB/s on long contiguous runs but only ~4.3 GB/s on
++    // scattered 2-page retrieval blocks. Count runs that the per-run path could copy at once.
++    {
++        std::size_t runs = 1;
++        for (std::size_t i = 1; i < destination.size(); ++i) {
++            const bool contiguous =
++                records[i] == records[i - 1] + stride &&
++                physical_index(destination[i]) == physical_index(destination[i - 1]) + 1;
++            if (!contiguous) { ++runs; }
++        }
++        static const std::size_t min_avg = [] {
++            const char* v = std::getenv("KV9_GATHER_RUN");
++            return v != nullptr ? static_cast<std::size_t>(std::strtoul(v, nullptr, 10)) : std::size_t{8};
++        }();
++        const bool use = destination.size() < min_avg * runs;
++        gather_runs = runs;
++        if (!use) {
++            if (gather_trace) {
++                std::fprintf(stderr, "KVGATHER pages=%zu runs=%zu use=0\n", destination.size(), runs);
++            }
++            return false;
++        }
++    }
++
++    KvGatherStaging& s = kv_gather_staging();
++    std::lock_guard<std::mutex> lock(s.mutex);
++    if (!kv_gather_init(s)) { return false; }
++    int device = -1;
++    if (cudaGetDevice(&device) != cudaSuccess || device != s.device) { return false; }
++
++    validate_distinct_pages(destination, "Paged KV H2D destination contains duplicate pages");
++    std::vector<int> indices(destination.size());
++    for (std::size_t i = 0; i < destination.size(); ++i) { indices[i] = physical_index(destination[i]); }
++
++    using GatherClock = std::chrono::steady_clock;
++    const auto gather_begin = GatherClock::now();
++    double pack_ms = 0, wait_ms = 0;
++    const cudaStream_t stream = streams[rank];
++    const std::size_t index_bytes = (per_batch * sizeof(int) + 255) & ~std::size_t{255};
++    std::size_t begin = 0;
++    int buffer        = 0;
++    while (begin < destination.size()) {
++        const std::size_t count = std::min(per_batch, destination.size() - begin);
++        if (s.pending[buffer]) {
++            const auto w0 = GatherClock::now();
++            CUDA_CHECK(cudaEventSynchronize(s.done[buffer]));
++            wait_ms += std::chrono::duration<double, std::milli>(GatherClock::now() - w0).count();
++            s.pending[buffer] = false;
++        }
++        std::byte* base = s.host[buffer];
++        std::memcpy(base, table.data(), table.size() * sizeof(detail::KvGatherPlane));
++        std::memcpy(base + table_bytes, indices.data() + begin, count * sizeof(int));
++        std::byte* pages = base + table_bytes + index_bytes;
++        // Pack whole page records with the host workers (pageable -> pinned).
++        const auto p0 = GatherClock::now();
++        const std::uint32_t parts =
++            static_cast<std::uint32_t>(std::min<std::size_t>(s.worker_count, count));
++        std::vector<std::future<void>> futures;
++        futures.reserve(parts);
++        for (std::uint32_t part = 0; part < parts; ++part) {
++            const std::size_t first = count * part / parts;
++            const std::size_t last  = count * (part + 1) / parts;
++            futures.push_back(s.workers->submit([=, &records] {
++                for (std::size_t i = first; i < last; ++i) {
++                    std::memcpy(pages + i * stride, records[begin + i], stride);
++                }
++            }));
++        }
++        for (auto& future : futures) { future.get(); }
++        pack_ms += std::chrono::duration<double, std::milli>(GatherClock::now() - p0).count();
++        std::byte* mapped = s.mapped[buffer];
++        const cudaError_t launched = detail::launch_kv_page_gather(
++            reinterpret_cast<const detail::KvGatherPlane*>(mapped), static_cast<int>(table.size()),
++            reinterpret_cast<const int*>(mapped + table_bytes), mapped + table_bytes + index_bytes,
++            stride, static_cast<int>(count), head_major, stream);
++        if (launched != cudaSuccess) {
++            throw std::runtime_error(std::string("Paged KV H2D gather launch failed: ") +
++                                     cudaGetErrorString(launched));
++        }
++        CUDA_CHECK(cudaEventRecord(s.done[buffer], stream));
++        s.pending[buffer] = true;
++        begin += count;
++        buffer ^= 1;
++    }
++    if (gather_trace) {
++        // submit = host time until the last batch is queued (the caller's stream sync adds the tail).
++        std::fprintf(stderr,
++                     "KVGATHER pages=%zu runs=%zu use=1 threads=%u batch=%zu pack_ms=%.3f "
++                     "wait_ms=%.3f submit_ms=%.3f\n",
++                     destination.size(), gather_runs, s.worker_count, per_batch, pack_ms, wait_ms,
++                     std::chrono::duration<double, std::milli>(GatherClock::now() - gather_begin).count());
++    }
++    return true;
++}
++
+ void DeviceKVPagePool::copy_from_host_records(std::span<const std::byte* const> records,
+                                               std::span<const std::uint32_t> record_groups,
+                                               std::span<const DeviceKVPageHandle> destination,
+@@ -864,6 +1090,10 @@ void DeviceKVPagePool::copy_from_host_records(std::span<const std::byte* const>
+     for (const std::byte* record : records) {
+         if (record == nullptr) { throw std::invalid_argument("Paged KV H2D record is null"); }
+     }
++    if (destination.size() >= 2 &&
++        gather_from_host(records, destination, layout, plane_begin, plane_end, streams)) {
++        return;
++    }
+     const std::size_t max_pitch = device_max_copy_pitch();
+     std::size_t begin           = 0;
+     while (begin < destination.size()) {
+diff --git a/src/core/paged_kv_cache.h b/src/core/paged_kv_cache.h
+index 75ec0992..d342b3b7 100644
+--- a/src/core/paged_kv_cache.h
++++ b/src/core/paged_kv_cache.h
+@@ -322,6 +322,16 @@ public:
+                                 const HostKVPageLayout& layout, std::size_t plane_begin,
+                                 std::size_t plane_end, RankStreams streams) const;
+ 
++    // 3060: batched H2D of scattered pages (one kernel per batch through mapped pinned staging,
++    // see paged_kv_gather.cu). `records[i]` is a packed page record of `layout` in any host memory
++    // (pageable is fine: it is packed into staging by host workers before return). Returns false,
++    // having copied nothing, when the geometry is not eligible (the caller then uses the per-run
++    // path); KV9_NOGATHER=1 disables it.
++    [[nodiscard]] bool gather_from_host(std::span<const std::byte* const> records,
++                                        std::span<const DeviceKVPageHandle> destination,
++                                        const HostKVPageLayout& layout, std::size_t plane_begin,
++                                        std::size_t plane_end, RankStreams streams) const;
++
+ private:
+     friend class DeviceKVPageLease;
+     friend class DeviceKVPageReservation;
+diff --git a/src/core/paged_kv_gather.cu b/src/core/paged_kv_gather.cu
+new file mode 100644
+index 00000000..7b1c6d3b
+--- /dev/null
++++ b/src/core/paged_kv_gather.cu
+@@ -0,0 +1,56 @@
++// 3060: batched Host -> Device KV page gather.
++//
++// The KVMem placement promotes several hundred scattered pages per turn. The per-run path issues
++// one cudaMemcpy2DAsync per plane (64 planes) per contiguous run from pageable memory, i.e. tens
++// of thousands of small driver-staged copies at 3-6 GB/s. Here the host packs whole page records
++// into a mapped pinned staging buffer and one kernel per batch reads them over PCIe (zero copy,
++// no device staging memory) and scatters every plane slice to its page.
++#include "core/paged_kv_gather.h"
++
++#include <cuda_runtime.h>
++
++namespace ninfer::detail {
++namespace {
++
++__device__ __forceinline__ void copy16(unsigned char* dst, const unsigned char* src,
++                                       long long bytes) {
++    const long long n16 = bytes >> 4;
++    auto* d4            = reinterpret_cast<uint4*>(dst);
++    const auto* s4      = reinterpret_cast<const uint4*>(src);
++    for (long long k = threadIdx.x; k < n16; k += blockDim.x) { d4[k] = s4[k]; }
++}
++
++// One block per (page in batch, plane in range).
++__global__ void kv_page_gather_kernel(const KvGatherPlane* __restrict__ planes, int plane_count,
++                                      const int* __restrict__ destination,
++                                      const unsigned char* __restrict__ pages,
++                                      long long page_stride, int head_major) {
++    const int page  = static_cast<int>(blockIdx.x) / plane_count;
++    const int plane = static_cast<int>(blockIdx.x) % plane_count;
++    const KvGatherPlane p = planes[plane];
++    const long long index = destination[page];
++    const unsigned char* src = pages + page * page_stride + p.host_offset;
++    if (head_major) {
++        for (int head = 0; head < p.heads; ++head) {
++            copy16(p.base + head * p.nb3 + index * p.nb2, src + head * p.head_bytes, p.head_bytes);
++        }
++    } else {
++        copy16(p.base + index * p.nb3, src, p.page_bytes);
++    }
++}
++
++} // namespace
++
++cudaError_t launch_kv_page_gather(const KvGatherPlane* planes, int plane_count,
++                                  const int* destination, const void* pages,
++                                  std::size_t page_stride, int page_count, bool head_major,
++                                  cudaStream_t stream) {
++    if (plane_count <= 0 || page_count <= 0) { return cudaSuccess; }
++    const unsigned blocks = static_cast<unsigned>(plane_count) * static_cast<unsigned>(page_count);
++    kv_page_gather_kernel<<<blocks, 256, 0, stream>>>(
++        planes, plane_count, destination, static_cast<const unsigned char*>(pages),
++        static_cast<long long>(page_stride), head_major ? 1 : 0);
++    return cudaGetLastError();
++}
++
++} // namespace ninfer::detail
+diff --git a/src/core/paged_kv_gather.h b/src/core/paged_kv_gather.h
+new file mode 100644
+index 00000000..5fed8214
+--- /dev/null
++++ b/src/core/paged_kv_gather.h
+@@ -0,0 +1,28 @@
++#pragma once
++
++#include <cstddef>
++
++#include <cuda_runtime_api.h>
++
++namespace ninfer::detail {
++
++// One device plane slice of a page, as the gather kernel sees it. Byte counts and offsets are
++// multiples of 16 (checked by the caller).
++struct KvGatherPlane {
++    unsigned char* base;   // device plane base
++    long long nb2;         // device stride of axis 2 (HeadMajor: one page of one head)
++    long long nb3;         // device stride of axis 3 (PageMajor: one page; HeadMajor: one head)
++    long long host_offset; // plane offset inside the packed host page record
++    long long head_bytes;  // payload of one head of one page
++    long long page_bytes;  // payload of all heads of one page
++    int heads;
++    int pad;
++};
++
++// `planes`, `destination` and `pages` may live in mapped pinned host memory.
++cudaError_t launch_kv_page_gather(const KvGatherPlane* planes, int plane_count,
++                                  const int* destination, const void* pages,
++                                  std::size_t page_stride, int page_count, bool head_major,
++                                  cudaStream_t stream);
++
++} // namespace ninfer::detail
+diff --git a/src/models/qwen3_5/program/storage/host_kv_store.h b/src/models/qwen3_5/program/storage/host_kv_store.h
+index c88c345f..5a3e5c30 100644
+--- a/src/models/qwen3_5/program/storage/host_kv_store.h
++++ b/src/models/qwen3_5/program/storage/host_kv_store.h
+@@ -869,7 +869,31 @@ cudaStream_t transfer_stream, const char* trace_phase)
+                     pages_->reserve_device_replica(logical, address.reservation));
+             }
+             const auto copy_begin = trace ? TraceClock::now() : TraceClock::time_point{};
+-            std::size_t begin = 0;
++            // 3060: one batched gather for every incoming page (falls back to per-run copies).
++            bool gathered = false;
++            if (sources.size() >= 2) {
++                std::vector<const std::byte*> records;
++                records.reserve(sources.size());
++                const HostKVPageLayout* gather_layout = nullptr;
++                bool same_layout = true;
++                for (const HostKVPageReplica& replica : sources) {
++                    const HostKVAllocationConstView one =
++                        host_kv_extents.view(replica.extent).subview(replica.page_offset, 1U);
++                    if (gather_layout == nullptr) { gather_layout = &one.layout(); }
++                    else if (!(one.layout() == *gather_layout)) { same_layout = false; break; }
++                    records.push_back(one.data());
++                }
++                if (same_layout && gather_layout != nullptr) {
++                    gathered = pages_->physical_pool().gather_from_host(
++                        records, std::span<const DeviceKVPageHandle>(placement_scratch_),
++                        *gather_layout, 0, gather_layout->planes.size(), transfer_stream);
++                    if (gathered && trace) {
++                        h2d_bytes += plan_host_kv_transfer_work(
++                            *gather_layout, static_cast<std::uint32_t>(sources.size()), 1).payload_bytes;
++                    }
++                }
++            }
++            std::size_t begin = gathered ? sources.size() : 0;
+             while (begin < sources.size()) {
+                 std::size_t end = begin + 1;
+                 while (end < sources.size() && sources[end].extent == sources[begin].extent &&
+-- 
+2.47.3
+

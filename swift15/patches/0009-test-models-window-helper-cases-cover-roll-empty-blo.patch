@@ -1,0 +1,49 @@
+From 25bfe6eb2be6b9c5ba541fe4ebb5cfb9dee129d4 Mon Sep 17 00:00:00 2001
+From: qzshch <qzshch@outlook.com>
+Date: Sat, 19 Sep 2026 21:55:13 +0800
+Subject: [PATCH 09/14] test(models): window helper cases (cover/roll/empty,
+ block page expansion)
+
+cherry-src: 405bf82dac06527a7484b68e64c64dca6335bc95
+---
+ tests/models/qwen3_5/test_retrieval.cpp | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+
+diff --git a/tests/models/qwen3_5/test_retrieval.cpp b/tests/models/qwen3_5/test_retrieval.cpp
+index cdfd9638..1bd83d7a 100644
+--- a/tests/models/qwen3_5/test_retrieval.cpp
++++ b/tests/models/qwen3_5/test_retrieval.cpp
+@@ -122,6 +122,22 @@ void test_selection() {
+     expect(!one_absent && skipped.scored_blocks == 3, "unscored blocks never win a slot");
+ }
+ 
++void test_window_helpers() {
++    const auto full = r::prefill_window_page_set(5, 1, 4);
++    expect(full == std::vector<std::uint32_t>({0U, 1U, 2U, 3U, 4U}),
++           "a covering window keeps every page");
++
++    const auto windowed = r::prefill_window_page_set(20, 1, 4);
++    expect(windowed == std::vector<std::uint32_t>({0U, 16U, 17U, 18U, 19U}),
++           "a rolling window keeps the sink prefix and newest pages");
++
++    expect(r::prefill_window_page_set(0, 1, 4).empty(), "an empty prefix has no window");
++
++    const auto pages = r::block_pages(std::vector<std::uint32_t>{0U, 2U}, 128);
++    expect(pages == std::vector<std::uint32_t>({0U, 1U, 4U, 5U}),
++           "blocks expand to their 64-token pages");
++}
++
+ } // namespace
+ 
+ int main() {
+@@ -129,6 +145,7 @@ int main() {
+         test_append_and_truncate();
+         test_scoring();
+         test_selection();
++        test_window_helpers();
+     } catch (const std::exception& error) {
+         std::cerr << "FAIL: unexpected exception: " << error.what() << '\n';
+         return 1;
+-- 
+2.47.3
+

@@ -1,0 +1,34 @@
+From 8e919b90a06fc55393ade848021b88a1e2ac8983 Mon Sep 17 00:00:00 2001
+From: port <p@p>
+Date: Fri, 2 Oct 2026 12:40:10 +0000
+Subject: [PATCH] 3060 kv9: default query rows 1024
+
+---
+ src/models/qwen3_5/program/retrieval/kv9_plan.h | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/models/qwen3_5/program/retrieval/kv9_plan.h b/src/models/qwen3_5/program/retrieval/kv9_plan.h
+index d5eb8a06..1e708832 100644
+--- a/src/models/qwen3_5/program/retrieval/kv9_plan.h
++++ b/src/models/qwen3_5/program/retrieval/kv9_plan.h
+@@ -95,13 +95,14 @@ inline std::uint64_t kv9_hash(std::span<const TokenId> ids, std::uint32_t b, std
+ }
+ 
+ // Query rows captured per request (pinned host buffer per lane: rows x 16 layers x 6144 bf16).
+-// Hard cap 2048; the effective size is kv9_query_max() (default 512, 96 MiB pinned).
++// Hard cap 2048; the effective size is kv9_query_max() (default 1024, 192 MiB pinned; 512/1024/2048
++// tied on the 190K needle ranks, 1024 chosen 10-02).
+ inline constexpr std::uint32_t kKv9QueryRowsMax = 2048;
+ 
+-// QUERY_MAX: KV9_QMAX (diagnostic, survives the launcher) or NINFER_KVMEM_QUERY_MAX, default 512.
++// QUERY_MAX: KV9_QMAX (diagnostic, survives the launcher) or NINFER_KVMEM_QUERY_MAX, default 1024.
+ inline std::int32_t kv9_query_max() noexcept {
+     std::int32_t q = kv9_env_i32("KV9_QMAX", 0);
+-    if (q <= 0) { q = kv9_env_i32("NINFER_KVMEM_QUERY_MAX", 512); }
++    if (q <= 0) { q = kv9_env_i32("NINFER_KVMEM_QUERY_MAX", 1024); }
+     return std::clamp(q, 8, static_cast<std::int32_t>(kKv9QueryRowsMax));
+ }
+ 
+-- 
+2.47.3
+

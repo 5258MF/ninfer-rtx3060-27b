@@ -1,0 +1,179 @@
+From 796b1046bf1dd7285dd4ce9a8a8f6c00a067d78f Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Thu, 1 Oct 2026 18:18:20 +0000
+Subject: [PATCH 14/14] Host KV: pageable system-memory arena for KVMem on
+ Windows (NINFER_HOST_KV_PAGEABLE)
+
+---
+ src/core/host_kv_arena.cpp                  | 36 +++++++++++++++++++--
+ src/core/host_kv_arena.h                    | 13 +++++++-
+ src/models/qwen3_5/program/program_impl.cpp | 22 ++++++++++++-
+ 3 files changed, 67 insertions(+), 4 deletions(-)
+
+diff --git a/src/core/host_kv_arena.cpp b/src/core/host_kv_arena.cpp
+index 4342574b..49659a31 100644
+--- a/src/core/host_kv_arena.cpp
++++ b/src/core/host_kv_arena.cpp
+@@ -1,5 +1,11 @@
+ #include "core/host_kv_arena.h"
+ 
++#include <cstdlib>
++#include <stdexcept>
++#include <string>
++#if defined(_WIN32)
++#    include <malloc.h>
++#endif
+ #include "core/dtype.h"
+ 
+ #include <algorithm>
+@@ -209,9 +215,10 @@ void HostKVAllocation::disarm() noexcept {
+ }
+ 
+ HostKVArena::HostKVArena(std::size_t capacity_bytes,
+-                         std::span<const HostKVPageLayout> supported_layouts)
++                         std::span<const HostKVPageLayout> supported_layouts, bool pageable)
+     : capacity_bytes_(capacity_bytes),
+       layouts_(supported_layouts.begin(), supported_layouts.end()) {
++    pageable_ = pageable;
+     for (std::size_t index = 0; index < layouts_.size(); ++index) {
+         const HostKVPageLayout planned = plan_host_kv_page_layout(layouts_[index].geometry);
+         if (planned != layouts_[index]) {
+@@ -228,7 +235,23 @@ HostKVArena::HostKVArena(std::size_t capacity_bytes,
+         throw std::invalid_argument("Non-empty Host KV arena requires supported page layouts");
+     }
+ 
+-    backing_.emplace(capacity_bytes_);
++    if (pageable_) {
++        constexpr std::size_t alignment = 4096;
++        const std::size_t rounded = (capacity_bytes_ + alignment - 1) / alignment * alignment;
++#if defined(_WIN32)
++        auto* data = static_cast<std::byte*>(_aligned_malloc(rounded, alignment));
++#else
++        auto* data = static_cast<std::byte*>(std::aligned_alloc(alignment, rounded));
++#endif
++        if (data == nullptr) {
++            throw std::runtime_error("failed to allocate " +
++                                     std::to_string((capacity_bytes_ + (1ULL << 20) - 1) >> 20) +
++                                     " MiB of pageable host memory for the Host KV cache");
++        }
++        pageable_backing_.reset(data);
++    } else {
++        backing_.emplace(capacity_bytes_);
++    }
+     const auto smallest = std::min_element(
+         layouts_.begin(), layouts_.end(), [](const HostKVPageLayout& a, const HostKVPageLayout& b) {
+             return a.page_stride < b.page_stride;
+@@ -648,7 +671,16 @@ void HostKVArena::insert_free_extent(FreeExtent extent) noexcept {
+     }
+ }
+ 
++void HostKVArena::PageableDeleter::operator()(std::byte* data) const noexcept {
++#if defined(_WIN32)
++    _aligned_free(data);
++#else
++    std::free(data);
++#endif
++}
++
+ std::byte* HostKVArena::allocation_data(const Descriptor& descriptor) const noexcept {
++    if (pageable_backing_) { return pageable_backing_.get() + descriptor.offset; }
+     if (!backing_) { return nullptr; }
+     return static_cast<std::byte*>(backing_->data()) + descriptor.offset;
+ }
+diff --git a/src/core/host_kv_arena.h b/src/core/host_kv_arena.h
+index 70112514..ce38b04e 100644
+--- a/src/core/host_kv_arena.h
++++ b/src/core/host_kv_arena.h
+@@ -6,6 +6,7 @@
+ 
+ #include <cstddef>
+ #include <cstdint>
++#include <memory>
+ #include <optional>
+ #include <span>
+ #include <utility>
+@@ -194,7 +195,11 @@ private:
+ 
+ class HostKVArena {
+ public:
+-    HostKVArena(std::size_t capacity_bytes, std::span<const HostKVPageLayout> supported_layouts);
++    // `pageable` keeps the arena in ordinary system memory (see PinnedHostBuffer).
++    HostKVArena(std::size_t capacity_bytes, std::span<const HostKVPageLayout> supported_layouts,
++                bool pageable = false);
++
++    [[nodiscard]] bool pageable() const noexcept { return pageable_; }
+ 
+     HostKVArena(const HostKVArena&)            = delete;
+     HostKVArena& operator=(const HostKVArena&) = delete;
+@@ -266,6 +271,12 @@ private:
+     void bump_revision() noexcept;
+ 
+     std::optional<PinnedHostBuffer> backing_;
++    // Pageable backing (system memory, not a CUDA pin); used instead of backing_ when set.
++    struct PageableDeleter {
++        void operator()(std::byte* data) const noexcept;
++    };
++    std::unique_ptr<std::byte, PageableDeleter> pageable_backing_;
++    bool pageable_ = false;
+     std::size_t capacity_bytes_ = 0;
+     std::size_t occupied_bytes_ = 0;
+     std::vector<HostKVPageLayout> layouts_;
+diff --git a/src/models/qwen3_5/program/program_impl.cpp b/src/models/qwen3_5/program/program_impl.cpp
+index e111e14d..d5be4ee0 100644
+--- a/src/models/qwen3_5/program/program_impl.cpp
++++ b/src/models/qwen3_5/program/program_impl.cpp
+@@ -15,6 +15,8 @@
+ #include <algorithm>
+ #include <cstddef>
+ #include <cstdint>
++#include <cstdio>
++#include <cstdlib>
+ #include <exception>
+ #include <string>
+ #include <limits>
+@@ -429,7 +431,19 @@ ProgramImpl::ProgramImpl(const execution::Parameters& parameters_in, const Seque
+         // shrinking the buffer would cost prefix reuse for no reason. Clamping to zero is a
+         // supported outcome -- prefix reuse then works from device pages alone.
+         std::size_t reserved_bytes = plan.context_cache.host_kv_capacity_bytes;
++        // KVMem keeps the whole logical context in this arena, so on Windows it cannot live in a
++        // pin that competes with the model for the card. NINFER_HOST_KV_PAGEABLE=1/0 forces the
++        // choice; unset, a KVMem run on Windows uses pageable memory and anything else pins.
++        bool host_kv_pageable = false;
+ #if defined(_WIN32)
++        host_kv_pageable = plan.kvmem_window_pages != 0;
++#endif
++        if (const char* forced = std::getenv("NINFER_HOST_KV_PAGEABLE");
++            forced != nullptr && forced[0] != '\0') {
++            host_kv_pageable = forced[0] != '0';
++        }
++#if defined(_WIN32)
++        if (!host_kv_pageable) {
+         // The 1 GiB floor inside the clamp is memory the run still needs after this point and that
+         // no plan accounts for (module loads, graph instantiation, launch-local backing); halving
+         // what remains is the conservative split, so the cache never takes more than it leaves.
+@@ -438,15 +452,21 @@ ProgramImpl::ProgramImpl(const execution::Parameters& parameters_in, const Seque
+             reserved_bytes =
+                 clamp_host_kv_reservation_bytes(reserved_bytes, free_device, minimum_stride);
+         }
++        }
+ #endif
+         StartupPhaseScope host_kv_phase(
+             startup_observer, StartupPhase::HostKvPin, StartupProgressUnit::Bytes,
+             static_cast<std::uint64_t>(plan.context_cache.host_kv_capacity_bytes));
++        if (reserved_bytes >= minimum_stride && host_kv_pageable) {
++            std::fprintf(stderr, "ninfer: host KV cache uses pageable system memory (%zu MiB)\n",
++                         reserved_bytes >> 20);
++        }
+         if (reserved_bytes >= minimum_stride) {
+             try {
+                 host_kv_arena = std::make_unique<HostKVArena>(
+                     reserved_bytes,
+-                    std::span<const HostKVPageLayout>(layouts.data(), layouts.size()));
++                    std::span<const HostKVPageLayout>(layouts.data(), layouts.size()),
++                    host_kv_pageable);
+             } catch (const std::exception& error) {
+                 throw std::runtime_error(
+                     std::string("failed to reserve the host KV cache: ") + error.what() +
+-- 
+2.47.3
+

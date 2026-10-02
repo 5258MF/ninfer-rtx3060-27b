@@ -1,0 +1,248 @@
+From 719197b791db2d955963edeeffe9f35171c9f97b Mon Sep 17 00:00:00 2001
+From: qzshch <qzshch@outlook.com>
+Date: Sat, 19 Sep 2026 21:47:09 +0800
+Subject: [PATCH 08/14] feat(ops): span_accumulate working-set capture
+ primitive
+
+Accumulates a column span of a feature-first BF16 [rows, tokens] tensor
+into an FP32 [rows] sum (+=, so per-chunk calls compose across a turn).
+This is the capture primitive for sparse working-set retrieval: the
+attention path will call it over the pre-RoPE query (chunk-local span)
+and over the key columns of each 128-token retrieval block that fills,
+feeding the host RetrievalIndex at turn boundaries.
+
+cherry-src: c9ee5dc9be5895f746e3a12e3099b4bb0e1dafdd
+---
+ include/ninfer/ops/span_accumulate.h       | 26 ++++++
+ src/ops/basic_sources.cmake                |  1 +
+ src/ops/span_accumulate/span_accumulate.cu | 66 +++++++++++++++
+ tests/ops/test_span_accumulate.cpp         | 99 ++++++++++++++++++++++
+ 4 files changed, 192 insertions(+)
+ create mode 100644 include/ninfer/ops/span_accumulate.h
+ create mode 100644 src/ops/span_accumulate/span_accumulate.cu
+ create mode 100644 tests/ops/test_span_accumulate.cpp
+
+diff --git a/include/ninfer/ops/span_accumulate.h b/include/ninfer/ops/span_accumulate.h
+new file mode 100644
+index 00000000..da575145
+--- /dev/null
++++ b/include/ninfer/ops/span_accumulate.h
+@@ -0,0 +1,26 @@
++#pragma once
++
++#include "core/tensor.h"
++
++#include <cuda_runtime.h>
++
++#include <cstddef>
++#include <cstdint>
++
++namespace ninfer::ops {
++
++/**
++ * Accumulates columns [begin, begin + count) of a row-major BF16 matrix into an FP32
++ * column-sum vector, adding into the existing sum values (+=, not overwrite).
++ *
++ * x is contiguous BF16 [rows, tokens]; sums is contiguous FP32 [rows]. count may be
++ * zero (a no-op launch is permitted but must still be ordered on the stream). The
++ * oracle evaluates the post-state sum as old_sum + sum of the represented BF16 columns
++ * in FP64. The Op owns no allocation and leaves x unchanged. The working-set capture
++ * path calls it once per attention layer over a chunk-local span of the pre-RoPE
++ * query or key tensor.
++ */
++void span_accumulate(const Tensor& x, std::uint32_t begin, std::uint32_t count, Tensor& sums,
++                     cudaStream_t stream);
++
++} // namespace ninfer::ops
+diff --git a/src/ops/basic_sources.cmake b/src/ops/basic_sources.cmake
+index 54f3bd50..83b63b0c 100644
+--- a/src/ops/basic_sources.cmake
++++ b/src/ops/basic_sources.cmake
+@@ -1,6 +1,7 @@
+ target_sources(ninfer_ops PRIVATE
+   "${CMAKE_CURRENT_LIST_DIR}/weight_input.cpp"
+   "${CMAKE_CURRENT_LIST_DIR}/common/device_route.cpp"
++  "${CMAKE_CURRENT_LIST_DIR}/span_accumulate/span_accumulate.cu"
+   "${CMAKE_CURRENT_LIST_DIR}/launcher/add_bias.cu"
+   "${CMAKE_CURRENT_LIST_DIR}/launcher/argmax.cu"
+   "${CMAKE_CURRENT_LIST_DIR}/launcher/cast.cu"
+diff --git a/src/ops/span_accumulate/span_accumulate.cu b/src/ops/span_accumulate/span_accumulate.cu
+new file mode 100644
+index 00000000..4cfd993b
+--- /dev/null
++++ b/src/ops/span_accumulate/span_accumulate.cu
+@@ -0,0 +1,66 @@
++#include "ninfer/ops/span_accumulate.h"
++
++#include "core/device.h"
++
++#include <cuda_bf16.h>
++
++#include <stdexcept>
++
++#include <cstdint>
++
++namespace ninfer::ops {
++
++namespace {
++
++constexpr int kThreads = 256;
++
++__global__ void span_accumulate_kernel(const __nv_bfloat16* __restrict__ x,
++                                       std::int64_t column_stride, float* __restrict__ sums,
++                                       std::int32_t rows, std::int32_t begin,
++                                       std::int32_t count) {
++    const std::int32_t row = blockIdx.x * kThreads + threadIdx.x;
++    if (row >= rows || count == 0) { return; }
++    // Feature-first layout: the rows of one token are contiguous, so the walk visits
++    // each span column base and reads this thread's row element.
++    float acc = sums[row];
++    for (std::int32_t token = begin; token < begin + count; ++token) {
++        acc += __bfloat162float(x[static_cast<std::int64_t>(token) * column_stride + row]);
++    }
++    sums[row] = acc;
++}
++
++void require_span_accumulate_shapes(const Tensor& x, const Tensor& sums,
++                                    std::int32_t& rows, std::int32_t& tokens) {
++    if (x.dtype != DType::BF16 || x.ne[2] != 1 || x.ne[3] != 1 || sums.dtype != DType::FP32 ||
++        sums.ne[1] != 1 || sums.ne[2] != 1 || sums.ne[3] != 1 || !x.data || !sums.data) {
++        throw std::invalid_argument("span accumulate: invalid operand dtypes or shapes");
++    }
++    rows   = static_cast<std::int32_t>(x.ne[0]);
++    tokens = static_cast<std::int32_t>(x.ne[1]);
++    if (rows <= 0 || tokens <= 0 || sums.ne[0] != x.ne[0] || x.is_contiguous() == false ||
++        sums.is_contiguous() == false) {
++        throw std::invalid_argument("span accumulate: operands must be contiguous [rows,tokens]/[rows]");
++    }
++}
++
++} // namespace
++
++void span_accumulate(const Tensor& x, std::uint32_t begin, std::uint32_t count, Tensor& sums,
++                     cudaStream_t stream) {
++    std::int32_t rows = 0;
++    std::int32_t tokens = 0;
++    require_span_accumulate_shapes(x, sums, rows, tokens);
++    if (static_cast<std::int64_t>(begin) + static_cast<std::int64_t>(count) > tokens) {
++        throw std::invalid_argument("span accumulate: span is outside the token extent");
++    }
++    if (count == 0) { return; }
++    const std::int64_t column_stride = x.nb[1] / static_cast<std::int64_t>(sizeof(__nv_bfloat16));
++    const int blocks                 = (rows + kThreads - 1) / kThreads;
++    span_accumulate_kernel<<<blocks, kThreads, 0, stream>>>(
++        static_cast<const __nv_bfloat16*>(x.data), column_stride,
++        static_cast<float*>(sums.data), rows, static_cast<std::int32_t>(begin),
++        static_cast<std::int32_t>(count));
++    CUDA_CHECK(cudaGetLastError());
++}
++
++} // namespace ninfer::ops
+diff --git a/tests/ops/test_span_accumulate.cpp b/tests/ops/test_span_accumulate.cpp
+new file mode 100644
+index 00000000..2a0eec7a
+--- /dev/null
++++ b/tests/ops/test_span_accumulate.cpp
+@@ -0,0 +1,99 @@
++#include "ninfer/ops/span_accumulate.h"
++
++#include "core/device.h"
++
++#include <cmath>
++#include <cstdlib>
++#include <cstdint>
++#include <cstring>
++#include <iostream>
++#include <vector>
++
++using namespace ninfer;
++
++namespace {
++
++int failures = 0;
++
++void expect(bool condition, const char* message) {
++    if (condition) { return; }
++    ++failures;
++    std::cerr << "FAIL: " << message << '\n';
++}
++
++std::vector<std::uint16_t> bf16_bits(const std::vector<float>& values) {
++    std::vector<std::uint16_t> bits(values.size());
++    for (std::size_t index = 0; index < values.size(); ++index) {
++        const std::uint16_t* halves =
++            reinterpret_cast<const std::uint16_t*>(&values[index]);
++        bits[index] = halves[1];  // high half: the BF16 truncation on little-endian
++    }
++    return bits;
++}
++
++float bf16_round(float value) {
++    const std::uint32_t bits = *reinterpret_cast<const std::uint32_t*>(&value);
++    const std::uint32_t rounded = bits & 0xFFFF0000U;
++    return *reinterpret_cast<const float*>(&rounded);
++}
++
++int run_case(const char* label, std::int32_t rows, std::int32_t tokens, std::uint32_t begin,
++             std::uint32_t count, std::uint32_t seed) {
++    const std::size_t total = static_cast<std::size_t>(rows) * tokens;
++    std::vector<float> source(total);
++    for (std::size_t index = 0; index < total; ++index) {
++        source[index] = bf16_round(-0.5f + 0.001f * static_cast<float>((index * 7919U + seed) % 4093U));
++    }
++    std::vector<float> prior(rows);
++    for (std::size_t row = 0; row < static_cast<std::size_t>(rows); ++row) {
++        prior[row] = bf16_round(0.25f * static_cast<float>(row % 17U));
++    }
++
++    const auto bits = bf16_bits(source);
++    void* x_memory    = nullptr;
++    void* sums_memory = nullptr;
++    CUDA_CHECK(cudaMalloc(&x_memory, bits.size() * sizeof(std::uint16_t)));
++    CUDA_CHECK(cudaMalloc(&sums_memory, prior.size() * sizeof(float)));
++    Tensor dx(x_memory, DType::BF16, {rows, tokens});
++    Tensor dsums(sums_memory, DType::FP32, {rows});
++    CUDA_CHECK(cudaMemcpy(dx.data, bits.data(), bits.size() * sizeof(std::uint16_t),
++                          cudaMemcpyHostToDevice));
++    CUDA_CHECK(cudaMemcpy(dsums.data, prior.data(), prior.size() * sizeof(float),
++                          cudaMemcpyHostToDevice));
++    ops::span_accumulate(dx, begin, count, dsums, nullptr);
++    CUDA_CHECK(cudaDeviceSynchronize());
++
++    std::vector<float> got(rows);
++    CUDA_CHECK(cudaMemcpy(got.data(), dsums.data, got.size() * sizeof(float),
++                          cudaMemcpyDeviceToHost));
++    CUDA_CHECK(cudaFree(x_memory));
++    CUDA_CHECK(cudaFree(sums_memory));
++    bool ok = true;
++    for (std::int32_t row = 0; row < rows && ok; ++row) {
++        double oracle = prior[row];
++        for (std::uint32_t token = begin; token < begin + count; ++token) {
++            oracle += source[static_cast<std::size_t>(token) * rows + row];
++        }
++        if (std::abs(double(got[row]) - oracle) > 2.0e-3 * (1.0 + std::abs(oracle))) {
++            ok = false;
++            if (!std::getenv("SPAN_QUIET")) {
++                std::cerr << "DBG " << label << " row=" << row << " got=" << got[row]
++                          << " oracle=" << oracle << '\n';
++            }
++        }
++    }
++    expect(ok, label);
++    return ok ? 0 : 1;
++}
++
++} // namespace
++
++int main() {
++    int status = 0;
++    status += run_case("full-width span accumulates every column", 64, 128, 0U, 128U, 1U);
++    status += run_case("interior span accumulates only its columns", 64, 128, 33U, 40U, 2U);
++    status += run_case("single column span", 8, 64, 63U, 1U, 3U);
++    status += run_case("leading span", 8, 64, 0U, 17U, 4U);
++    if (failures == 0) { std::cout << "ok\n"; }
++    return failures == 0 ? 0 : 1;
++}
+-- 
+2.47.3
+

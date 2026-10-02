@@ -1,0 +1,113 @@
+From fd10072c5f64162687f2fd0f93ac06d8aad4ed42 Mon Sep 17 00:00:00 2001
+From: port <p@p>
+Date: Fri, 2 Oct 2026 11:06:04 +0000
+Subject: [PATCH] diag: KV9_TIMING prefill phase marks, KV9_XFER_TRACE alias
+
+---
+ src/models/qwen3_5/program/prefill.cpp        | 27 +++++++++++++++++++
+ .../qwen3_5/program/storage/host_kv_store.h   |  3 ++-
+ 2 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/src/models/qwen3_5/program/prefill.cpp b/src/models/qwen3_5/program/prefill.cpp
+index 9addcc89..1d12b525 100644
+--- a/src/models/qwen3_5/program/prefill.cpp
++++ b/src/models/qwen3_5/program/prefill.cpp
+@@ -204,6 +204,24 @@ namespace ninfer::models::qwen3_5::detail {
+ 
+ namespace {
+ 
++// KV9_TIMING (diagnostic, off by default): device-synchronized wall time of each KVMem prefill
++// phase, printed as "KV9T <phase> <ms>". The synchronizations only happen when it is set.
++bool kv9_timing_on() {
++    static const bool on = std::getenv("KV9_TIMING") != nullptr;
++    return on;
++}
++void kv9_mark(DeviceContext& device, const char* tag, bool begin = false) {
++    static std::chrono::steady_clock::time_point last;
++    if (!kv9_timing_on()) { return; }
++    device.synchronize();
++    const auto now = std::chrono::steady_clock::now();
++    if (!begin) {
++        std::fprintf(stderr, "KV9T %s %.1f ms\n", tag,
++                     std::chrono::duration<double, std::milli>(now - last).count());
++    }
++    last = now;
++}
++
+ // Before an over-window conversation's retrieval index is discarded (another
+ // conversation took the lane), keep one copy so long reuse can restore it later.
+ void stash_long_kvmem_index(KvmemLaneState& sparse, std::uint32_t keep,
+@@ -1141,6 +1159,7 @@ runtime::PrefillStepResult ProgramImpl::advance_prefill(SequenceState& sequence,
+     }
+ 
+     RequestControl::Prefill& staged = *request.prefill;
++    if (kvmem_window_pages != 0) { kv9_mark(device, "begin", true); }
+     if (staged.pending_capture_offer != 0) {
+         throw std::logic_error("prefill cannot advance while a capture offer is pending");
+     }
+@@ -1290,6 +1309,7 @@ runtime::PrefillStepResult ProgramImpl::advance_prefill(SequenceState& sequence,
+             mark_workspace_usage(staged.prepare_mtp ? workspace_plan.mtp_prefill
+                                                     : workspace_plan.text_prefill);
+             const auto final_chunk_tokens = advance_kvmem_query_replay(sequence, staged, timing);
++            kv9_mark(device, "replay-chunk");
+             if (*staged.query_replay_cursor < staged.prompt_tokens) {
+                 timing.begin_wait();
+                 device.synchronize();
+@@ -1363,6 +1383,7 @@ runtime::PrefillStepResult ProgramImpl::advance_prefill(SequenceState& sequence,
+                     split_frontier = sparse.query_begin;
+                 }
+                 execution::PrefillChunkResult result;
++                if (kvmem_window_pages != 0) { kv9_mark(device, "pre-chunk"); }
+                 timing.pause();
+                 if (staged.prompt.has_media()) {
+                     if (!workspace_plan.vision) {
+@@ -1382,6 +1403,7 @@ runtime::PrefillStepResult ProgramImpl::advance_prefill(SequenceState& sequence,
+                 }
+                 timing.include(result.timing);
+                 timing.resume_post();
++                if (kvmem_window_pages != 0) { kv9_mark(device, "chunk"); }
+                 schedule_state.layer_ready = {};
+                 if (result.processed_tokens == 0 || result.processed_tokens > remaining) {
+                     throw std::logic_error("ordinary prefill chunk made invalid progress");
+@@ -1400,9 +1422,11 @@ runtime::PrefillStepResult ProgramImpl::advance_prefill(SequenceState& sequence,
+                 if (kvmem_window_pages != 0) {
+                     consume_kvmem_chunk_capture(sequence, staged.cursor - result.processed_tokens,
+                                                 staged.cursor);
++                    kv9_mark(device, "capture");
+                     if (staged.cursor < staged.prompt_tokens) {
+                         roll_sparse_prefill_window(sequence, staged.prompt_tokens, staged.cursor,
+                                                    backend_kv_valid(sequence));
++                        kv9_mark(device, "roll");
+                     }
+                 }
+ 
+@@ -1455,9 +1479,12 @@ runtime::PrefillStepResult ProgramImpl::advance_prefill(SequenceState& sequence,
+                 throw std::logic_error("staged prefill sampled before the prompt frontier");
+             }
+             if (kvmem_window_pages != 0) {
++                kv9_mark(device, "pre-finalize");
+                 finalize_kvmem_query(sequence, staged.prompt_tokens);
++                kv9_mark(device, "finalize");
+                 sparse.replay_planned = needs_query_replay;
+                 apply_kvmem_retrieval_placement(sequence);
++                kv9_mark(device, "place");
+                 if (needs_query_replay) {
+                     // Hand control back before replay. Each subsequent step executes at most
+                     // one chunk so Engine can observe cancellation at stable GPU boundaries.
+diff --git a/src/models/qwen3_5/program/storage/host_kv_store.h b/src/models/qwen3_5/program/storage/host_kv_store.h
+index 0a0d7fad..c88c345f 100644
+--- a/src/models/qwen3_5/program/storage/host_kv_store.h
++++ b/src/models/qwen3_5/program/storage/host_kv_store.h
+@@ -773,7 +773,8 @@ HostKVExtentStore& host_kv_extents,
+ std::span<const std::uint32_t> selected_pages,
+ cudaStream_t transfer_stream, const char* trace_phase)
+ {
+-        const bool trace = std::getenv("NINFER_KVMEM_TRANSFER_TRACE") != nullptr;
++        const bool trace = std::getenv("NINFER_KVMEM_TRANSFER_TRACE") != nullptr ||
++                           std::getenv("KV9_XFER_TRACE") != nullptr;  // launcher strips NINFER_*
+         using TraceClock = std::chrono::steady_clock;
+         const auto trace_begin = trace ? TraceClock::now() : TraceClock::time_point{};
+         std::uint64_t d2h_bytes = 0, h2d_bytes = 0;
+-- 
+2.47.3
+

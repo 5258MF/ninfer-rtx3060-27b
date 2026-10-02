@@ -1,0 +1,98 @@
+From ed90cecff6e27e5c1273e9aa2c41dd7bb43dd73b Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Thu, 1 Oct 2026 19:21:58 +0000
+Subject: [PATCH] NINFER_SLIM_3060: prompt attention keeps only H24 int8/rk8v4
+ kernels
+
+---
+ .../dense/causal_cache/prompt.cu              | 28 +++++++++++++++++++
+ 1 file changed, 28 insertions(+)
+
+diff --git a/src/ops/softmax_attention/dense/causal_cache/prompt.cu b/src/ops/softmax_attention/dense/causal_cache/prompt.cu
+index 5d108ebe..af44b219 100644
+--- a/src/ops/softmax_attention/dense/causal_cache/prompt.cu
++++ b/src/ops/softmax_attention/dense/causal_cache/prompt.cu
+@@ -11,6 +11,7 @@
+ #include "ops/softmax_attention/dense/causal_cache/prompt_i8_fast.cuh"
+ #include "core/device.h" // CUDA_CHECK
+ 
++#include <stdexcept>
+ #include <cstdint>
+ #include <cstdlib>
+ 
+@@ -124,6 +125,7 @@ void causal_attention_prompt_attention_launch_for(const Tensor& q, const Tensor&
+                                                                    metadata, out, stream);
+         return;
+     }
++#if !defined(NINFER_SLIM_3060)
+     if (fast && cache.storage == KvCacheStorage::RotatedLloyd4KeyInt4Value) {
+         causal_attention_prompt_i8_fast_launch_for<Geometry, true, KvKeyCoding::Lloyd4>(
+             q, positions, scale, cache, metadata, out, stream);
+@@ -139,6 +141,7 @@ void causal_attention_prompt_attention_launch_for(const Tensor& q, const Tensor&
+             q, positions, scale, cache, metadata, out, stream);
+         return;
+     }
++#endif
+     const Tensor& cache_k = cache.k_pages;
+     const Tensor& cache_v = cache.v_pages;
+     const auto tokens     = static_cast<std::int32_t>(q.ne[2]);
+@@ -185,6 +188,20 @@ void causal_attention_prompt_attention_launch_for(const Tensor& q, const Tensor&
+         // A U8 key plane is a packed key coding (rk4v4, rk4v4-e8 or rk2v4-e8), told apart by
+         // storage; a U8 value plane is the packed signed int4 coding they share with rk8v4.
+         const bool pv_f16 = prompt_pv_f16();
++#if defined(NINFER_SLIM_3060)
++        if (cache.storage != KvCacheStorage::Int8Group64 &&
++            cache.storage != KvCacheStorage::RotatedInt8KeyInt4ValueGroup64) {
++            throw std::runtime_error(
++                "prompt attention: this NINFER_SLIM_3060 build supports only int8 / rk8v4 KV caches");
++        }
++        if (cache_v.dtype == DType::U8 && pv_f16) {
++            launch_i8.template operator()<true, KvKeyCoding::Int8, true>();
++        } else if (cache_v.dtype == DType::U8) {
++            launch_i8.template operator()<true, KvKeyCoding::Int8, false>();
++        } else {
++            launch_i8.template operator()<false, KvKeyCoding::Int8, false>();
++        }
++#else
+         if (cache.storage == KvCacheStorage::RotatedLloyd4KeyInt4Value && pv_f16) {
+             launch_i8.template operator()<true, KvKeyCoding::Lloyd4, true>();
+         } else if (cache.storage == KvCacheStorage::RotatedLloyd4KeyInt4Value) {
+@@ -202,6 +219,7 @@ void causal_attention_prompt_attention_launch_for(const Tensor& q, const Tensor&
+         } else {
+             launch_i8.template operator()<false, KvKeyCoding::Int8, false>();
+         }
++#endif
+     } else {
+         // The kernel exceeds the default 48 KiB dynamic-smem ceiling.
+         configure_cuda_device_once([&] {
+@@ -261,8 +279,13 @@ void causal_attention_prompt_attention_launch(const Tensor& q, const Tensor& pos
+                                                                        metadata, out, fast, stream);
+         return;
+     }
++#if defined(NINFER_SLIM_3060)
++    throw std::runtime_error("prompt attention: this NINFER_SLIM_3060 build keeps only the "
++                             "24-query-head geometry");
++#else
+     causal_attention_prompt_attention_launch_for<CausalD256H16Kv2>(q, positions, scale, cache,
+                                                                    metadata, out, fast, stream);
++#endif
+ }
+ 
+ void causal_attention_prompt_launch(const Tensor& q, const Tensor& k, const Tensor& v,
+@@ -299,8 +322,13 @@ void causal_attention_prompt_launch(const Tensor& q, const Tensor& k, const Tens
+                 q, positions, scale, cache, metadata, out, fast, stream);
+             return;
+         }
++#if defined(NINFER_SLIM_3060)
++        throw std::runtime_error("prompt attention: this NINFER_SLIM_3060 build keeps only the "
++                                 "24-query-head geometry");
++#else
+         causal_attention_prompt_attention_launch_for<CausalD256H16Kv2>(q, positions, scale, cache,
+                                                                        metadata, out, fast, stream);
++#endif
+     };
+     if (valid_columns.data == nullptr) {
+         launch.template operator()<false>();
+-- 
+2.47.3
+

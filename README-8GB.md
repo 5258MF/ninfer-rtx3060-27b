@@ -4,7 +4,7 @@
 > 引擎：ninfer（专门跑三元模型的推理引擎），在 12G 版的 RTX 30 系移植基础上，再加几项省显存的改动
 > 系统：Windows 10 / 11
 > 状态：2026-10 做好，有一个约 0.9 GB 的懒人包，解压后双击就能用
-> 12GB 显卡请看 [README.md](README.md)（12G 版：更快，上下文更大）
+> 12GB 显卡请看 [README-12GB.md](README-12GB.md)（12G 版：更快，上下文更大）；12GB 以上显卡首推 Swift 1.5 版，见 [README.md](README.md)
 
 ## 📦 懒人包下载
 
@@ -18,7 +18,7 @@
 - 只需装好 NVIDIA 显卡驱动 580 以上，不用配其他环境。
 - 解压到剩余空间 15 GB 以上的盘，别放在 `C:\Program Files` 里。双击 `启动.bat`，第一次启动会自动从魔搭社区下载模型（6.6 GiB，国内直连），再转换成 8G 用的版本。转换只要十几秒，不用装 Python。
 - 详细说明见包里的 `使用说明.txt`，或下面第五节。
-- 用 12 GB 显卡的话，建议用 12G 版懒人包（见 [README.md](README.md)）。
+- 用 12 GB 显卡的话，建议用 Swift 1.5 版（见 [README.md](README.md)）或 12G 版（见 [README-12GB.md](README-12GB.md)）。
 
 ---
 
@@ -98,7 +98,7 @@
 
 ## 四、具体做了什么
 
-12G 版做过的移植、速度优化、修 bug、KVMem、rk8v4、视觉权重放内存，8G 版都保留了，详见 [README.md](README.md)。为了塞进 8 GB，又做了下面这些：
+12G 版做过的移植、速度优化、修 bug、KVMem、rk8v4、视觉权重放内存，8G 版都保留了，详见 [README-12GB.md](README-12GB.md)。为了塞进 8 GB，又做了下面这些：
 
 ### 1. 换成 ptq1 模型
 

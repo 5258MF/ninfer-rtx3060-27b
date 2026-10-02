@@ -1,0 +1,44 @@
+From ebe4ffb072d304d1ec9a7b65d4fa6ede7676b0f8 Mon Sep 17 00:00:00 2001
+From: port <p@p>
+Date: Fri, 2 Oct 2026 12:12:28 +0000
+Subject: [PATCH] 3060 KVMem: cover the first prefill chunk of a reused long
+ conversation (fix entitlement crash on long follow-ups)
+
+---
+ .../qwen3_5/program/storage/context.cpp       | 20 ++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/models/qwen3_5/program/storage/context.cpp b/src/models/qwen3_5/program/storage/context.cpp
+index 195c3b15..c7fd526c 100644
+--- a/src/models/qwen3_5/program/storage/context.cpp
++++ b/src/models/qwen3_5/program/storage/context.cpp
+@@ -1680,7 +1680,25 @@ void ProgramImpl::ensure_sequence_kv_mapped(SequenceState& sequence, std::uint32
+     if (backend_tokens != 0 && !sequence.kv->backend) {
+         throw std::logic_error("backend KV materialization requested without an allocation");
+     }
+-    if (kvmem_window_pages != 0) { roll_sparse_decode_window(sequence); }
++    if (kvmem_window_pages != 0) {
++        roll_sparse_decode_window(sequence);
++        // 3060 fix: the decode clamp leaves mapped+2 pages, but a reused long conversation maps
++        // its first prefill chunk (up to prefill_chunk tokens) right here, and KVMem leases never
++        // grow. Cover that chunk the same way roll_sparse_prefill_window covers later chunks;
++        // without it a follow-up of more than ~100 new tokens past the window crashed the worker
++        // with "KV coverage exceeds active entitlement".
++        const std::uint32_t text_need = (main_tokens + kPagedKVPageSize - 1U) / kPagedKVPageSize;
++        if (text_need > text_kv_addresses->entitlement(sequence.kv->text)) {
++            text_kv_addresses->resize_entitlement(sequence.kv->text, text_need);
++        }
++        if (backend_tokens != 0) {
++            const std::uint32_t backend_need =
++                (backend_tokens + kPagedKVPageSize - 1U) / kPagedKVPageSize;
++            if (backend_need > backend_kv_addresses->entitlement(*sequence.kv->backend)) {
++                backend_kv_addresses->resize_entitlement(*sequence.kv->backend, backend_need);
++            }
++        }
++    }
+     ensure_sequence_kv_lease(sequence, main_tokens, backend_tokens);
+     text_kv_addresses->ensure_mapped_to_tokens(sequence.kv->text, main_tokens, compute_streams);
+     if (backend_tokens != 0) {
+-- 
+2.47.3
+

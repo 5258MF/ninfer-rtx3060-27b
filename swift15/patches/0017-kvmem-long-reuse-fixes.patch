@@ -1,0 +1,188 @@
+From 8273806f0fbecf1a14011abbb2cc94eef0138258 Mon Sep 17 00:00:00 2001
+From: port <port@local>
+Date: Thu, 1 Oct 2026 21:47:23 +0000
+Subject: [PATCH] KVMem long reuse: relax working-set restore checks, refuse
+ partial-tail COW, clear opportunities, stash index across side conversations,
+ diagnostics
+
+---
+ .../qwen3_5/program/planning/request_plan.cpp | 36 +++++++++++++++--
+ src/models/qwen3_5/program/prefill.cpp        | 39 ++++++++++++++++---
+ src/models/qwen3_5/program/program_impl.h     |  4 ++
+ 3 files changed, 70 insertions(+), 9 deletions(-)
+
+diff --git a/src/models/qwen3_5/program/planning/request_plan.cpp b/src/models/qwen3_5/program/planning/request_plan.cpp
+index 95b7811e..5c9c3ffe 100644
+--- a/src/models/qwen3_5/program/planning/request_plan.cpp
++++ b/src/models/qwen3_5/program/planning/request_plan.cpp
+@@ -7,6 +7,7 @@
+ #include "models/qwen3_5/program/context_work.h"
+ #include <algorithm>
+ #include <cmath>
++#include <cstdio>
+ #include <iterator>
+ #include <limits>
+ #include <stdexcept>
+@@ -429,9 +430,11 @@ RequestBasePlan ProgramImpl::plan_request(const PreparedPromptData& prompt,
+             add_capture(base->rewrite_checkpoint->frontier, 0, base->rewrite_checkpoint->kind,
+                         false, false, SharedCandidateEvidence::None);
+         }
++        // Over the prompt share no shared/anchor checkpoint is captured; the runtime reads
++        // the same list, so drop it here (the session key still finds the continuation).
++        if (kvmem_over_window) { base->context_cache.opportunities.clear(); }
+         for (const qwen3_5::PreparedCacheOpportunity& opportunity :
+              base->context_cache.opportunities) {
+-            if (kvmem_over_window) { break; }
+             add_capture(opportunity.frontier, opportunity.input_order, std::nullopt,
+                         opportunity.kind == PromptCacheMarkerKind::SharedStablePrefix,
+                         opportunity.kind == PromptCacheMarkerKind::PrivateLongAnchor,
+@@ -740,10 +743,19 @@ std::optional<AdmissionCandidate> ProgramImpl::inspect_lane(
+         const bool sparse_source = source != nullptr && source->kv &&
+                                    text_kv_addresses->mapped_pages(source->kv->text) > prompt_pages;
+         if (over_window || sparse_source) {
++            const auto refuse = [&](const char* why) {
++                std::fprintf(stderr,
++                             "KVMem reuse refused | %s | path %d | base %u | source frontier %u | "
++                             "prompt %u\n",
++                             why, static_cast<int>(plan->reuse), plan->reuse_base,
++                             source != nullptr ? source->execution_frontier : 0U,
++                             plan->summary.prompt_tokens);
++            };
+             if (!kvmem_long_reuse_cfg || source == nullptr ||
+                 plan->source_mode != runtime::PrivateSourceMode::ConsumeToActive ||
+                 !(plan->reuse == ReusePath::PrivateEndpoint ||
+                   is_rewrite_checkpoint_restore(plan->reuse))) {
++                refuse(source == nullptr ? "shared source" : "needs fork/retain or anchor");
+                 return std::nullopt;
+             }
+             if (plan->reuse_base < source->execution_frontier) {
+@@ -755,9 +767,21 @@ std::optional<AdmissionCandidate> ProgramImpl::inspect_lane(
+                     (source->kv->backend &&
+                      !backend_kv_addresses->device_only_from(*source->kv->backend,
+                                                              first_backend))) {
++                    refuse("truncated pages left the device");
+                     return std::nullopt;
+                 }
+             }
++            // A partial tail that needs copy-on-write goes through the prefix-fork path,
++            // which expects every source page on the device.
++            const std::uint32_t backend_frontier =
++                backend_frontier_at(speculative_backend, plan->reuse_base);
++            if (partial_tail_cow_required(*text_kv_addresses, source->kv->text, plan->reuse_base) ||
++                (source->kv->backend && backend_frontier != 0 &&
++                 partial_tail_cow_required(*backend_kv_addresses, *source->kv->backend,
++                                           backend_frontier))) {
++                refuse("partial tail needs copy-on-write");
++                return std::nullopt;
++            }
+         }
+     }
+     if (source != nullptr &&
+@@ -1000,7 +1024,11 @@ std::optional<AdmissionCandidate> ProgramImpl::inspect_lane(
+         }
+         const auto [main_missing, main_contiguous_runs] =
+             missing_kv_restore(*text_kv_addresses, *text_kv_pages, source_kv->text, main_required);
+-        if (main_missing != main_required - main_device) {
++        // A KVMem source restores only its device working set; Host-only history pages
++        // outside it stay on Host (sparse placement promotes them on demand).
++        const bool sparse_inventory_ok =
++            kvmem_window_pages != 0 && main_missing <= main_required - main_device;
++        if (main_missing != main_required - main_device && !sparse_inventory_ok) {
+             throw std::logic_error(
+                 "Text KV restore inventory is inconsistent [required=" +
+                 std::to_string(main_required) + " device=" + std::to_string(main_device) +
+@@ -1026,7 +1054,9 @@ std::optional<AdmissionCandidate> ProgramImpl::inspect_lane(
+             }
+             const auto [backend_missing, backend_contiguous_runs] = missing_kv_restore(
+                 *backend_kv_addresses, *backend_kv_pages, *source_kv->backend, backend_required);
+-            if (backend_missing != backend_required - backend_device) {
++            if (backend_missing != backend_required - backend_device &&
++                !(kvmem_window_pages != 0 &&
++                  backend_missing <= backend_required - backend_device)) {
+                 throw std::logic_error("Backend KV restore inventory is inconsistent");
+             }
+             plan->needs_transfer = plan->needs_transfer || backend_missing != 0;
+diff --git a/src/models/qwen3_5/program/prefill.cpp b/src/models/qwen3_5/program/prefill.cpp
+index eb046692..813c78b7 100644
+--- a/src/models/qwen3_5/program/prefill.cpp
++++ b/src/models/qwen3_5/program/prefill.cpp
+@@ -199,6 +199,17 @@ namespace ninfer::models::qwen3_5::detail {
+ 
+ namespace {
+ 
++// Before an over-window conversation's retrieval index is discarded (another
++// conversation took the lane), keep one copy so long reuse can restore it later.
++void stash_long_kvmem_index(KvmemLaneState& sparse, std::uint32_t keep,
++                            std::uint32_t min_tokens) {
++    if (!kvmem_long_reuse_cfg) { return; }
++    const std::uint32_t total = sparse.index.total_tokens();
++    if (total <= min_tokens || keep >= total / 2) { return; }
++    sparse.stash_index  = sparse.index;
++    sparse.stash_tokens = sparse.index_tokens;
++}
++
+ std::array<std::int32_t, 3> prompt_rope_position(const PreparedPromptData& prompt,
+                                                  std::uint32_t token);
+ 
+@@ -532,6 +543,7 @@ void ProgramImpl::start_sequence(std::uint32_t lane, SequenceState& sequence,
+                 // The retrieval index tracks the newest conversation; a Root start is a new
+                 // conversation, so stale block means from a finished one must not pollute
+                 // scoring (page numbering restarts at zero, so stale hits would be wrong).
++                stash_long_kvmem_index(sparse, 0, kvmem_prompt_window_pages(kvmem_window_pages) * kPagedKVPageSize);
+                 sparse.index.truncate_to(0);
+                 sparse.index_tokens.clear();
+                 sparse.query.clear();
+@@ -696,14 +708,29 @@ void ProgramImpl::start_sequence(std::uint32_t lane, SequenceState& sequence,
+             std::uint32_t keep = 0;
+             if (kvmem_long_reuse_cfg && base != 0) {
+                 const auto& ids = staged.prompt.token_ids;
+-                const std::uint32_t limit = std::min<std::uint32_t>(
+-                    {base, sparse.index.total_tokens(),
+-                     static_cast<std::uint32_t>(sparse.index_tokens.size()),
+-                     static_cast<std::uint32_t>(ids.size())});
+-                std::uint32_t same = 0;
+-                while (same < limit && sparse.index_tokens[same] == ids[same]) { ++same; }
++                const auto matching = [&](const RetrievalIndex& index,
++                                          const std::vector<TokenId>& tokens) {
++                    const std::uint32_t limit = std::min<std::uint32_t>(
++                        {base, index.total_tokens(), static_cast<std::uint32_t>(tokens.size()),
++                         static_cast<std::uint32_t>(ids.size())});
++                    std::uint32_t same = 0;
++                    while (same < limit && tokens[same] == ids[same]) { ++same; }
++                    return same;
++                };
++                std::uint32_t same = matching(sparse.index, sparse.index_tokens);
++                if (sparse.stash_index.has_value()) {
++                    const std::uint32_t stashed = matching(*sparse.stash_index, sparse.stash_tokens);
++                    if (stashed > same) {
++                        std::swap(sparse.index, *sparse.stash_index);
++                        std::swap(sparse.index_tokens, sparse.stash_tokens);
++                        same = stashed;
++                        std::fprintf(stderr, "KVMem reuse | restored stashed index %u tokens\n",
++                                     stashed);
++                    }
++                }
+                 keep = same / ops::kKvmemCaptureBlockTokens * ops::kKvmemCaptureBlockTokens;
+             }
++            stash_long_kvmem_index(sparse, keep, kvmem_prompt_window_pages(kvmem_window_pages) * kPagedKVPageSize);
+             sparse.index.truncate_to(keep);
+             (void)sparse.index.append(base - keep);
+             sparse.index_tokens.assign(staged.prompt.token_ids.begin(),
+diff --git a/src/models/qwen3_5/program/program_impl.h b/src/models/qwen3_5/program/program_impl.h
+index db91388b..43bd835d 100644
+--- a/src/models/qwen3_5/program/program_impl.h
++++ b/src/models/qwen3_5/program/program_impl.h
+@@ -486,6 +486,10 @@ struct KvmemLaneState {
+     std::vector<MediaPageGroup> media_groups;
+     // Tokens the retrieval index was built from (long reuse keeps whole matching blocks).
+     std::vector<TokenId> index_tokens;
++    // One-slot stash of the last over-window conversation's index, so switching to a
++    // side conversation and back does not lose retrieval features (long reuse only).
++    std::optional<RetrievalIndex> stash_index;
++    std::vector<TokenId> stash_tokens;
+ };
+ 
+ struct SharedPrefixState {
+-- 
+2.47.3
+

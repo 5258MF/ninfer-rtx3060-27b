@@ -1,0 +1,6 @@
+# 保持原样：补丁要逐字节一致，PowerShell/批处理/中文文本是 CRLF + 原编码
+*.patch -text
+*.ps1 -text
+*.bat -text
+*.ini -text
+*.txt -text

@@ -1,0 +1,125 @@
+From 3de955d4065702d340a8c9ee4013444c5613bc3b Mon Sep 17 00:00:00 2001
+From: p <p@l>
+Date: Fri, 2 Oct 2026 20:37:29 +0000
+Subject: [PATCH] SM-adaptive: upstream GDN route table (runtime fall-through),
+ rope wave capacity from runtime SM count
+
+---
+ .../bf16/bf16_gdn_gating_proj_plan.cpp        | 30 +++++++++---------
+ src/ops/launcher/rope.cu                      | 31 ++++++++++++++-----
+ 2 files changed, 38 insertions(+), 23 deletions(-)
+
+diff --git a/src/ops/gdn_gating_proj/bf16/bf16_gdn_gating_proj_plan.cpp b/src/ops/gdn_gating_proj/bf16/bf16_gdn_gating_proj_plan.cpp
+index c008b579..f73048e5 100644
+--- a/src/ops/gdn_gating_proj/bf16/bf16_gdn_gating_proj_plan.cpp
++++ b/src/ops/gdn_gating_proj/bf16/bf16_gdn_gating_proj_plan.cpp
+@@ -38,24 +38,24 @@ constexpr std::array<RouteSpec, 6> k27Routes{{
+     // 8 warps at 65 registers, so 8*32*72 = 18,432 registers admits three CTAs/SM while the 40 KiB
+     // of dynamic shared memory admits two. Shared memory binds: 2 CTAs/SM -> 164 device-wide.
+     // Grid is ceil(T/128)*3*SplitK, so the legal ends are 768 / 1664 / 3456.
+-    // 3060 (28 SMs): 2 CTAs/SM -> 56 device-wide, so the legal ends are 256 / 512 / 1152 (the
+-    // 82-SM table above ended at 768 / 1664 / 3456; the runtime already fell through to these).
+-    {{9, 256}, Bf16GdnGatingScheduleId::MmaCooperativeSplit8},
+-    {{257, 512}, Bf16GdnGatingScheduleId::MmaCooperativeSplit4},
+-    {{513, 1152}, Bf16GdnGatingScheduleId::MmaCooperativeSplit2},
+-    {{1153, kAnyCols}, Bf16GdnGatingScheduleId::MmaUnsplit},
++    // SM-adaptive build: keep the upstream 82-SM table. On smaller parts (RTX 3060: 28 SMs) the
++    // runtime residency check (device_sm_count) falls through to the next legal route, which picks
++    // exactly 256 / 512 / 1152 on 28 SMs, so one binary serves every sm_86+ card without editing.
++    {{9, 768}, Bf16GdnGatingScheduleId::MmaCooperativeSplit8},
++    {{769, 1664}, Bf16GdnGatingScheduleId::MmaCooperativeSplit4},
++    {{1665, 3456}, Bf16GdnGatingScheduleId::MmaCooperativeSplit2},
++    {{3457, kAnyCols}, Bf16GdnGatingScheduleId::MmaUnsplit},
+ }};
+ 
+ constexpr std::array<RouteSpec, 5> k35Routes{{
+     // Same progression, clamped to the sm_86 residency ceilings. Grid is ceil(T/64)*2*SplitK, so
+     // with 328 CTAs for split16 and 246 for split8/4/2 the legal ends are 640 / 960 / 1920 / 3904.
+     // The upstream bounds (1024 / 2048 / 4096) each land on 256 CTAs and exceed the 246 limit.
+-    // 3060 (28 SMs): 112 CTAs for split16, 84 for split8/4/2 -> legal ends 192 / 320 / 640 / 1344.
+     {{1, 127}, Bf16GdnGatingScheduleId::MmaCooperativeSplit16},
+-    {{128, 320}, Bf16GdnGatingScheduleId::MmaCooperativeSplit8},
+-    {{321, 640}, Bf16GdnGatingScheduleId::MmaCooperativeSplit4},
+-    {{641, 1344}, Bf16GdnGatingScheduleId::MmaCooperativeSplit2},
+-    {{1345, kAnyCols}, Bf16GdnGatingScheduleId::MmaUnsplit},
++    {{128, 960}, Bf16GdnGatingScheduleId::MmaCooperativeSplit8},
++    {{961, 1920}, Bf16GdnGatingScheduleId::MmaCooperativeSplit4},
++    {{1921, 3904}, Bf16GdnGatingScheduleId::MmaCooperativeSplit2},
++    {{3905, kAnyCols}, Bf16GdnGatingScheduleId::MmaUnsplit},
+ }};
+ 
+ template <std::size_t N>
+@@ -98,11 +98,9 @@ constexpr std::int32_t ctas_per_sm_35(Bf16GdnGatingScheduleId schedule) noexcept
+ // targets, so the compile-time catalog guard is checked against it: a route that fits on 82 SMs
+ // fits on every supported device. Overshooting the real budget is not merely slow -- the driver
+ // rejects the launch with cudaErrorCooperativeLaunchTooLarge -- so this must stay a lower bound.
+-// 3060 port: the build targets the RTX 3060 (28 SMs, same as the old engine's kTargetSmCount).
+-#ifndef NINFER_TARGET_SM_COUNT
+-#define NINFER_TARGET_SM_COUNT 28
+-#endif
+-inline constexpr std::int32_t kMinSupportedSmCount = NINFER_TARGET_SM_COUNT;
++// SM-adaptive build: this only guards the compile-time table check and the failed-query fallback;
++// the real route choice uses the runtime SM count below.
++inline constexpr std::int32_t kMinSupportedSmCount = 82;
+ 
+ // SM count of the active device, cached per device index. cudaDeviceGetAttribute is cheap but this
+ // sits on the per-request planning path. Per device rather than once per process, because a model
+diff --git a/src/ops/launcher/rope.cu b/src/ops/launcher/rope.cu
+index 46e1ec2b..27132e0b 100644
+--- a/src/ops/launcher/rope.cu
++++ b/src/ops/launcher/rope.cu
+@@ -5,6 +5,8 @@
+ #include "ops/kernel/rope.cuh"
+ 
+ #include <algorithm>
++#include <array>
++#include <atomic>
+ #include <cmath>
+ #include <cstdint>
+ #include <limits>
+@@ -17,12 +19,27 @@ constexpr int kLargeBlock               = 256;
+ constexpr int kFullChunkBlock           = 192;
+ constexpr int kSmallBlock               = 128;
+ constexpr int kDefaultChunkTargetTokens = 1024;
+-// One full wave of 256-thread CTAs: six per SM. Upstream swept it on an RTX 5090 (170 SMs -> 1020);
+-// the 3060 port targets 28 SMs (old engine kTargetSmCount) -> 168.
+-#ifndef NINFER_TARGET_SM_COUNT
+-#define NINFER_TARGET_SM_COUNT 28
+-#endif
+-constexpr int kLargeBlockWaveCapacity = 6 * NINFER_TARGET_SM_COUNT;
++// One full wave of 256-thread CTAs: six per SM. Upstream swept it on an RTX 5090 (170 SMs -> 1020)
++// and hard-coded that. SM-adaptive build: use the current device's SM count (RTX 3060: 28 -> 168),
++// cached per device index; a failed query falls back to the upstream 1020.
++int large_block_wave_capacity() noexcept {
++    constexpr int kFallback      = 1020;
++    constexpr int kCachedDevices = 64;
++    static std::array<std::atomic<int>, kCachedDevices> cache{};
++    int device = 0;
++    if (cudaGetDevice(&device) != cudaSuccess || device < 0 || device >= kCachedDevices) {
++        return kFallback;
++    }
++    const int known = cache[static_cast<std::size_t>(device)].load(std::memory_order_relaxed);
++    if (known > 0) { return known; }
++    int sms = 0;
++    if (cudaDeviceGetAttribute(&sms, cudaDevAttrMultiProcessorCount, device) != cudaSuccess ||
++        sms <= 0) {
++        return kFallback;
++    }
++    cache[static_cast<std::size_t>(device)].store(6 * sms, std::memory_order_relaxed);
++    return 6 * sms;
++}
+ 
+ template <RopeKernelMode Mode>
+ inline constexpr bool kTextMode =
+@@ -56,7 +73,7 @@ void launch_fixed(const Tensor& positions, Tensor* q, Tensor* k, cudaStream_t st
+     if constexpr (kTextMode<Mode>) {
+         if (tokens <= 6) {
+             block = (QHeads + KHeads) * 32;
+-        } else if (tokens <= kLargeBlockWaveCapacity) {
++        } else if (tokens <= large_block_wave_capacity()) {
+             block = kLargeBlock;
+         } else if (tokens <= kDefaultChunkTargetTokens) {
+             block = kFullChunkBlock;
+-- 
+2.47.3
+
