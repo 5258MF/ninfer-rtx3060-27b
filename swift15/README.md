@@ -39,7 +39,7 @@ git am /path/to/swift15/patches/*.patch
 build-sm86.bat
 ```
 
-产物是 `ninfer-serve.exe`。把它和运行要用的 DLL（cudart、cublas、cublasLt、FFmpeg、zlib、libcurl 等）放到懒人包的 `engine\` 目录。
+产物是 `ninfer-serve.exe`。把它和运行要用的 DLL（cudart、cublas、cublasLt、FFmpeg、zlib、libcurl、libssh2、libcrypto、zstd等）放到懒人包的 `engine\` 目录。
 
 - 只编译 sm_86。RTX 30 系能跑，RTX 40 系（sm_89）二进制兼容也能跑；RTX 50 系不行，请用上游的预编译包。
 - SM 数在运行时自动识别（补丁 0028），不同型号不用重新编译。
