@@ -912,10 +912,13 @@ ops::DeviceRouteProfile calibrate_device_routes(const CalibrationOptions& option
                             "rk8v4");
         calibrate_attention(profile, timer, options, KvCacheStorage::RotatedLloyd4KeyInt4Value,
                             "rk4v4");
+#if !defined(NINFER_SLIM_3060)
+        // These E8 KV kernels are omitted from the slim build, including during calibration.
         calibrate_attention(profile, timer, options, KvCacheStorage::RotatedInt4KeyInt4ValueE8,
                             "rk4v4-e8");
         calibrate_attention(profile, timer, options, KvCacheStorage::RotatedE8RootKeyInt4Value,
                             "rk2v4-e8");
+#endif
         calibrate_attention(profile, timer, options, KvCacheStorage::Int8Group64, "int8");
     }
     const double seconds =

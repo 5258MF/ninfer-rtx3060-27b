@@ -66,9 +66,17 @@ ninfer-serve swift15_iq2_s_mtpq4.ninfer --model-id qwen3.8-27b
 
 修复已直接合入 [`engine/src/runtime/engine/model_instance.cpp`](engine/src/runtime/engine/model_instance.cpp)：使用规划器容量曲线的最低页数，保留 SM 自适应和读入分段对齐。KVMem 的总上下文存放在内存，显存只保留窗口；`--max-context 204800` 大于 `--kvmem-window-pages 1152` 对应的显存窗口是正常配置，无需为这条报错删除窗口参数。
 
-- 最新完整包和下载链接见 [主 README](../README.md)。修复版 `ninfer-serve.exe` 的 MD5：`5998263BECD56D84A0A2954D7BE37CBF`。
+- 当前网盘已发布的容量修复包和下载链接见 [主 README](../README.md)，其中 `ninfer-serve.exe` 的 MD5：`5998263BECD56D84A0A2954D7BE37CBF`。下面的首次显卡校准修复更新的是源码，旧包需要替换重新编译的引擎。
 - 旧包可用 [启动器小补丁](hotfix/swift15-hotfix-kv-capacity.zip)：关闭模型窗口，解压到原包目录，覆盖 `launcher\launch.ps1`。启动器只在遇到上述容量错误时关闭分段对齐并重试一次。
 - 已在 RTX 3060 12GB 上验证默认 200K 配置启动和接口生成，并通过调整分段复现、修复容量越界；旧引擎配合新启动器也验证了自动重试。报错的 RTX 3060 Laptop 尚待用户复测。
+
+## 首次显卡校准修复（2026-10-03）
+
+精简构建移除了 `rk4v4-e8` / `rk2v4-e8` 注意力内核，但自动校准仍会调用它们。没有匹配校准记录的显卡首次启动时，即使模型使用支持的 `rk4v4`，也会在加载权重前报 `small_t_i8: this NINFER_SLIM_3060 build supports only int8 / rk8v4 / rk4v4 KV caches`。
+
+修复在 [`engine/src/calibration/device_calibration.cu`](engine/src/calibration/device_calibration.cu)：`NINFER_SLIM_3060` 构建只校准实际编译的 int8 / rk8v4 / rk4v4；完整构建继续校准 E8 格式。按上面的脚本重新编译并替换 `engine\ninfer-serve.exe`，启动器和模型文件无需修改。
+
+在 RTX 3060 12GB / CUDA 13.3 上，旧引擎使用 `rk4v4` 强制首次校准可复现原始报错；修复版首次校准、随后使用新校准缓存启动都成功，并能返回接口回答。旧包临时追加 `--device-profile off` 也验证可启动，具体 CMD 用法见 [主 README](../README.md)。这只跳过路线校准，不关闭 SM 数量识别。
 
 ## 已合入源码的改动
 
@@ -81,6 +89,7 @@ ninfer-serve swift15_iq2_s_mtpq4.ninfer --model-id qwen3.8-27b
 | 长对话复用 | 修复工作集恢复、长追问的 KV 覆盖范围和接续点问题 |
 | 注意力和换入 | 跳过空洞页；页面换入按碎片程度自动选批量 gather |
 | SM 自适应 | GDN 路线表运行时按真实 SM 数选择；rope 容量 = 6 × SM |
+| 首次显卡校准 | 精简版只校准实际编译的 int8 / rk8v4 / rk4v4，跳过未编译的 E8 内核，避免未知显卡首次启动失败 |
 | 启动容量 | KVMem 自动容量使用规划器曲线下限，修复实际读入分段经 SM 对齐后变大造成的启动容量越界 |
 
 ## 模型补丁（懒人包里的 `patch\`）

@@ -27,6 +27,15 @@
 
 已经下载旧包、遇到这条容量错误的用户，也可以下载 [启动器小补丁（约 20 KB）](swift15/hotfix/swift15-hotfix-kv-capacity.zip)：关闭模型窗口，解压到原来的懒人包目录，覆盖 `launcher\launch.ps1`，再双击 `启动.bat`。模型文件无需重新下载。
 
+**首次显卡校准修复（2026-10-03）**：首次自动校准曾测试精简版未编译的 E8 内核，即使使用默认 `rk4v4`，也会报 `small_t_i8: this NINFER_SLIM_3060 build supports only int8 / rk8v4 / rk4v4 KV caches`。修复已合入完整源码；本次只更新源码，重新编译后替换包内 `engine\ninfer-serve.exe` 即可。现有网盘文件不会随源码自动更新，之前的容量启动器小补丁也不包含这项引擎修复。
+
+旧包可先在包目录的 CMD 窗口运行下面两行，跳过首次校准；SM 数量仍会自动识别。换成修复版引擎后，在新 CMD 窗口正常运行 `启动.bat` 即可。
+
+```bat
+set "L8084_EXTRA_ARGS=--device-profile off"
+启动.bat last
+```
+
 使用须知：
 
 - 显卡要 **12 GB 以上显存**的 **RTX 30 系**（算力 8.6）。RTX 40 系（8.9）也能跑，但没实测过。SM 数由引擎启动时自动识别，3060 / 3080 / 4070 等都不用改。
