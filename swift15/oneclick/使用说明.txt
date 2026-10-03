@@ -19,10 +19,6 @@
 
   不用另外配环境：只要装好 NVIDIA 显卡驱动（580 以上）就行。
   不用装 CUDA、Python、VC++ 运行库——引擎要的文件都在 engine 文件夹里。
-  engine 内的 msvcp140.dll、vcruntime140.dll、vcruntime140_1.dll 必须和 ninfer-serve.exe 放在一起，请完整解压。
-  若 Windows 提示这些 DLL 找不到或入口点不存在，可参考微软官方运行库下载说明：
-  https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist
-  DLL 加载错误与引擎输出的 small_t_i8 / NINFER_SLIM_3060 校准错误需要分别处理。
   （查驱动版本：在 cmd 里输入 nvidia-smi，右上角 Driver Version）
 
 三、怎么用
@@ -69,6 +65,10 @@
     选完回到配置总览，回车启动；选好的值会自动存进「设置.ini」，下次回车直接用。
   方法 2：用记事本打开「设置.ini」修改，保存后重新运行「启动.bat」。每一项都有说明。
     端口、监听地址（局域网共享）、API_KEY、模型名只能在这里改。
+    还可以在 设置.ini 里调整 v3 引擎新增的推理控制开关：
+      - POST_THINKING=1（默认开启）：思考结束（</think>）后自动把采样温度降到 0.2（可通过 POST_THINKING_TEMP / POST_THINKING_TOP_P / POST_THINKING_TOP_K / POST_THINKING_SAMPLER 自定义），兼顾思考阶段的发散性与正文/代码输出的稳定性。
+      - ADAPTIVE_MTP=0/1：是否开启自适应投机解码草稿宽度（--adaptive-mtp）。
+      - RECOVER_INVARIANT=1（默认开启）：遇到内部状态异常时自动恢复当前请求（--recover-invariant-failures），避免整个服务进程退出。
   其他：
     启动.bat last      直接用上次的配置启动，不显示菜单
     启动.bat dryrun    只显示最后会用的引擎参数，不启动、不下载（检查设置用）
@@ -138,6 +138,9 @@
   model\                  模型（包里是空的，第一次启动自动下载、转换到这里）
   logs\                   引擎日志（自动生成）
   接入信息.txt            客户端怎么填（每次启动自动生成）
+  SHA256SUMS.txt          包内核心文件 SHA256 清单
+  verify-kit-manifest.ps1 解压完整性与中文文件名乱码自检脚本
+  verify-arch-engine.ps1  引擎实机全链路验收脚本（含正负对照与中段大海捞针测试）
 
 十、来源和许可
   - 模型：UkisAI Swift-1.5 Qwen3.8-27B GSQ-RCO（Swift Open License v1.0，允许署名再分发；
@@ -145,3 +148,15 @@
     .ninfer 格式由魔搭 fyb423 转换。
   - 引擎：Ryan-gsq/ninfer-16g-5070ti-5080-5090-qwen3.8-27b-gsq-rco（Apache-2.0，来自 iamwavecut/ninfer-all），
     加 KVMem 移植（qzshch/ninfer-kvmem，Apache-2.0）和 RTX 3060 优化。
+
+版本更新（2026-10-03，首次显卡校准修复）
+  - 包含此前的 KV 容量曲线修复，以及首次显卡自动校准的修复：
+    精简版只测试已编译的 int8 / rk8v4 / rk4v4 内核，跳过未编译的 E8 内核。
+    使用默认 rk4v4 的用户无需修改 KV 格式或关闭 SM 自动识别。
+  - 首次遇到未校准显卡时，需要先测量路线，会比之后的启动慢；等到 listening 再使用。
+  - engine 内已包含 msvcp140.dll、vcruntime140.dll、vcruntime140_1.dll。
+    请完整解压，保持这些文件和 ninfer-serve.exe 在同一目录，不要只复制 EXE。
+    如 Windows 提示这些 DLL 找不到或入口点不存在，可参考微软官方 VC 运行库下载说明：
+    https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist
+    DLL 加载错误与引擎输出的 small_t_i8 / NINFER_SLIM_3060 校准错误需要分别处理。
+  - 旧模型无需重新下载或转换；升级后正常运行 启动.bat 即可。

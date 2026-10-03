@@ -46,6 +46,8 @@ $RetrPages = 576    # 输出选"自动"时，检索窗口（含开头）优先�
 $OutMin   = 8192    # 自动输出至少 8K
 $SmallCtx = 131072  # 精简头或 rk8v4 时窗口小，总上下文最多 128K，自动输出改成"开头之外输出和检索平分"
 $Defaults = [ordered]@{ KV = 'rk4v4'; HEAD = 'full'; VISION = '1'; CTX = '204800'; OUT = 'auto'; SYS = '8192'; THINK = '0'
+                        POST_THINKING = '1'; POST_THINKING_TEMP = ''; POST_THINKING_TOP_P = ''; POST_THINKING_TOP_K = ''; POST_THINKING_SAMPLER = ''
+                        ADAPTIVE_MTP = '0'; RECOVER_INVARIANT = '1'
                         PORT = '8084'; HOST = '127.0.0.1'; API_KEY = ''; MODEL_ID = 'qwen3.8-27b' }
 
 # ---------------- 小工具 ----------------
@@ -125,6 +127,9 @@ function Load-Config {
   }
   if (-not $KvInfo.Contains($c.KV)) { $c.KV = 'rk4v4' }
   if ($c.VISION -ne '0') { $c.VISION = '1' }
+  if ($c.POST_THINKING -ne '0') { $c.POST_THINKING = '1' }
+  if ($c.ADAPTIVE_MTP -ne '1') { $c.ADAPTIVE_MTP = '0' }
+  if ($c.RECOVER_INVARIANT -ne '0') { $c.RECOVER_INVARIANT = '1' }
   if (-not $HeadMiB.Contains($c.HEAD)) { $c.HEAD = 'full' }
   $c.MTP = 'q4'
   if ("$($c.OUT)".ToLower() -eq 'auto') { $c.OUT = 'auto' }
@@ -154,6 +159,19 @@ function Save-Config($c) {
     "SYS=$($c.SYS)",
     '; 思考上限：0 = 不限（推荐）',
     "THINK=$($c.THINK)",
+    '',
+    '; ---- v3 引擎推理控制开关（可在下方手改） ----',
+    '; 思考结束后自动切换采样参数（1 开 / 0 关，开启后遇到 </think> 自动把温度降到 0.2，思考发散、正文稳定）',
+    "POST_THINKING=$($c.POST_THINKING)",
+    '; 思考结束后的自定义采样参数（空 = 使用引擎默认 0.2；可填 POST_THINKING_TEMP=0.2、POST_THINKING_TOP_P=0.95、POST_THINKING_TOP_K=20 或 POST_THINKING_SAMPLER=temp=0.2,top_p=0.95）',
+    "POST_THINKING_TEMP=$($c.POST_THINKING_TEMP)",
+    "POST_THINKING_TOP_P=$($c.POST_THINKING_TOP_P)",
+    "POST_THINKING_TOP_K=$($c.POST_THINKING_TOP_K)",
+    "POST_THINKING_SAMPLER=$($c.POST_THINKING_SAMPLER)",
+    '; 自适应 MTP 草稿长度（0 固定 3 token / 1 开启 --adaptive-mtp）',
+    "ADAPTIVE_MTP=$($c.ADAPTIVE_MTP)",
+    '; 内部不变量异常时自动恢复请求而不崩溃整个进程（1 开 / 0 关，推荐 1）',
+    "RECOVER_INVARIANT=$($c.RECOVER_INVARIANT)",
     '',
     '; ---- 下面几项向导里不问，需要时手改 ----',
     '; 端口',
@@ -211,6 +229,11 @@ function Show-Summary($c, [int]$pages) {
   if ("$($c.OUT)" -eq 'auto') { Write-Host ('  │ 单次输出  : 自动 = {0}（{1}；每次启动按实际窗口算）' -f (Fmt (Out-Of $c $pages)), (Auto-Desc $c)) }
   else { Write-Host ('  │ 单次输出  : {0}   （思考 + 正文 合计，整段留在显存不滚出去）' -f (Fmt ([int]$c.OUT))) }
   if ([int]$c.THINK -gt 0) { Write-Host ('  │ 思考上限  : ' + (Fmt ([int]$c.THINK))) } else { Write-Host '  │ 思考上限  : 不限（只受单次输出限制）' }
+  $v3Opts = @()
+  if ($c.POST_THINKING -ne '0') { $v3Opts += $(if ($c.POST_THINKING_TEMP) { "思考后降温($($c.POST_THINKING_TEMP))" } else { '思考后降温(0.2)' }) }
+  if ($c.ADAPTIVE_MTP -eq '1') { $v3Opts += '自适应MTP' }
+  if ($c.RECOVER_INVARIANT -ne '0') { $v3Opts += '异常自动恢复' }
+  Write-Host ('  │ 推理控制  : ' + $(if ($v3Opts.Count -gt 0) { $v3Opts -join ' / ' } else { '默认' }))
   if ($script:Free -gt 0 -and $pages -ge (Gen-Pages $c $pages) + $RestMin) {
     $sp = Split-Window $c $pages
     Write-Host ('  │ 显存窗口  : {0} 页 = {1} token（按现在空闲显存 {2} MiB 自动算）' -f $pages, (K $pages), [int]$script:Free)
@@ -364,6 +387,15 @@ function Build-Args($c, [int]$pages) {
          '--cuda-graph-allowance-mib', '144', '--default-max-tokens', "$($c.OUT)",
          '--max-private-continuations', '4', '--embedding-host')   # --embedding-host：词嵌入（388 MiB）放内存，速度不变，窗口多约 300 页
   if ($c.HEAD -eq 'lite') { $a += @('--lm-head-draft') }
+  if ($c.ADAPTIVE_MTP -eq '1') { $a += @('--adaptive-mtp') }
+  if ($c.RECOVER_INVARIANT -ne '0') { $a += @('--recover-invariant-failures') }
+  if ($c.POST_THINKING -ne '0') {
+    $a += @('--post-thinking')
+    if ($c.POST_THINKING_TEMP) { $a += @('--post-thinking-temperature', "$($c.POST_THINKING_TEMP)") }
+    if ($c.POST_THINKING_TOP_P) { $a += @('--post-thinking-top-p', "$($c.POST_THINKING_TOP_P)") }
+    if ($c.POST_THINKING_TOP_K) { $a += @('--post-thinking-top-k', "$($c.POST_THINKING_TOP_K)") }
+    if ($c.POST_THINKING_SAMPLER) { $a += @('--post-thinking-sampler', "$($c.POST_THINKING_SAMPLER)") }
+  }
   if ($c.VISION -ne '0') { $a += @('--vision', '--vision-residency', 'overlay', '--vision-max-merged', '4096') }
   if ([int]$c.THINK -gt 0) { $a += @('--default-thinking-budget', "$($c.THINK)") }
   if ($c.API_KEY) { $a += @('--api-key', $c.API_KEY) }
@@ -603,6 +635,8 @@ function Write-Info($c) {
 # ---------------- 主流程 ----------------
 $Host.UI.RawUI.WindowTitle = 'ninfer Swift 1.5 懒人包'
 if (-not (Test-Path -LiteralPath $Exe)) { Fail "找不到引擎：$Exe。请重新解压懒人包（解压到不含特殊字符的路径，例如 D:\ninfer-swift15）。" }
+$dllCount = @(Get-ChildItem -LiteralPath (Split-Path $Exe -Parent) -Filter '*.dll' -ErrorAction SilentlyContinue).Count
+if ($dllCount -lt 10) { Fail "engine 文件夹里缺少运行所需的 DLL 文件（当前只有 $dllCount 个 .dll）。请把整个懒人包完整解压，保持所有 .dll 和 ninfer-serve.exe 在同一目录，不要只单独复制 ninfer-serve.exe。" }
 
 # 显卡检查（下载前就查，不合适的电脑不会白下 10 GB）
 $gpu = $null
@@ -683,7 +717,7 @@ Ensure-Model
 if ($pages -lt $PageMin) { $pages = $PageMin; Write-Host "  空闲显存偏少，先按最小窗口 $PageMin 页试一次" -ForegroundColor Yellow }
 Write-Info $run
 
-Get-ChildItem env: | Where-Object { $_.Name -like 'NINFER_*' } | ForEach-Object { Remove-Item "env:$($_.Name)" }
+Get-ChildItem env: | Where-Object { $_.Name -like 'NINFER_*' -and $_.Name -ne 'NINFER_FREE_VRAM_MIB' } | ForEach-Object { Remove-Item "env:$($_.Name)" }
 $env:PATH = (Split-Path $Exe -Parent) + ';' + $env:PATH
 $ErrorActionPreference = 'Continue'
 $logDir = Join-Path $Here 'logs'
@@ -725,11 +759,15 @@ while ($true) {
     continue
   }
   if ($script:short -and ($fit -lt 2)) {
-    # 显存不够：引擎报了真实可用量，按它重算窗口（先缩开头和检索，输出预留不缩）
+    # 显存不够：引擎报了真实可用量，按它重算窗口（如果输出选"自动"且旧输出放不下，也跟着重算输出预留）
     $availMiB = $script:short[1] / 1MB
     $next = Pages-From $cfg.KV $availMiB
     if ($next -ge $pages) { $next = $pages - 16 }
     $fit++
+    if ("$($cfg.OUT)" -eq 'auto' -and $next -lt $PageMin) {
+      $run.OUT = "$(Out-Of $cfg $next)"
+      $PageMin = (Gen-Pages $run $next) + $RestMin
+    }
     if ($next -lt $PageMin) { Write-Host "  显存不够（可用 $([int]$availMiB) MiB），连最小窗口 $PageMin 页都放不下。把单次输出调小（按 C 重新选），或关掉占显存的程序（游戏、浏览器视频等）再启动。" -ForegroundColor Red; break }
     Write-Host ("  显存比预计少（引擎可用 {0} MiB），窗口 {1} 页 → {2} 页，自动重试 ..." -f [int]$availMiB, $pages, $next) -ForegroundColor Yellow
     $pages = $next; continue

@@ -2,7 +2,10 @@
 
 #include "serve/request_validation.h"
 
-#if defined(__linux__)
+#if defined(_WIN32)
+#    include <mstcpip.h>
+#    include <winsock2.h>
+#elif defined(__linux__)
 #    include <netinet/tcp.h>
 #    include <sys/socket.h>
 #endif
@@ -192,7 +195,18 @@ bool SseTransport::poll(Clock::time_point now) {
 
 void configure_http_server_socket(socket_t socket) noexcept {
     httplib::default_socket_options(socket);
-#if defined(__linux__)
+#if defined(_WIN32)
+    const BOOL enabled = TRUE;
+    (void)::setsockopt(socket, SOL_SOCKET, SO_KEEPALIVE,
+                       reinterpret_cast<const char*>(&enabled), sizeof(enabled));
+    tcp_keepalive ka{};
+    ka.onoff             = 1;
+    ka.keepalivetime     = 10000;
+    ka.keepaliveinterval = 3000;
+    DWORD bytes_returned = 0;
+    (void)::WSAIoctl(socket, SIO_KEEPALIVE_VALS, &ka, sizeof(ka), nullptr, 0,
+                     &bytes_returned, nullptr, nullptr);
+#elif defined(__linux__)
     const int enabled = 1;
     set_socket_option(socket, SOL_SOCKET, SO_KEEPALIVE, enabled);
     set_socket_option(socket, IPPROTO_TCP, TCP_KEEPIDLE, kKeepAliveIdleSeconds);

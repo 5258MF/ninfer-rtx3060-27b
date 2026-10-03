@@ -1,6 +1,7 @@
 #include "runtime/engine/model_instance.h"
 #include "calibration/device_calibration.h"
 #include "core/arena.h"
+#include "core/vram_budget.h"
 #include "ops/common/device_route.h"
 #include "runtime/engine/context_cache/context_cost.h"
 #include "runtime/engine/device_profile.h"
@@ -185,10 +186,16 @@ std::string hybrid_cache_fingerprint(const EngineOptions& options, const std::st
 }
 
 std::size_t current_free_device_bytes() {
-    std::size_t free_bytes  = 0;
-    std::size_t total_bytes = 0;
-    CUDA_CHECK(cudaMemGetInfo(&free_bytes, &total_bytes));
-    return free_bytes;
+    std::size_t cuda_free = 0;
+    std::size_t nvml_free = 0;
+    const std::size_t effective_free = physical_free_device_bytes(&cuda_free, &nvml_free);
+    std::fprintf(stderr,
+                 "VRAM budget | nvml_free=%.1f MiB | cuda_free=%.1f MiB | effective_free=%.1f MiB\n",
+                 static_cast<double>(nvml_free) / (1024.0 * 1024.0),
+                 static_cast<double>(cuda_free) / (1024.0 * 1024.0),
+                 static_cast<double>(effective_free) / (1024.0 * 1024.0));
+    std::fflush(stderr);
+    return effective_free;
 }
 
 // Free memory on each rank's device, in rank order. Ranks that share a physical device (a test mode

@@ -23,7 +23,7 @@ Swift 1.5 默认总上下文为 200K，最多可配置 256K；KVMem 会从历史
 | Bonsai2 12G | `ninfer-3060-12g-oneclick.zip` | [百度网盘](https://pan.baidu.com/s/1p4OL2EzR0h4iCD2Mu40Ecw) | `9vc5` |
 | Bonsai2 8G | `ninfer-3060-8g-oneclick.zip` | [百度网盘](https://pan.baidu.com/s/1_ZIDNnMaaOGRk-YnHb0jUA) | `gkyy` |
 
-**发布状态：Swift 1.5 当前完整包已上传百度和夸克网盘；Bonsai2 12G 的新构建尚待发布。** 版本识别信息、修复记录和相关报错处理见 [CHANGELOG.md](CHANGELOG.md)。
+**发布状态：Swift 1.5 的 2026-10-04 最新源码与启动器已同步，新版网盘包待上传。上面的 Swift 链接仍是 2026-10-03 首次显卡校准修复包；Bonsai2 12G 的新构建也尚待发布。** 版本识别信息、修复记录和相关报错处理见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 快速开始
 
@@ -102,12 +102,19 @@ Swift 1.5 默认总上下文为 200K，最多可配置 256K；KVMem 会从历史
 | `OUT` | auto 或手动输出上限，包含思考 |
 | `SYS` | 固定保留的开头，默认 8192 |
 | `THINK` | 思考上限，0 表示不限 |
+| `POST_THINKING` | 思考结束后切换正文采样参数，默认 1；设 0 关闭 |
+| `POST_THINKING_TEMP` / `POST_THINKING_TOP_P` / `POST_THINKING_TOP_K` | 正文的温度、top-p、top-k；留空使用引擎预设，温度默认为 0.2 |
+| `POST_THINKING_SAMPLER` | 正文采样组合，例如 `temp=0.2,top_p=0.95` |
+| `ADAPTIVE_MTP` | 自适应 MTP 草稿长度，默认 0，使用固定 3 token |
+| `RECOVER_INVARIANT` | 内部不变量错误时尝试恢复请求，默认 1 |
 | `VISION` | 是否启用看图 |
 | `HOST` / `PORT` | 监听地址和端口 |
 | `API_KEY` | 访问密码，默认留空 |
 | `MODEL_ID` | 客户端使用的模型 ID |
 
 窗口与自动输出会随空闲显存变化。把 `OUT` 调大，会减少留给检索的空间；启动后以生成的 `接入信息.txt` 为准。
+
+推理控制设置从 2026-10-04 同步的启动器开始提供，当前旧网盘包尚未包含这些启动器设置。需要使用时可从源码构建，或等新版网盘包发布。`RECOVER_INVARIANT` 只处理引擎支持恢复的内部错误，不能保证所有错误都能恢复。
 
 ### 连接客户端
 
@@ -151,9 +158,20 @@ Swift 1.5 默认总上下文为 200K，最多可配置 256K；KVMem 会从历史
 | `patch/` | 模型转换的数据补丁 |
 | `model/` | 初始为空，下载与转换后的模型 |
 | `版本信息.txt` | 新修复包的构建识别信息 |
+| `SHA256SUMS.txt` / `verify-kit-manifest.ps1` | 新版包的核心文件哈希、DLL 完整性和中文文件名检查 |
+| `verify-arch-engine.ps1` | 新版包的引擎验收脚本，包含短提示、超窗正负对照与多轮复用 |
 | `logs/` / `接入信息.txt` | 运行时生成的日志和客户端说明 |
 
 包里的 `使用说明.txt` 可离线查阅；速度与长文召回范围见[测试结果与已知限制](#测试结果与已知限制)。
+
+上述校验和验收工具已随源码公开，新版网盘包待上传。完整包解压后可运行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\verify-kit-manifest.ps1
+powershell -ExecutionPolicy Bypass -File .\verify-arch-engine.ps1
+```
+
+第一项检查文件；第二项会启动测试引擎并占用显存，运行前关闭其他模型。模型默认从包内 `model` 目录读取，也可用 `-ModelPath` 指定。`SHA256SUMS.txt` 和校验脚本对应指定发布构建；自行编译或修改脚本重新打包时，需要一起更新清单与脚本内的预期哈希。
 
 ## 测试结果与已知限制
 
@@ -276,6 +294,11 @@ Swift 1.5 的模型格式（GGUF 量化块，IQ2_S / IQ3_XXS 等十几种）只�
 | kv9 检索 | 按消息分段查询、对准换行、排除开头/保护块/最近块、CPU 打分矩阵化多线程；默认查询行数 1024 |
 | 注意力和换入 | 跳过空洞页；页面换入按碎片程度自动选批量 gather |
 | SM 自适应 | GDN 路线表运行时按真实 SM 数选择；rope 容量 = 6 × SM |
+| Windows 显存预算 | 引擎读取 CUDA 和 NVML 空闲显存，NVML 可用时取两者较小值；`NINFER_FREE_VRAM_MIB` 可进一步限制预算 |
+| KVMem 内容打分 | 包含单段查询和达到提示窗口边界的选择路径，日志用 `kvmem_score: SELECT` 标识 |
+| 连接保活 | Windows TCP 保活为 10 秒 / 3 秒，HTTP 连接保活 120 秒，读写超时 300 秒 |
+
+后三项对应 2026-10-04 同步的源码。它们的修复背景和发布状态见[更新记录](CHANGELOG.md#2026-10-04swift-15-q2s-源码与启动器同步)；原有性能表保持此前测量结果。
 
 ## 源码与编译
 

@@ -1,0 +1,17 @@
+ninfer Swift 1.5 Q2S / MTP Q4 懒人包
+源码同步：2026-10-04，v3 引擎 NVML 真实显存预算 + 内容打分常驻 + TCP 保活 + 推理控制开关 + 多轮看图 KV 借页时序修复版
+源码：https://github.com/5258MF/ninfer-rtx3060-27b
+首次显卡校准修复基线：028908d00be94316505e62d76200b5231ef3fc7f
+最新源码：以仓库 main 为准；本次同步的新版网盘链接待上传后公布。
+引擎 MD5：931897FB80D42F9E01A51E0933F948F4
+引擎 SHA256：ceece6ab31c72e5b0f0d89e68ad55d96b9b1691aae2922817ba8551f58da2c24
+已包含：
+  1) 引擎内部 NVML 真实物理空闲显存预算（min(cudaMemGetInfo, nvmlDeviceGetMemoryInfo)），避免只按 CUDA 空闲显存估算；
+  2) KVMem 环形池开启时内容相关性打分（Eq.10 Content Scorer）默认全路径开启，并输出 KVMem kv9 | kvmem_score: SELECT 诊断日志；
+  3) Windows TCP Keep-Alive（10s/3s）与 120s 连接保活 / 300s 读写超时，改善长文预填充连接保活；
+  4) 解压完整性与中文文件名乱码自检脚本（verify-kit-manifest.ps1 + SHA256SUMS.txt）；
+  5) 引擎实机正负对照与中段大海捞针验收脚本（verify-arch-engine.ps1）；
+  6) 设置.ini 新增 --post-thinking / --adaptive-mtp / --recover-invariant-failures 推理控制开关。
+  7) 多轮看图时先完成 KV 预留与事务提交，再启动视觉编码借页；修正 KVMem 稀疏预留额度。
+VC 运行库：msvcp140.dll、vcruntime140.dll、vcruntime140_1.dll（14.51.36247.0，x64）。
+包内不带模型，第一次启动自动下载和转换；旧模型可以继续使用。

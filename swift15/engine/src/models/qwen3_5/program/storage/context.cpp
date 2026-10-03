@@ -1681,7 +1681,9 @@ void ProgramImpl::ensure_sequence_kv_mapped(SequenceState& sequence, std::uint32
         throw std::logic_error("backend KV materialization requested without an allocation");
     }
     if (kvmem_window_pages != 0) {
-        roll_sparse_decode_window(sequence);
+        if (requests[sequence.lane].lifecycle == Lifecycle::Active) {
+            roll_sparse_decode_window(sequence);
+        }
         // 3060 fix: the decode clamp leaves mapped+2 pages, but a reused long conversation maps
         // its first prefill chunk (up to prefill_chunk tokens) right here, and KVMem leases never
         // grow. Cover that chunk the same way roll_sparse_prefill_window covers later chunks;

@@ -991,7 +991,6 @@ StartResult ProgramImpl::hybrid_activate(HybridMaterializationTransaction& trans
                     DeviceSpan{static_cast<std::byte*>(workspace_storage.base()) +
                                    workspace_plan.vision_bridge_offset,
                                workspace_plan.vision_bridge_bytes});
-                request.prefill->vision->submit_next_item();
             } else {
                 request.prefill->vision = std::make_unique<execution::VisionPrefillSession>(
                     device, parameters,

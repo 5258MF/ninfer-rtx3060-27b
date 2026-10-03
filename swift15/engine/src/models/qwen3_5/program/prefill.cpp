@@ -652,7 +652,19 @@ void ProgramImpl::start_sequence(std::uint32_t lane, SequenceState& sequence,
             }
             bind_sequence_kv(sequence);
             trim_sequence_kv(sequence, base, backend_kv_valid(sequence));
-            resize_sequence_kv_entitlement(sequence, request_plan.text_kv_page_entitlement,
+            const std::uint32_t text_entitlement =
+                kvmem_window_pages != 0
+                    ? std::max(request_plan.text_kv_page_entitlement,
+                               text_kv_addresses->mapped_pages(sequence.kv->text) +
+                                   (request_plan.text_kv_page_entitlement >
+                                            text_kv_addresses->device_residency_floor_pages(
+                                                sequence.kv->text)
+                                        ? request_plan.text_kv_page_entitlement -
+                                              text_kv_addresses->device_residency_floor_pages(
+                                                  sequence.kv->text)
+                                        : 0U))
+                    : request_plan.text_kv_page_entitlement;
+            resize_sequence_kv_entitlement(sequence, text_entitlement,
                                            request_plan.backend_kv_page_entitlement);
             sequence.text_kv_valid = base;
             sequence.ledger.resize(base);
@@ -701,7 +713,19 @@ void ProgramImpl::start_sequence(std::uint32_t lane, SequenceState& sequence,
             }
             bind_sequence_kv(sequence);
             trim_sequence_kv(sequence, base, backend_kv_valid(sequence));
-            resize_sequence_kv_entitlement(sequence, request_plan.text_kv_page_entitlement,
+            const std::uint32_t text_entitlement =
+                kvmem_window_pages != 0
+                    ? std::max(request_plan.text_kv_page_entitlement,
+                               text_kv_addresses->mapped_pages(sequence.kv->text) +
+                                   (request_plan.text_kv_page_entitlement >
+                                            text_kv_addresses->device_residency_floor_pages(
+                                                sequence.kv->text)
+                                        ? request_plan.text_kv_page_entitlement -
+                                              text_kv_addresses->device_residency_floor_pages(
+                                                  sequence.kv->text)
+                                        : 0U))
+                    : request_plan.text_kv_page_entitlement;
+            resize_sequence_kv_entitlement(sequence, text_entitlement,
                                            request_plan.backend_kv_page_entitlement);
             sequence.tail_hidden_valid = base == prompt_tokens;
             sequence.ledger.resize(base);
@@ -2012,7 +2036,7 @@ void ProgramImpl::plan_kv9_query(KvmemLaneState& sparse, const PreparedPromptDat
         if (legacy.end > legacy.begin) {
             sparse.seg_range[0] = legacy.begin;
             sparse.seg_range[1] = legacy.end;
-            add_accum(0, legacy.begin, legacy.end, false);
+            add_accum(0, legacy.begin, legacy.end, kv9_enabled());
             sparse.seg_n = 1;
         }
     }
@@ -2168,7 +2192,8 @@ void ProgramImpl::apply_kvmem_retrieval_placement(SequenceState& sequence) {
     auto& sparse = kvmem_lanes_.at(sequence.lane);
     constexpr std::uint32_t kBlockTokens = 128U;
     const std::uint32_t mapped = text_kv_addresses->mapped_pages(sequence.kv->text);
-    if (mapped <= kvmem_window_pages) { return; }
+    const std::uint32_t prompt_pages = kvmem_prompt_window_pages(kvmem_window_pages);
+    if (mapped <= prompt_pages) { return; }
     if (sparse.query_count.empty() || sparse.query_count[0] == 0) { return; }
     const std::uint32_t blocks = sparse.index.block_count();
     if (blocks == 0) { return; }
@@ -2179,7 +2204,6 @@ void ProgramImpl::apply_kvmem_retrieval_placement(SequenceState& sequence) {
     // placement's promote side overflows the pool.
     // Old-style allocation: retrieval compresses the prompt into window - gen reserve; the
     // sink prefix is kept whole and the recency share comes out of what remains after it.
-    const std::uint32_t prompt_pages = kvmem_prompt_window_pages(kvmem_window_pages);
     const std::uint32_t sink_pages   = kvmem_sink_pages_cfg;
     std::uint32_t recent_pages =
         sink_pages > 2U ? (prompt_pages - sink_pages) / 4U : prompt_pages / 4U;
@@ -2438,15 +2462,16 @@ void ProgramImpl::apply_kvmem_retrieval_placement(SequenceState& sequence) {
             seg_log += ";";
         }
     }
-    if (sparse.kv9_plan) {
+    if (sparse.kv9_plan || kv9_enabled()) {
         std::fprintf(stderr,
-                     "KVMem kv9 | segs %u%s (stash %u, eq10 %u, %.0f ms) | protect %lld/%lld tok, %zu ranges, "
+                     "KVMem kv9 | kvmem_score: SELECT | segs %u%s (stash %u, eq10 %u, %.0f ms) | protect %lld/%lld tok, %zu ranges, "
                      "%u blocks | budget %u blocks, recent %u pages | replay %s | merge %s |%s\n",
                      static_cast<unsigned>(active.size()), sparse.kv9_tool ? " tool" : "", sparse.seg_injected,
                      eq10_segs, score_ms, static_cast<long long>(sparse.protect_used),
                      static_cast<long long>(sparse.protect_cap), sparse.protect_b.size(), selection.mandatory_kept,
                      config.budget_blocks, recent_pages, sparse.replay_planned ? "yes" : "no",
                      merge_mode == 0 ? "sum" : merge_mode == 1 ? "nsum" : "split", seg_log.c_str());
+        std::fflush(stderr);
     }
     std::vector<std::uint32_t> pages =
         detail::block_pages(selection.selected, kBlockTokens);

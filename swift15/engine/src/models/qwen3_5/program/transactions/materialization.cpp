@@ -372,9 +372,10 @@ ProgramImpl::reserve_materialization(AdmissionCandidate&& plan, PreparedPromptDa
                     DeviceSpan{static_cast<std::byte*>(workspace_storage.base()) +
                                    workspace_plan.vision_bridge_offset,
                                workspace_plan.vision_bridge_bytes});
-                // Start the first item now so its window overlaps the decode rounds that run
-                // before this lane gets a prefill unit.
-                request.prefill->vision->submit_next_item();
+                // Defer submit_next_item() until finalize_context_transaction() after
+                // prepare_materialization() and start_request() have reserved this sequence's
+                // KV pages; borrowing KV pages here before the reservation is established
+                // can exhaust the KV pool during prepare_materialization().
             } else {
                 request.prefill->vision = std::make_unique<execution::VisionPrefillSession>(
                     device, parameters,
@@ -2334,19 +2335,34 @@ ProgramImpl::progress_context_transaction(runtime::CancellationFlagView cancella
 }
 
 void ProgramImpl::finalize_context_transaction() noexcept {
+    bool materialization_finished = false;
     const bool terminal = std::visit(
-        [](const auto& transaction) {
+        [&](const auto& transaction) {
             using T = std::decay_t<decltype(transaction)>;
             if constexpr (std::is_same_v<T, std::monostate>) {
                 return false;
             } else if constexpr (std::is_same_v<T, ActiveCaptureTransaction>) {
                 return transaction.published;
             } else {
+                materialization_finished = transaction.terminal;
                 return transaction.terminal;
             }
         },
         context_transaction_);
-    if (terminal) { context_transaction_.emplace<std::monostate>(); }
+    if (terminal) {
+        context_transaction_.emplace<std::monostate>();
+        if (materialization_finished && vision_broker) {
+            try {
+                for (std::uint32_t lane = 0; lane < max_concurrency; ++lane) {
+                    RequestControl& request = requests[lane];
+                    if (request.lifecycle == Lifecycle::Prefilling && request.prefill &&
+                        request.prefill->vision && !request.prefill->vision->vision_pending()) {
+                        request.prefill->vision->submit_next_item();
+                    }
+                }
+            } catch (...) {}
+        }
+    }
 }
 
 bool ProgramImpl::has_context_transaction() const noexcept {

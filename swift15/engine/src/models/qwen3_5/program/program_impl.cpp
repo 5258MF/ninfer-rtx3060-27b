@@ -1,5 +1,6 @@
 #include "models/qwen3_5/program/structured_round.h"
 #include "models/qwen3_5/program/program_impl.h"
+#include "core/vram_budget.h"
 #include "models/qwen3_5/program/retrieval/kv9_plan.h"
 #include "models/qwen3_5/program/context_work.h"
 #include "models/qwen3_5/program/context.h"
@@ -495,8 +496,8 @@ ProgramImpl::ProgramImpl(const execution::Parameters& parameters_in, const Seque
         // The 1 GiB floor inside the clamp is memory the run still needs after this point and that
         // no plan accounts for (module loads, graph instantiation, launch-local backing); halving
         // what remains is the conservative split, so the cache never takes more than it leaves.
-        std::size_t free_device = 0, total_device = 0;
-        if (cudaMemGetInfo(&free_device, &total_device) == cudaSuccess) {
+        const std::size_t free_device = physical_free_device_bytes();
+        if (free_device != 0) {
             reserved_bytes =
                 clamp_host_kv_reservation_bytes(reserved_bytes, free_device, minimum_stride);
         }
