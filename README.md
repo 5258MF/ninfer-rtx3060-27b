@@ -19,6 +19,10 @@
 - **链接**：[下载完整包](https://pan.baidu.com/s/19jdHRmGizwVdNcXz8FAiRw)
 - **提取码**：**6m91**
 
+- **夸克网盘**：ninfer-3060-swift15-q2s-mtp-oneclick.zip（约 1 GB）
+- **链接**：[下载完整包](https://pan.quark.cn/s/2bacd7e8c782)
+- **提取码**：**qiA3**
+
 **2026-10-03 更新**：修复部分显卡默认启动时报 `Main KV page count is outside the target capacity curve` 的问题，完整包已包含修复后的引擎和启动器。
 
 已经下载旧包、遇到这条容量错误的用户，也可以下载 [启动器小补丁（约 20 KB）](swift15/hotfix/swift15-hotfix-kv-capacity.zip)：关闭模型窗口，解压到原来的懒人包目录，覆盖 `launcher\launch.ps1`，再双击 `启动.bat`。模型文件无需重新下载。
