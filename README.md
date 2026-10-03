@@ -18,12 +18,12 @@ Swift 1.5 默认总上下文为 200K，最多可配置 256K；KVMem 会从历史
 
 | 版本 | 文件名 | 网盘 | 提取码 |
 |---|---|---|---|
-| Swift 1.5 | `ninfer-3060-swift15-q2s-mtp-oneclick.zip` | [百度网盘](https://pan.baidu.com/s/19jdHRmGizwVdNcXz8FAiRw) | `6m91` |
-| Swift 1.5 | 同上 | [夸克网盘](https://pan.quark.cn/s/2bacd7e8c782) | `qiA3` |
+| Swift 1.5 | `ninfer-3060-swift15-q2s-mtp-oneclick.zip` | [百度网盘](https://pan.baidu.com/s/1hx59lT9PjNVZJNYZbaFRlw) | `wcb2` |
+| Swift 1.5 | 同上 | [夸克网盘](https://pan.quark.cn/s/86c3e53f11df) | `JXdT` |
 | Bonsai2 12G | `ninfer-3060-12g-oneclick.zip` | [百度网盘](https://pan.baidu.com/s/1p4OL2EzR0h4iCD2Mu40Ecw) | `9vc5` |
 | Bonsai2 8G | `ninfer-3060-8g-oneclick.zip` | [百度网盘](https://pan.baidu.com/s/1_ZIDNnMaaOGRk-YnHb0jUA) | `gkyy` |
 
-**发布状态：Swift 1.5 的最新修复包已重新打包，网盘文件仍待更新；Bonsai2 12G 的新构建也尚待发布。** 当前链接和最新构建的区别、版本识别信息统一记录在 [CHANGELOG.md](CHANGELOG.md)。
+**发布状态：Swift 1.5 最新修复包已上传百度和夸克网盘，包含容量曲线及首次显卡校准修复；Bonsai2 12G 的新构建尚待发布。** 版本识别信息和更新记录见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 快速开始
 
