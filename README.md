@@ -16,8 +16,8 @@
 ## 📦 懒人包下载
 
 - **百度网盘**：ninfer-3060-swift15-q2s-mtp-oneclick.zip（约 1 GB）
-- **链接**：https://pan.baidu.com/s/1KVnwH5kvECzEfMYlnpepWA
-- **提取码**：**rx17**
+- **链接**：[https://pan.baidu.com/s/1KVnwH5kvECzEfMYlnpepWA](https://pan.baidu.com/s/1BTfshxRo6pTkyRhSn8ikiw)
+- **提取码**：**83gq**
 
 使用须知：
 
