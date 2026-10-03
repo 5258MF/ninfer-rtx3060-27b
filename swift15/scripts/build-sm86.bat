@@ -1,7 +1,7 @@
 @echo off
 REM ============================================================================
 REM  Build ninfer-serve.exe for sm_86 (RTX 30 series). SM count is detected at
-REM  runtime (patch 0028), so one binary serves 3060 / 3070 / 3080 / 3090 and
+REM  runtime, so one binary serves 3060 / 3070 / 3080 / 3090 and
 REM  (binary-compatible) RTX 40 series.
 REM
 REM  ASCII-only on purpose: batch files are read in the OEM codepage.
@@ -18,8 +18,8 @@ REM
 REM  usage: build-sm86.bat [configure|build]   (no arg = configure then build)
 REM ============================================================================
 setlocal
-set "TREE=D:\build\ninfer-src"
-set "BUILD=D:\build\ninfer-build"
+set "TREE=%~dp0..\engine"
+set "BUILD=%~dp0..\build"
 set "CUDA=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.3"
 set "VCVARS=C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
 set "DEPS=D:\build\deps"
