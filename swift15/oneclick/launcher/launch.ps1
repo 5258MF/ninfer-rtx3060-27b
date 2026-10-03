@@ -692,7 +692,7 @@ Get-ChildItem $logDir -Filter 'swift15-*.log' | Sort-Object LastWriteTime -Desce
 $logFile = Join-Path $logDir ('swift15-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.log')
 $logW = New-Object IO.StreamWriter($logFile, $true, (New-Object Text.UTF8Encoding $false)); $logW.AutoFlush = $true
 
-$fit = 0; $crash = 0
+$fit = 0; $crash = 0; $alignRetry = $false
 while ($true) {
   $argsNow = Build-Args $run $pages
   Set-KvmEnv $run $pages
@@ -704,16 +704,26 @@ while ($true) {
   Write-Host ''
   $logW.WriteLine('# ' + (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + ' env sink=' + $env:NINFER_KVMEM_SINK_PAGES + ' reserve=' + $env:NINFER_KVMEM_GEN_RESERVE_PAGES + ' longreuse=' + $env:NINFER_KVMEM_LONG_REUSE + ' ' + $Exe + ' ' + ($argsNow -join ' '))
   $script:short = $null
+  $script:curveMismatch = $false
   $sw = [Diagnostics.Stopwatch]::StartNew()
   & $Exe @($argsNow) 2>&1 | ForEach-Object {
     $line = "$_"; Write-Host $line; $logW.WriteLine($line)
     if ($line -match 'reservation requires (\d+) bytes, but only (\d+) bytes are available') { $script:short = @([double]$matches[1], [double]$matches[2]) }
+    if ($line.Contains('Main KV page count is outside the target capacity curve')) { $script:curveMismatch = $true }
   }
   $rc = $LASTEXITCODE; $secs = [int]$sw.Elapsed.TotalSeconds
   $logW.WriteLine("# engine exited rc=$rc after $secs s")
   Write-Host ''
   Write-Host "  [引擎已退出] 返回码=$rc  运行了 $secs 秒"
   if ($rc -eq 0) { break }
+  if ($script:curveMismatch -and -not $alignRetry) {
+    # 旧引擎按请求分段分配 KV，但某些显卡会把实际分段调大；关闭对齐后两边一致。
+    $alignRetry = $true
+    $env:NINFER_PREFILL_ALIGN = '0'
+    $logW.WriteLine('# capacity curve mismatch: retry with NINFER_PREFILL_ALIGN=0')
+    Write-Host '  检测到读入分段与 KV 页数不一致，按指定分段重新启动一次 ...' -ForegroundColor Yellow
+    continue
+  }
   if ($script:short -and ($fit -lt 2)) {
     # 显存不够：引擎报了真实可用量，按它重算窗口（先缩开头和检索，输出预留不缩）
     $availMiB = $script:short[1] / 1MB

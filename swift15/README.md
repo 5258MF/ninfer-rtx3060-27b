@@ -6,11 +6,12 @@
 
 | 路径 | 内容 |
 |---|---|
-| `patches/` | 28 个补丁，基于 Ryan-gsq 分支的 **b06908b**，用 `git am` 打上 |
+| `patches/` | 29 个补丁，基于 Ryan-gsq 分支的 **b06908b**，用 `git am` 打上 |
 | `scripts/build-sm86.bat` | Windows 编译脚本（sm_86，开 `NINFER_SLIM_3060`） |
 | `tools/mtpq4.py` | 把 Swift 1.5 的 MTP 草稿头从 Q6_K 压成 Q4（k/v 用 Q8） |
 | `tools/mkpatch.py` | 生成懒人包的模型补丁（`ops.txt` + `lit.bin`） |
 | `oneclick/` | 懒人包的启动器（`launcher/launch.ps1`）、测试脚本、`设置.ini`、`使用说明.txt` |
+| `hotfix/swift15-hotfix-kv-capacity.zip` | 旧包的启动器小补丁（约 20 KB），解压到原包目录覆盖即可 |
 
 ## 编译
 
@@ -23,7 +24,7 @@ git checkout b06908b
 git am /path/to/swift15/patches/*.patch
 ```
 
-28 个补丁能干净地打上（已在全新克隆上验证），不需要手动解决冲突。
+29 个补丁能干净地打上（已在全新源码上验证），不需要手动解决冲突。
 
 ### 2. 环境（Windows）
 
@@ -61,6 +62,16 @@ ninfer-serve swift15_iq2_s_mtpq4.ninfer --model-id qwen3.8-27b
 
 环境变量：`NINFER_KVMEM_SINK_PAGES`（开头保留页数）、`NINFER_KVMEM_GEN_RESERVE_PAGES`（输出预留页数）、`NINFER_KVMEM_LONG_REUSE=1`。Windows 上开 KVMem 时 Host KV 自动用可分页内存（`NINFER_HOST_KV_PAGEABLE=0/1` 可以强制）。1 页 = 64 token。怎么算这些值见 `oneclick/launcher/launch.ps1`。
 
+## 启动容量修复（2026-10-03）
+
+部分显卡启动旧引擎时会报 `Main KV page count is outside the target capacity curve`。读入分段会按实际 SM 数对齐，例如请求 `--prefill-chunk 512`，实际可能变成 640；旧代码仍按 512 计算 KV 页数，分配结果就低于规划器的容量下限。
+
+补丁 0029 改为直接使用规划器容量曲线的最低页数，保留 SM 自适应和读入分段对齐。KVMem 的总上下文存放在内存，显存只保留窗口；`--max-context 204800` 大于 `--kvmem-window-pages 1152` 对应的显存窗口是正常配置，无需为这条报错删除窗口参数。
+
+- 最新完整包和下载链接见 [主 README](../README.md)。修复版 `ninfer-serve.exe` 的 MD5：`5998263BECD56D84A0A2954D7BE37CBF`。
+- 旧包可用 [启动器小补丁](hotfix/swift15-hotfix-kv-capacity.zip)：关闭模型窗口，解压到原包目录，覆盖 `launcher\launch.ps1`。启动器只在遇到上述容量错误时关闭分段对齐并重试一次。
+- 已在 RTX 3060 12GB 上验证默认 200K 配置启动和接口生成，并通过调整分段复现、修复容量越界；旧引擎配合新启动器也验证了自动重试。报错的 RTX 3060 Laptop 尚待用户复测。
+
 ## 补丁说明
 
 | 补丁 | 内容 |
@@ -83,6 +94,7 @@ ninfer-serve swift15_iq2_s_mtpq4.ninfer --model-id qwen3.8-27b
 | 0026 | 页面换入时批量拷贝（gather，经映射锁页内存）；按碎片程度自动选：平均每段连续页少于 8 页才用（`KV9_GATHER_RUN`） |
 | 0027 | 按 28 SM 调 GDN 门控路线表和 rope 整波容量（已被 0028 取代） |
 | 0028 | SM 自适应：GDN 路线表恢复上游原版、运行时按真实 SM 数顺延；rope 容量 = 6 × SM |
+| 0029 | KVMem 自动容量使用规划器曲线下限，修复实际读入分段经 SM 对齐后变大造成的启动容量越界 |
 
 ## 模型补丁（懒人包里的 `patch\`）
 

@@ -16,8 +16,12 @@
 ## 📦 懒人包下载
 
 - **百度网盘**：ninfer-3060-swift15-q2s-mtp-oneclick.zip（约 1 GB）
-- **链接**：[https://pan.baidu.com/s/1KVnwH5kvECzEfMYlnpepWA](https://pan.baidu.com/s/1BTfshxRo6pTkyRhSn8ikiw)
-- **提取码**：**83gq**
+- **链接**：[下载完整包](https://pan.baidu.com/s/19jdHRmGizwVdNcXz8FAiRw)
+- **提取码**：**6m91**
+
+**2026-10-03 更新**：修复部分显卡默认启动时报 `Main KV page count is outside the target capacity curve` 的问题，完整包已包含修复后的引擎和启动器。
+
+已经下载旧包、遇到这条容量错误的用户，也可以下载 [启动器小补丁（约 20 KB）](swift15/hotfix/swift15-hotfix-kv-capacity.zip)：关闭模型窗口，解压到原来的懒人包目录，覆盖 `launcher\launch.ps1`，再双击 `启动.bat`。模型文件无需重新下载。
 
 使用须知：
 
@@ -144,6 +148,7 @@ Swift 1.5 的模型格式（GGUF 量化块，IQ2_S / IQ3_XXS 等十几种）只�
 
 - 长对话里发一条很长的新消息，引擎会崩溃：已修；
 - 超窗复用时的几处校验过严、接续点丢失：已修。
+- 部分显卡的 SM 数导致实际读入分段变大，KV 容量预算没有同步，引擎启动时报容量曲线越界：已修（补丁 0029）。
 
 ### 7. 启动器
 
@@ -193,7 +198,7 @@ Swift 1.5 的模型格式（GGUF 量化块，IQ2_S / IQ3_XXS 等十几种）只�
 
 相关代码都在 [`swift15/`](swift15/) 目录（Apache-2.0）：
 
-- `patches/`：对 Ryan-gsq 分支（b06908b）的 28 个补丁，`git am` 就能打上：KVMem 移植、kv9 检索、3060 精简、rk4v4、词嵌入放内存、空洞页跳过、批量拷贝、SM 自适应等；
+- `patches/`：对 Ryan-gsq 分支（b06908b）的 29 个补丁，`git am` 就能打上：KVMem 移植、kv9 检索、3060 精简、rk4v4、词嵌入放内存、空洞页跳过、批量拷贝、SM 自适应和容量曲线修复等；
 - `scripts/build-sm86.bat`：Windows 编译脚本；
 - `tools/`：MTP 草稿头压 Q4 的脚本、懒人包补丁生成脚本；
 - `oneclick/`：懒人包的启动器、设置和使用说明。
