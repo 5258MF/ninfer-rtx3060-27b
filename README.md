@@ -27,7 +27,9 @@
 
 已经下载旧包、遇到这条容量错误的用户，也可以下载 [启动器小补丁（约 20 KB）](swift15/hotfix/swift15-hotfix-kv-capacity.zip)：关闭模型窗口，解压到原来的懒人包目录，覆盖 `launcher\launch.ps1`，再双击 `启动.bat`。模型文件无需重新下载。
 
-**首次显卡校准修复（2026-10-03）**：首次自动校准曾测试精简版未编译的 E8 内核，即使使用默认 `rk4v4`，也会报 `small_t_i8: this NINFER_SLIM_3060 build supports only int8 / rk8v4 / rk4v4 KV caches`。修复已合入完整源码；本次只更新源码，重新编译后替换包内 `engine\ninfer-serve.exe` 即可。现有网盘文件不会随源码自动更新，之前的容量启动器小补丁也不包含这项引擎修复。
+**首次显卡校准修复（2026-10-03）**：首次自动校准曾测试精简版未编译的 E8 内核，即使使用默认 `rk4v4`，也会报 `small_t_i8: this NINFER_SLIM_3060 build supports only int8 / rk8v4 / rk4v4 KV caches`。修复已合入完整源码，最新完整包已重新生成；**网盘文件仍待重新上传**。修复版引擎 MD5：`F2CAAB583EA48ADD1566B6BA163DC44E`。之前的容量启动器小补丁不包含这项引擎修复。
+
+新版压缩包已通过 CRC 校验、解压后默认启动器和接口生成测试。所需的 `msvcp140.dll`、`vcruntime140.dll`、`vcruntime140_1.dll` 随包携带，并确认实际从包目录加载；请完整解压。Windows 的 DLL 加载错误与上面的引擎校准错误应分别处理。
 
 旧包可先在包目录的 CMD 窗口运行下面两行，跳过首次校准；SM 数量仍会自动识别。换成修复版引擎后，在新 CMD 窗口正常运行 `启动.bat` 即可。
 

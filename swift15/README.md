@@ -66,7 +66,7 @@ ninfer-serve swift15_iq2_s_mtpq4.ninfer --model-id qwen3.8-27b
 
 修复已直接合入 [`engine/src/runtime/engine/model_instance.cpp`](engine/src/runtime/engine/model_instance.cpp)：使用规划器容量曲线的最低页数，保留 SM 自适应和读入分段对齐。KVMem 的总上下文存放在内存，显存只保留窗口；`--max-context 204800` 大于 `--kvmem-window-pages 1152` 对应的显存窗口是正常配置，无需为这条报错删除窗口参数。
 
-- 当前网盘已发布的容量修复包和下载链接见 [主 README](../README.md)，其中 `ninfer-serve.exe` 的 MD5：`5998263BECD56D84A0A2954D7BE37CBF`。下面的首次显卡校准修复更新的是源码，旧包需要替换重新编译的引擎。
+- 当前网盘已发布的容量修复包和下载链接见 [主 README](../README.md)，其中 `ninfer-serve.exe` 的 MD5：`5998263BECD56D84A0A2954D7BE37CBF`。下面的首次显卡校准修复版已重新打包，仍待上传网盘，旧包需要替换引擎。
 - 旧包可用 [启动器小补丁](hotfix/swift15-hotfix-kv-capacity.zip)：关闭模型窗口，解压到原包目录，覆盖 `launcher\launch.ps1`。启动器只在遇到上述容量错误时关闭分段对齐并重试一次。
 - 已在 RTX 3060 12GB 上验证默认 200K 配置启动和接口生成，并通过调整分段复现、修复容量越界；旧引擎配合新启动器也验证了自动重试。报错的 RTX 3060 Laptop 尚待用户复测。
 
@@ -77,6 +77,8 @@ ninfer-serve swift15_iq2_s_mtpq4.ninfer --model-id qwen3.8-27b
 修复在 [`engine/src/calibration/device_calibration.cu`](engine/src/calibration/device_calibration.cu)：`NINFER_SLIM_3060` 构建只校准实际编译的 int8 / rk8v4 / rk4v4；完整构建继续校准 E8 格式。按上面的脚本重新编译并替换 `engine\ninfer-serve.exe`，启动器和模型文件无需修改。
 
 在 RTX 3060 12GB / CUDA 13.3 上，旧引擎使用 `rk4v4` 强制首次校准可复现原始报错；修复版首次校准、随后使用新校准缓存启动都成功，并能返回接口回答。旧包临时追加 `--device-profile off` 也验证可启动，具体 CMD 用法见 [主 README](../README.md)。这只跳过路线校准，不关闭 SM 数量识别。
+
+最新完整包仍名为 `ninfer-3060-swift15-q2s-mtp-oneclick.zip`；引擎 MD5 为 `F2CAAB583EA48ADD1566B6BA163DC44E`。包内附有版本信息和三个所需 VC 运行库 DLL。已检查 EXE 和 DLL 的静态及延迟导入依赖，并从新压缩包解压后验证默认启动器、接口回答及 VC DLL 从包目录加载。网盘链接中的文件仍待用户重新上传。
 
 ## 已合入源码的改动
 

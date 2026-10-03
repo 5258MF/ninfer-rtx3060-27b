@@ -19,6 +19,10 @@
 
   不用另外配环境：只要装好 NVIDIA 显卡驱动（580 以上）就行。
   不用装 CUDA、Python、VC++ 运行库——引擎要的文件都在 engine 文件夹里。
+  engine 内的 msvcp140.dll、vcruntime140.dll、vcruntime140_1.dll 必须和 ninfer-serve.exe 放在一起，请完整解压。
+  若 Windows 提示这些 DLL 找不到或入口点不存在，可参考微软官方运行库下载说明：
+  https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist
+  DLL 加载错误与引擎输出的 small_t_i8 / NINFER_SLIM_3060 校准错误需要分别处理。
   （查驱动版本：在 cmd 里输入 nvidia-smi，右上角 Driver Version）
 
 三、怎么用
