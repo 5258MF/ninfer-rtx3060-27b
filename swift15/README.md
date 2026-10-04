@@ -1,5 +1,7 @@
 # Swift 1.5 源码与启动器
 
+**简体中文 | [English](README.en.md)**
+
 本目录提供 Swift 1.5 方案的完整引擎源码、Windows 构建脚本、启动器和模型转换工具。上游基线为 Ryan-gsq 分支 `b06908b`，KVMem、SM 数量识别及启动修复已合入源码。
 
 当前源码版本为 **0.1.0**，见 [`VERSION`](VERSION)，对应 Git 标签 [`v0.1.0`](https://github.com/5258MF/ninfer-rtx3060-27b/tree/v0.1.0)。百度、夸克 0.1.0 包已发布，下载入口在[项目首页](../README.md#下载)。

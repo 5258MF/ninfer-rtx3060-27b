@@ -1,5 +1,7 @@
 # ninfer：在 RTX 3060 上本地运行 27B 模型
 
+**简体中文 | [English](README.en.md)**
+
 为 Windows 提供 Swift 1.5 和 Bonsai2 的本地推理方案，支持对话、图片输入、工具调用和 KVMem 长上下文。懒人包解压后双击启动，模型在第一次运行时下载。
 
 ## 选择版本

@@ -1,5 +1,7 @@
 # Bonsai2 8G 版
 
+**简体中文 | [English](README-8GB.en.md)**
+
 面向 RTX 30 系 8GB 显卡的 Windows 推理方案，使用 Swift-Bonsai-2 27B ptq1 模型，模型下载约 6.6 GiB，MTP 草稿头转换为 Q4。
 
 **测试使用 RTX 3060 12GB，并限制引擎显存占用；没有在真实 8GB 显卡上验证。** 实际 8GB 显卡的速度和桌面显存余量可能不同，详见[测试范围与限制](#测试结果与已知限制)。

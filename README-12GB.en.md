@@ -1,0 +1,262 @@
+# Bonsai2 12G
+
+**Language:** [简体中文](README-12GB.md) | English
+
+Run the Swift-Bonsai-2 27B ternary model on Windows with an RTX 3060 12 GB. The model file is about 7.7 GiB. Image input, tool calling, and long-context KVMem are supported.
+
+## Download and Start
+
+Current release: **0.1.0**. Download `ninfer-3060-12g-bonsai2-oneclick-0.1.0.zip`. Baidu and Quark links and access codes are on the [project home](README.en.md#downloads). The complete source is also version 0.1.0; see the [`v0.1.0` tag](https://github.com/5258MF/ninfer-rtx3060-27b/tree/v0.1.0). Release details are in [CHANGELOG](CHANGELOG.md#010---2026-10-04).
+
+An RTX 30 series GPU is required; settings are tuned for the RTX 3060 12 GB. Use Windows 10/11, 32 GB RAM recommended, and about 10 GB of free disk space. The model is not included and downloads on first launch.
+
+Extract the complete archive and double-click `启动.bat`. Press Enter to use the current settings or C for the wizard. When `listening` appears, run `测试.bat` and connect a client using `接入信息.txt`.
+
+## Page Guide
+
+[Modes and Capacity](#modes-and-capacity) · [Model Setup and Settings](#model-setup-and-settings) · [Test Results and Known Limits](#test-results-and-known-limits) · [Implementation](#implementation) · [Common Issues](#common-issues) · [Credits and Licenses](#credits-and-licenses) · [Changelog](CHANGELOG.md)
+
+## Launch and Connect a Client
+
+Run `启动.bat` after extracting the complete archive. Press Enter to reuse the current settings or C to open the wizard. The first launch downloads the model. Once the server shows `listening`, run `测试.bat` and configure the client from `接入信息.txt`.
+
+Default Base URL: `http://127.0.0.1:8084/v1`. Model ID: `qwen3.8-27b`. The client context and output limits must match the launcher settings.
+
+In 0.1.0, large client output limits are capped by the server settings. With KVMem, requests that compress, edit, or branch from earlier history fall back to a fresh prefill; direct continuation can still reuse cache. With multiple tools, `required`/`any` is handled as `Auto` and does not guarantee a tool call. `strict:true` is accepted as a declaration but does not enforce strict JSON Schema constraints. See [compatibility scope and limits](CHANGELOG.md#2026-10-04三项智能体兼容修改与-bonsai2-12g-源码公开) (Chinese).
+
+## Modes and Capacity
+
+The 12 GB card has four modes. The launch wizard shows recommended values and limits. These are the 0.1.0 ranges; automatic output depends on free VRAM at startup.
+
+| Mode | Maximum context | Maximum response | Best for |
+|---|---:|---:|---|
+| **Standard** | 88K (all on GPU) | 32K | Reliable everyday chat |
+| **KVMem** | **256K** | Auto, 8K–40K | Long documents and conversations |
+| **rk8v4** | 112K (all on GPU) | 32K | Above 88K when the model must see all content |
+| **KVMem + rk8v4** (recommended) | **256K** | Auto, 8K–64K | Long documents, conversations, and coding tool loops |
+
+**Recommended: KVMem + rk8v4.** It supports 256K total context and uses VRAM more efficiently. Automatic output can reach 64K (int8 KVMem: up to 40K). Check the actual allocation in the current `接入信息.txt`. In earlier tests with a fixed 32K output, real-chat speeds were similar (48.0 vs. 48.4 tokens/s); rk8v4 perplexity was about 0.1% higher.
+
+**Context limits** (the 2026-10-01 build placed token embeddings and vision weights in host memory while preserving image input):
+
+| Mode | Previous build | Updated build |
+|---|---:|---:|
+| Standard | 65,536 | **90,112** |
+| rk8v4 | 90,112 | **114,688** |
+| KVMem (retrieval window + output in VRAM) | 53,248 | **77,824** |
+| KVMem + rk8v4 | 69,632 | **102,400** |
+
+These limits were measured one tier at a time after a clean restart:
+
+- Every tier had to pass text, image, tool-calling, and hidden-sentence retrieval checks. Standard mode was also tested near its context limit; KVMem was tested with a 260K-token document.
+- The engine could not crash or slow down.
+- With a display connected to the RTX 3060 and the desktop using about 1.3 GB, at least about 200 MiB had to remain free.
+
+## Model Setup and Settings
+
+For RTX 30 series users:
+
+- The extracted package is about 434 MB; model weights are not included. On first launch it downloads the 7.7 GiB model from ModelScope, supports resume, and verifies the file.
+- No environment setup is required. Install NVIDIA driver version 580 or later. CUDA, Python, and the VC++ runtime are bundled/not required as separate installs.
+- Double-click `启动.bat`. Press Enter to reuse settings or C to configure the seven wizard steps: model, KVMem, KV format, vision, context, response length, and reasoning length. Recommended values and limits are shown; values above the limit must be corrected.
+- `接入信息.txt` is generated on launch and gives the API address, model ID, context, maximum output, and a DeepSeek Harness configuration example.
+- Supports OpenAI, Anthropic Messages, and OpenAI Responses formats, tool calling, and image input.
+- Two models are available: **Swift-Bonsai-2** (recommended; shorter reasoning and faster answers) and **original Bonsai-2**. In an AIME 20 test run twice locally, Swift scored 37/40 and original scored 35/40. This is a small sample; the two appear broadly similar.
+
+See [test results and known limits](#test-results-and-known-limits) and [implementation](#implementation).
+
+### Launcher Settings in the Current Source
+
+The following settings are included in the 0.1.0 launcher:
+
+| Setting | Behavior |
+|---|---|
+| `KVMEM_WINDOW` / `KVRK_WINDOW` | 0 automatically sizes the retrieval window from free VRAM; maximum 36K |
+| `KVMEM_ANSWER` / `KVRK_ANSWER` | `auto` prioritizes retrieval space, then gives the remainder to output; int8 up to 40K, rk8v4 up to 64K, with at least 8K output |
+| `POST_THINKING` | Default 1; lower answer sampling temperature after reasoning |
+| `RECOVER_INVARIANT` | Default 1; attempt recovery for supported internal invariant errors |
+| Launcher menu P / `设置显卡功耗.bat` | Optional GPU power limit and restore-at-startup feature; requires administrator rights and is limited by hardware support |
+
+`verify-kit-manifest.ps1` checks the files, dependencies, and Chinese filenames for a specific release build. `verify-arch-engine.ps1` starts a test engine and uses VRAM; close other models before running it. If you rebuild or change scripts, update the manifest and embedded expected hashes.
+
+## Test Results and Known Limits
+
+These measurements and validation results are historical and listed by build. Speeds from different tools, model formats, prompts, and output lengths are not directly comparable. This documentation update did not rerun them. A configurable 256K context does not guarantee exact recall of all history: KVMem selects part of the history for each active window.
+
+The following speed and quality records cover optimizations through 2026-10-01. “Current” refers to that published build. The 2026-10-03 tenth-round results are listed separately below.
+
+### Speed
+
+| Metric | Initial deployment | Updated build | Gain |
+|---|---:|---:|---:|
+| Real chat generation (average across Chinese, English, code, reasoning) | 40.6 tokens/s | **52.8 tokens/s** | **about +30%** |
+| Long-prompt processing (2048-token chunks) | 694 tokens/s | **965 tokens/s** | **+40%** |
+| Short prompt processing (32 tokens) | 218 tokens/s | **385–393 tokens/s** | about +80% |
+| Generation without speculative decoding | 19.6 tokens/s | **30.6–30.9 tokens/s** | about +57% |
+
+- The four content types measured 46.2 (Chinese), 50.8 (English), 67.0 (code), and 63.1 (reasoning) tokens/s.
+- Copying code or data can exceed **80–100 tokens/s** when draft hits are over 90%; this is not used in the table, which reflects normal conversation.
+- Measurements used the same machine and executable, alternating optimizations on and off for three rounds and allowing the GPU to cool between rounds.
+
+### Long Context
+
+| Scenario | Result |
+|---|---|
+| Hidden sentence in a 260K document | **Found**; follow-up questions also correct, with about 5 seconds to first output |
+| First prompt at 260K | About 12 minutes (about 370 tokens/s); generation afterward remained 51.5 tokens/s |
+| First prompt at 89K | About 3 minutes (about 450 tokens/s) |
+| Four turns on a 64K document, adding new content and asking about earlier content | All four correct |
+
+### Correctness
+
+- Speed optimizations produced **bit-identical output except for one change**.
+- The exception changed the threshold for switching to the int8 path from 33 to 17. PPL changed by only +0.033%, within the engine author's allowed range.
+- Host-resident vision weights produced **identical image results** (18 checks across six rounds).
+
+### Test System
+
+| Component | Configuration |
+|---|---|
+| GPU | RTX 3060 12 GB (28 SM, 360 GB/s memory bandwidth) |
+| RAM | 32 GB recommended; long KVMem conversations use about 10 GB. With 16 GB, use standard mode only |
+| OS | Windows 11 |
+| Client | DeepSeek Harness desktop app; other OpenAI-compatible clients also work |
+
+Other sm_86 cards (3060 Ti / 3070 / 3080 / 3090) may work with the same source changes, but must be rebuilt for the actual SM count and retested for limits.
+
+The SM build notes above describe the 2026-10-01 release; see the changelog for later local-build changes.
+
+### Known Limits
+
+- **RTX 30 series only:** the package is compiled for sm_86; use the original engine for RTX 40/50 series.
+- **One request at a time:** additional requests are queued.
+- **Per-response output, including reasoning, depends on startup allocation:** 0.1.0 automatic output ranges from 8K–40K / 8K–64K; check `接入信息.txt`. Output may be truncated at the limit. With limited VRAM, retrieval and output reservations compete for space.
+- **KVMem selects only part of the history each turn:** details may be missed in long conversations. Use rk8v4 (up to 112K) when all content must be visible.
+- **The first 260K prompt takes over ten minutes:** follow-up turns are much faster.
+- **Little free VRAM at the upper limit:** limits assume the display is connected to the card and the desktop uses about 1.3 GB, leaving roughly 200 MiB. Games, video, and browser hardware acceleration may slow startup or prevent it. Lower the setting by one 4K tier, or connect the display to integrated graphics.
+
+### Test Method
+
+- Speed uses the engine's `ninfer_bench` and an A/B real-chat script across Chinese, English, code, and reasoning with sampling enabled. Runs alternated and the GPU was allowed to cool to 60–65°C.
+- Correctness used bitwise output comparisons and PPL thresholds. Long-context checks covered hidden-sentence retrieval, multi-turn questions, and tool loops.
+- Each change has an environment-variable switch to restore the earlier behavior.
+
+### Tenth-Round Supplementary Validation
+
+These results are from the 2026-10-03 tenth local build, whose changes shipped in 0.1.0. They are listed separately from the earlier benchmarks:
+
+- Three fixed prompts, temperature 0, 256 output tokens, in old / new / new / old order: 54.370 vs. 54.437 tokens/s. Output hashes matched for all prompts; there is no clear speedup.
+- Quick perplexity covered 261,167 scored tokens. Old and new reports matched overall and in every domain; overall PPL was 5.6284340215296345.
+- Seven-turn 100K conversations passed with the old build, new features disabled, 512-row retrieval, 512-row retrieval without gather, and 1024-row retrieval.
+- All four launch modes, image input, tool round trips, and the independent byte-for-byte gather check passed.
+- **Three legacy assertions in the complete KV unit suite still fail** on reservation/residency semantics. The relevant reservation functions were unchanged from before this round. The full suite is not reported as passing.
+- The positive automatic-window retry used a simulated capacity report. The real VRAM pressure test did not trigger the same error; some attempts hit pinned host-memory allocation failures.
+- Standard 88K, rk8v4 112K, and KVMem total context 256K retain earlier configuration limits. This round did not establish a VRAM capacity or answer-quality gain.
+
+The retry limitations describe the initial tenth-round validation. Later local records include successful startup under real VRAM pressure and a successful restart after an engine capacity report. This source-publication update did not rerun speed, perplexity, or the complete legacy KV suite; historical dates and scope remain as recorded.
+
+## Implementation
+
+The figures below are from previous tests and are not guaranteed for every update. Release-specific fixes and status are in [CHANGELOG](CHANGELOG.md).
+
+### 1. Run on RTX 30 Series
+
+The original engine supported only RTX 40/50 series (sm_89 / sm_120) and would not build or run on a 3060. The port:
+
+- Enables sm_86 in the build configuration.
+- Adjusts for the RTX 3060's 28 SMs; the original assumed 82 and failed during startup.
+- Disables the FP8 path, which the RTX 3060 does not support.
+
+### 2. Generation Speed (+27–30%)
+
+- **Use Tensor Cores for one-token generation:** replaces ordinary row-wise computation.
+- **Decode 2-bit weights directly in registers:** avoids a shared-memory lookup table with heavy contention. Bandwidth improved 20–50%; output stayed bit-identical.
+- **Move only required data rows:** each SM can process one or two more task groups, adding 3–14%.
+
+### 3. Prompt Processing Speed (+40%)
+
+- **A new int8 kernel** delivered the largest gain:
+  - Decodes weights in registers to remove a memory transfer.
+  - Uses 32×64 compute tiles and a three-stage pipeline.
+  - Schedules by L2 cache size so weights and input stay cached where possible.
+  - Reorders output in shared memory before writing it to VRAM.
+
+  Matrix throughput rose from 45 to 61 TOPS; prompt processing improved 26–27%, with **bit-identical output**.
+- **Vectorized input quantization:** reduced from 40.7 ms to 22.8 ms, near the memory-bandwidth limit.
+- **Grid-based scheduling:** keeps all 28 SMs busy.
+- **Retuned the switching threshold:** the measured 3060 optimum was 17 tokens, matching the engine author's finding on another card.
+
+Other tested ideas without measurable benefit were excluded from that build.
+
+### 4. KVMem: 256K Context with 12 GB VRAM
+
+Adapted from kvmem-llama.cpp approaches and recommended settings:
+
+- **Only the active window stays in VRAM:** an 8K fixed prefix for system prompt and tool definitions, selected history, and reserved output. The window depends on mode and settings; see [12G modes](#modes-and-capacity).
+- **Remaining history stays in system RAM:** 256K uses about 8.4 GiB of pageable memory, avoiding Windows pinned-memory allocation limits.
+- **MTP speculative decoding remains enabled.** The early KVMem build required disabling MTP, dropping speed from 53 to 30 tokens/s. Real-chat speed with current KVMem is **48–50 tokens/s**.
+
+Later KVMem iterations added:
+
+- Retrieval uses **the user's actual question**, not only tool output. A prior 89K tool-output case failed; it now passes.
+- New input on the current turn is always retained in VRAM.
+- When history is evicted, the current input is recomputed along with newly selected content, following the paper's method.
+
+### 5. rk8v4: A More Compact KV Format
+
+- K uses int8 and V uses 4-bit; each token uses 77% of int8 KV storage.
+- Holds about 30% more context in the same VRAM (standard 88K → rk8v4 112K).
+- Tradeoffs: about +0.1% PPL and about 5% slower short-conversation generation.
+- Three 86K hidden-sentence trials all passed.
+
+### 6. Host-Resident Vision Weights and Token Embeddings
+
+- Vision weights normally occupy about 300 MiB in VRAM. They now stay in RAM and move to the GPU in 30 chunks for each image, adding about 0.1 seconds per image.
+- The 322 MiB token embedding table also stays in RAM; only the required rows are read over PCIe.
+- Together, these changes save about 600 MiB of VRAM, raising limits by 2–4 tiers. Prompt and generation speed stayed the same, and image results were identical.
+- The 2026-10-01 12G release did not use the 8G build's Q4 MTP or 512-token prompt chunks:
+  - Q4 MTP: draft hit rate fell from 0.679 to 0.655 and generation was about 3% slower.
+  - 512-token chunks were about 2% slower at the time and did not save enough VRAM for another tier. The 2026-10-03 tenth local build later used 512 for its own goals.
+
+## Source and Build
+
+The full source is in [`bonsai2-12g/engine/`](bonsai2-12g/engine/). The launcher, public defaults, tests, and power tools are in [`oneclick/`](bonsai2-12g/oneclick/). Build entry point: [`build-sm86.bat`](bonsai2-12g/scripts/build-sm86.bat). See the [source index](bonsai2-12g/README.en.md).
+
+Windows builds require CUDA 13.1 or later (the recorded build used 13.3), MSVC C++ tools, CMake 3.28 or later, and Ninja. Image input also requires FFmpeg development files: put `include` and `lib` under `bonsai2-12g/engine/ffmpeg/`. The FFmpeg directory and runtime DLLs must be supplied by the builder and are not included in source control.
+
+From the repository root:
+
+```bat
+set "NINFER_CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.3"
+set "NINFER_VCVARS64=C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
+bonsai2-12g\scripts\build-sm86.bat
+```
+
+The script locates source relative to the repository and writes to `bonsai2-12g/build/`. By default it builds the sm_86 `apps/ninfer-serve.exe` and `apps/ninfer-perplexity.exe`. Set toolchain paths for your installation. CMake and Ninja must be on PATH, or set `NINFER_TOOLS_PATH` to their directories (semicolon-separated). Use ASCII-only paths for source and build folders. Copy the executable and runtime DLLs into the package's `engine` directory. Existing model files remain usable.
+
+For an existing build, run `build-sm86.bat build`. `configure` only generates build files. To build text-only service, set `NINFER_DISABLE_MEDIA=ON`; image/video decoding will be unavailable. Tests and benchmarks are disabled by default. Configure with `NINFER_BUILD_TESTING=ON` and `NINFER_BUILD_BENCHMARKS=ON` to build those targets. Keep the three historical legacy KV assertion failures in mind; see above.
+
+The repository includes engine math, model bindings, KVMem, tools, and dependency source. Model files, build products, runtime records, and personal settings are not part of the source tree. The three compatibility changes and API limits are described in [CHANGELOG](CHANGELOG.md#2026-10-04三项智能体兼容修改与-bonsai2-12g-源码公开).
+
+## Common Issues
+
+- Startup failure or sudden slowdown: close other GPU apps, reduce context or output by one tier, and restart.
+- Host memory allocation failure: close other models and reduce total context; with 16 GB RAM, use standard mode.
+- Interrupted download: launch again to resume. If verification fails, redownload as described in the package.
+- Client output is truncated: use the maximum output from the current `接入信息.txt`; reasoning uses part of the output budget.
+- dsh settings do not take effect: exit the app and tray process, then reopen. To inspect a closing window, open CMD in the package directory and run `启动.bat`.
+- DLL load error: extract the full archive and keep runtime DLLs beside the engine. See [VC runtime and DLL troubleshooting](CHANGELOG.md#vc-运行库或其他-dll-加载错误) (Chinese).
+
+See [startup troubleshooting](CHANGELOG.md#启动错误与处理) (Chinese) for Swift 1.5 startup fixes. Remove API keys and other private information before sharing logs.
+
+## Credits and Licenses
+
+- **Bonsai-2 27B ternary model:** prism-ml. **Swift-Bonsai-2:** fyb423 on ModelScope; the original model file uses the mirror from Lxt1992 on ModelScope.
+- **ninfer engine:** the original author's ternary inference engine, RTX 3060 upgrade package, and tuning notes.
+- **KVMem:** kvmem-llama.cpp and its paper.
+- **rk8v4:** implementation from ninfer-all.
+- Public tuning notes from the 3090 branch and other RTX 3060 users were also useful.
+
+See [engine/LICENSE](bonsai2-12g/engine/LICENSE) and [NOTICE](bonsai2-12g/engine/NOTICE) for engine terms and upstream notices. Third-party folders retain their own licenses; model and code licenses apply separately.
+
+For 8 GB, see [Bonsai2 8G](README-8GB.en.md). For Swift 1.5, return to the [project home](README.en.md).

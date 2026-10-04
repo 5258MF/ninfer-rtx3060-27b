@@ -1,5 +1,7 @@
 # Bonsai2 12G 版
 
+**简体中文 | [English](README-12GB.en.md)**
+
 在 Windows 上使用 RTX 3060 12GB 运行 Swift-Bonsai-2 27B 三元模型。模型文件约 7.7 GiB，支持图片输入、工具调用和 KVMem 长对话。
 
 ## 下载与开始
