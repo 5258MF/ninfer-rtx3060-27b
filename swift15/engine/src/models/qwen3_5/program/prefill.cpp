@@ -258,6 +258,13 @@ void ProgramImpl::start_sequence(std::uint32_t lane, SequenceState& sequence,
         throw std::invalid_argument("materialization staging is incomplete");
     }
     AdmissionCandidateImpl& request_plan = *transaction.plan->impl_;
+    if (kvmem_window_pages != 0 && runtime::kvmem_auto_allocation_enabled()) {
+        const auto allocation = runtime::plan_kvmem_allocation(
+            kvmem_window_pages * kPagedKVPageSize, capacity,
+            request.prefill->prompt.system_prefix_tokens, 128U);
+        sparse.sink_pages = allocation.sink_tokens / kPagedKVPageSize;
+        sparse.reserve_pages = allocation.output_tokens / kPagedKVPageSize;
+    }
     if (request.lifecycle == Lifecycle::Prefilling || request.lifecycle == Lifecycle::Active ||
         request.lifecycle == Lifecycle::Pending) {
         throw std::logic_error("staged prefill requires a free request lane");
@@ -566,7 +573,7 @@ void ProgramImpl::start_sequence(std::uint32_t lane, SequenceState& sequence,
                 // The retrieval index tracks the newest conversation; a Root start is a new
                 // conversation, so stale block means from a finished one must not pollute
                 // scoring (page numbering restarts at zero, so stale hits would be wrong).
-                stash_long_kvmem_index(sparse, 0, kvmem_prompt_window_pages(kvmem_window_pages) * kPagedKVPageSize);
+                stash_long_kvmem_index(sparse, 0, kvmem_prompt_window_pages(kvmem_window_pages, sparse.reserve_pages) * kPagedKVPageSize);
                 sparse.index.truncate_to(0);
                 sparse.index_tokens.clear();
                 sparse.query.clear();
@@ -777,7 +784,7 @@ void ProgramImpl::start_sequence(std::uint32_t lane, SequenceState& sequence,
                 }
                 keep = same / ops::kKvmemCaptureBlockTokens * ops::kKvmemCaptureBlockTokens;
             }
-            stash_long_kvmem_index(sparse, keep, kvmem_prompt_window_pages(kvmem_window_pages) * kPagedKVPageSize);
+            stash_long_kvmem_index(sparse, keep, kvmem_prompt_window_pages(kvmem_window_pages, sparse.reserve_pages) * kPagedKVPageSize);
             sparse.index.truncate_to(keep);
             (void)sparse.index.append(base - keep);
             sparse.index_tokens.assign(staged.prompt.token_ids.begin(),
@@ -795,14 +802,14 @@ void ProgramImpl::start_sequence(std::uint32_t lane, SequenceState& sequence,
             // Long sparse requests currently restart from root, so their User span is
             // available to capture even when followed by an arbitrarily long tool tail.
             const std::uint32_t prompt_window_tokens =
-                kvmem_prompt_window_pages(kvmem_window_pages) * kPagedKVPageSize;
+                kvmem_prompt_window_pages(kvmem_window_pages, sparse.reserve_pages) * kPagedKVPageSize;
             const auto query = kvmem_query_span(prompt_tokens, base, staged.prompt.retrieval_query,
                                                staged.prompt.vision_items, staged.prompt.token_ids,
                                                prompt_window_tokens);
             sparse.query_end = query.end;
             sparse.query_begin = query.begin;
             plan_kv9_query(sparse, staged.prompt, prompt_tokens, base);
-            if (staged.vision && prompt_tokens > kvmem_prompt_window_pages(kvmem_window_pages) * kPagedKVPageSize && query.begin != 0) {
+            if (staged.vision && prompt_tokens > kvmem_prompt_window_pages(kvmem_window_pages, sparse.reserve_pages) * kPagedKVPageSize && query.begin != 0) {
                 staged.vision->retain_for_replay(query.begin);
             }
             if (std::getenv("NINFER_KVMEM_TRACE") != nullptr) {
@@ -1252,7 +1259,7 @@ runtime::PrefillStepResult ProgramImpl::advance_prefill(SequenceState& sequence,
         // retrieved working set.
         const bool needs_query_replay =
             kvmem_window_pages != 0 &&
-            staged.prompt_tokens > kvmem_prompt_window_pages(kvmem_window_pages) * kPagedKVPageSize && sparse.query_begin != 0 &&
+            staged.prompt_tokens > kvmem_prompt_window_pages(kvmem_window_pages, sparse.reserve_pages) * kPagedKVPageSize && sparse.query_begin != 0 &&
             staged.capture_groups.empty();
         execution::PrefillContext schedule_state{
             {device, parameters, work, state_images->linear(0),
@@ -1401,7 +1408,7 @@ runtime::PrefillStepResult ProgramImpl::advance_prefill(SequenceState& sequence,
                     split_frontier = *hybrid_split;
                 }
                 if (kvmem_window_pages != 0 && !sparse.query_checkpoint_valid &&
-                    staged.prompt_tokens > kvmem_prompt_window_pages(kvmem_window_pages) * kPagedKVPageSize &&
+                    staged.prompt_tokens > kvmem_prompt_window_pages(kvmem_window_pages, sparse.reserve_pages) * kPagedKVPageSize &&
                     sparse.query_begin > staged.cursor &&
                     (!split_frontier || sparse.query_begin < *split_frontier)) {
                     split_frontier = sparse.query_begin;
@@ -1461,7 +1468,7 @@ runtime::PrefillStepResult ProgramImpl::advance_prefill(SequenceState& sequence,
                     hybrid_after_prefill_chunk(sequence, staged.cursor, staged.prompt_tokens);
                 }
                 if (kvmem_window_pages != 0 && staged.cursor == sparse.query_begin &&
-                    staged.prompt_tokens > kvmem_prompt_window_pages(kvmem_window_pages) * kPagedKVPageSize) {
+                    staged.prompt_tokens > kvmem_prompt_window_pages(kvmem_window_pages, sparse.reserve_pages) * kPagedKVPageSize) {
                     copy_kvmem_query_state(sequence, false);
                     sparse.query_checkpoint_valid = true;
                 }
@@ -1653,7 +1660,7 @@ void ProgramImpl::roll_sparse_prefill_window(SequenceState& sequence, std::uint3
                                              std::uint32_t cursor,
                                              std::uint32_t backend_valid, bool retrieved_history) {
     auto& sparse = kvmem_lanes_.at(sequence.lane);
-    const std::uint32_t sink_pages = kvmem_sink_pages_cfg;  // upstream: one 128-token block
+    const std::uint32_t sink_pages = sparse.sink_pages;  // upstream: one 128-token block
     const std::uint32_t next_target =
         std::min(prompt_tokens, cursor + prefill_chunk);
     const std::uint32_t next_pages = (next_target + kPagedKVPageSize - 1U) / kPagedKVPageSize;
@@ -1679,10 +1686,10 @@ void ProgramImpl::roll_sparse_prefill_window(SequenceState& sequence, std::uint3
     const auto window = !sparse.media_groups.empty()
                             ? media_window_page_set(mapped_pages, kvmem_window_pages,
                                   retrieved_history ? std::span<const std::uint32_t>(sparse.retrieved_pages)
-                                                    : std::span<const std::uint32_t>{}, sparse.media_groups)
+                                                    : std::span<const std::uint32_t>{}, sparse.media_groups, true, sparse.sink_pages)
                         : retrieved_history
                             ? decode_window_page_set(mapped_pages, kvmem_window_pages,
-                                                     sparse.retrieved_pages)
+                                                     sparse.retrieved_pages, sparse.sink_pages)
                             : prefill_window_page_set(mapped_pages, sink_pages,
                                                       kvmem_window_pages - sink_pages);
     text_kv_addresses->apply_device_placement(sequence.kv->text, *host_kv_extents, window,
@@ -1708,10 +1715,10 @@ void ProgramImpl::roll_sparse_prefill_window(SequenceState& sequence, std::uint3
         const auto backend_window = !sparse.media_groups.empty()
             ? media_window_page_set(backend_mapped, kvmem_window_pages + lead_pages,
                   retrieved_history ? std::span<const std::uint32_t>(sparse.retrieved_pages)
-                                    : std::span<const std::uint32_t>{}, sparse.media_groups)
+                                    : std::span<const std::uint32_t>{}, sparse.media_groups, true, sparse.sink_pages)
             : retrieved_history
             ? decode_window_page_set(backend_mapped, kvmem_window_pages + lead_pages,
-                                     sparse.retrieved_pages)
+                                     sparse.retrieved_pages, sparse.sink_pages)
             : prefill_window_page_set(backend_mapped, sink_pages,
                                       kvmem_window_pages - sink_pages + lead_pages);
         backend_kv_addresses->apply_device_placement(*sequence.kv->backend, *host_kv_extents,
@@ -1935,7 +1942,7 @@ void ProgramImpl::plan_kv9_query(KvmemLaneState& sparse, const PreparedPromptDat
     const auto& attention = *parameters.model.config().text.attention;
     const std::uint32_t kLayers = sparse.index.layers();
     const std::size_t qw = static_cast<std::size_t>(attention.query_width());
-    const std::uint32_t prompt_pages = kvmem_prompt_window_pages(kvmem_window_pages);
+    const std::uint32_t prompt_pages = kvmem_prompt_window_pages(kvmem_window_pages, sparse.reserve_pages);
     const std::uint32_t window_tokens = prompt_pages * kPagedKVPageSize;
     const bool have_ids = prompt.token_ids.size() >= prompt_tokens;
     const std::span<const TokenId> ids =
@@ -2043,7 +2050,7 @@ void ProgramImpl::plan_kv9_query(KvmemLaneState& sparse, const PreparedPromptDat
     // kv8b protect-new v2: only over-window text prompts (media keep the qz group rules).
     if (sparse.kv9_plan && kv9_protect_enabled() && prompt.vision_items.empty() &&
         prompt_tokens > window_tokens) {
-        const std::uint32_t sink_pages = kvmem_sink_pages_cfg;
+        const std::uint32_t sink_pages = sparse.sink_pages;
         const std::uint32_t rest = prompt_pages > sink_pages ? prompt_pages - sink_pages : 0U;
         // kv8b: 12288 of a 32768 retrieval share (3/8); scaled to this window.
         const std::int64_t cap = std::min<std::int64_t>(
@@ -2192,7 +2199,7 @@ void ProgramImpl::apply_kvmem_retrieval_placement(SequenceState& sequence) {
     auto& sparse = kvmem_lanes_.at(sequence.lane);
     constexpr std::uint32_t kBlockTokens = 128U;
     const std::uint32_t mapped = text_kv_addresses->mapped_pages(sequence.kv->text);
-    const std::uint32_t prompt_pages = kvmem_prompt_window_pages(kvmem_window_pages);
+    const std::uint32_t prompt_pages = kvmem_prompt_window_pages(kvmem_window_pages, sparse.reserve_pages);
     if (mapped <= prompt_pages) { return; }
     if (sparse.query_count.empty() || sparse.query_count[0] == 0) { return; }
     const std::uint32_t blocks = sparse.index.block_count();
@@ -2204,7 +2211,7 @@ void ProgramImpl::apply_kvmem_retrieval_placement(SequenceState& sequence) {
     // placement's promote side overflows the pool.
     // Old-style allocation: retrieval compresses the prompt into window - gen reserve; the
     // sink prefix is kept whole and the recency share comes out of what remains after it.
-    const std::uint32_t sink_pages   = kvmem_sink_pages_cfg;
+    const std::uint32_t sink_pages   = sparse.sink_pages;
     std::uint32_t recent_pages =
         sink_pages > 2U ? (prompt_pages - sink_pages) / 4U : prompt_pages / 4U;
     config.sink_blocks   = std::max(1U, sink_pages / 2U);
@@ -2235,6 +2242,9 @@ void ProgramImpl::apply_kvmem_retrieval_placement(SequenceState& sequence) {
         recent_pages = std::max(recent_pages,
                                 std::min(limit, mapped - sparse.query_begin / kPagedKVPageSize + 1U));
     }
+    // Preserve every prefix block even at the smallest admitted retrieval budget.
+    // Two transient boundary pages come out of retrieval, never the system prefix.
+    recent_pages = std::min(recent_pages, prompt_pages - sink_pages - 2U);
     config.budget_blocks = (prompt_pages - recent_pages - 2U) / 2U;
     // Blocks kept anyway are not candidates (paper: C excludes sink and recent blocks).
     for (std::uint32_t block = 0; block < std::min(config.sink_blocks, blocks); ++block) { include[block] = 0U; }
@@ -2483,16 +2493,18 @@ void ProgramImpl::apply_kvmem_retrieval_placement(SequenceState& sequence) {
         // may consume the usual recent share, but two boundary pages stay reserved.
         std::uint32_t media_budget = config.budget_blocks * 2U;
         for (const auto& group : sparse.media_groups) {
-            if (group.begin < 2) { media_budget = std::max(media_budget, group.end); }
+            if (group.begin < sparse.sink_pages) { media_budget = std::max(media_budget, group.end); }
         }
         const auto& latest = sparse.media_groups.back();
-        std::uint32_t sink_extent = 2;
+        std::uint32_t sink_extent = sparse.sink_pages;
         for (const auto& group : sparse.media_groups) {
-            if (group.begin < 2) { sink_extent = std::max(sink_extent, group.end); }
+            if (group.begin < sparse.sink_pages) { sink_extent = std::max(sink_extent, group.end); }
         }
         media_budget = std::max(media_budget,
-            sink_extent + (latest.begin < 2 ? 0 : latest.end - latest.begin));
-        pages = media_window_page_set(mapped, media_budget, pages, sparse.media_groups, false);
+            sink_extent + (latest.begin < sparse.sink_pages ? 0 : latest.end - latest.begin));
+        recent_pages = std::min(recent_pages,
+            prompt_pages > media_budget + 2U ? prompt_pages - media_budget - 2U : 0U);
+        pages = media_window_page_set(mapped, media_budget, pages, sparse.media_groups, false, sparse.sink_pages);
     }
     sparse.retrieved_pages = pages;
     const std::uint32_t recent_begin = mapped > recent_pages ? mapped - recent_pages : 0U;
@@ -2505,7 +2517,7 @@ void ProgramImpl::apply_kvmem_retrieval_placement(SequenceState& sequence) {
     std::sort(pages.begin(), pages.end());
     pages.erase(std::unique(pages.begin(), pages.end()), pages.end());
     if (!sparse.media_groups.empty()) {
-        pages = media_window_page_set(mapped, kvmem_window_pages - 1U, pages, sparse.media_groups);
+        pages = media_window_page_set(mapped, kvmem_window_pages - 1U, pages, sparse.media_groups, true, sparse.sink_pages);
         // This transient page preserves the prefix before truncate_for_replay. No
         // attention runs on this placement; replay normalizes complete groups again.
         if (sparse.query_begin != 0) { pages.push_back((sparse.query_begin - 1U) / kPagedKVPageSize); }

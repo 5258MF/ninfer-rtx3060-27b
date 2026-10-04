@@ -1,4 +1,4 @@
-# Verifies the extracted ninfer-3060-12g-oneclick directory against the embedded SHA256 manifest
+﻿# Verifies the extracted ninfer-3060-12g-oneclick directory against the embedded SHA256 manifest
 # and checks for stale binaries, missing companion DLLs, or garbled (mojibake) root filenames.
 # ASCII-only source to avoid Windows PowerShell 5.1 codepage issues.
 
@@ -47,7 +47,7 @@ $EmbeddedExpected = [ordered]@{
         Role            = "FFmpeg avutil runtime DLL"
     }
     "launcher/launch.ps1"           = @{
-        Sha256          = "68945e61b374be98c22ebf9cd4def13c313c0ee6ab3d216186daa2a9d0f132b0"
+        Sha256          = "cb019e5d5a5526ba1e6ec78bbf03737271e6b8444a0c1f40bf0abb3b1bf47f32"
         MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2026-10-03T14:00:00", [System.DateTimeKind]::Utc)
         Role            = "One-click interactive launcher script"
     }
@@ -57,7 +57,7 @@ $EmbeddedExpected = [ordered]@{
         Role            = "Connectivity and speed test script"
     }
     "verify-arch-engine.ps1"        = @{
-        Sha256          = "2ff3f94704e301d5f51e0dcbe655ea8216fd00fa93d7237c04fef0a9e23fe711"
+        Sha256          = "f0d7fccf447590bde84424aa8839ff6d4c0eccfe92f463ed2e8cd54618bb05d9"
         MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2026-10-03T14:00:00", [System.DateTimeKind]::Utc)
         Role            = "End-to-end hardware & needle verification harness"
     }

@@ -317,6 +317,15 @@ RenderedChat CompiledChatTemplate::render_as(const std::vector<ChatMessage>& mes
     result.media_placeholders           = layout.media_placeholders;
     result.rewrite_execution_boundaries = layout.execution_boundaries;
     result.message_boundaries.resize(messages.size() + 1);
+    if (!messages.empty() && messages.front().role != ChatRole::System &&
+        messages.front().role != ChatRole::Developer) {
+        std::size_t prefix_end = 0;
+        for (const auto& message : layout.messages) {
+            if (message.role != ChatRole::System && message.role != ChatRole::Developer) { break; }
+            prefix_end = message.end;
+        }
+        result.message_boundaries[0] = prefix_end;
+    }
     result.cache_boundaries.resize(options.cache_markers.size());
 
     // Only requested/structural boundaries need proof, independent of history length.

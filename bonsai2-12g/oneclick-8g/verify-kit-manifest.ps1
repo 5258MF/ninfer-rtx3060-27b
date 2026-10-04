@@ -1,4 +1,4 @@
-# Verifies the extracted ninfer-3060-8g-oneclick directory against the embedded SHA256 manifest
+﻿# Verifies the extracted ninfer-3060-8g-oneclick directory against the embedded SHA256 manifest
 # and checks for stale binaries, missing companion DLLs, or garbled (mojibake) root filenames.
 # ASCII-only source to avoid Windows PowerShell 5.1 codepage issues.
 #
@@ -36,7 +36,7 @@ $EmbeddedExpected = [ordered]@{
     "engine/swresample-7.dll"       = @{ Sha256 = "a81be671fe3fdebb6bc12abc1268c6e065d68de61ddf1efca721e52752f10f8f"; MinLastWriteUtc = $UtcDll; Role = "FFmpeg swresample runtime DLL" }
     "patch/ops.txt"                 = @{ Sha256 = "25678c4a4f70998087d0c5fb4a47436257b90867bc9db445387eacf3222ba1f9"; MinLastWriteUtc = $UtcDll; Role = "MTP Q4 conversion patch script" }
     "patch/lit.bin"                 = @{ Sha256 = "8b924c284cd262883f76706c16a5b5b58fe6bc1fd7f4c21f362218c317b09701"; MinLastWriteUtc = $UtcDll; Role = "MTP Q4 conversion literal payload" }
-    "launcher/launch.ps1"           = @{ Sha256 = "b5aba7a0a5792c373dd834486403726c51632baa5c77770d531b602d121c8a52"; MinLastWriteUtc = $UtcKit; Role = "One-click interactive launcher" }
+    "launcher/launch.ps1"           = @{ Sha256 = "6401693d960f281384bce909212c1170428f8081edcc2d13677a1cd569c1ff98"; MinLastWriteUtc = $UtcKit; Role = "One-click interactive launcher" }
     "launcher/test.ps1"             = @{ Sha256 = "fef3ba95e1423ce0df107b63cfd78e027e69fd875b20acd81edd7eba94a05ca2"; MinLastWriteUtc = $UtcDll; Role = "Connectivity and speed test script" }
     "verify-arch-engine.ps1"        = @{ Sha256 = "5bec4815a679c8e6a5036bc79f7f91ac5351e4d87081a2c43dc651e3d7573d25"; MinLastWriteUtc = $UtcKit; Role = "End-to-end hardware, needle and agent-compat verification harness" }
 }

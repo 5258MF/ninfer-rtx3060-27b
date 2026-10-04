@@ -4571,6 +4571,21 @@ void require_shared_reuse(FakeManager& manager, FakeProgram& program, std::uint3
     require(reused == expected, message);
 }
 
+void test_shared_digest_mismatch_does_not_index_private_catalog() {
+    FakeManager manager = make_manager(1, 1, 3);
+    FakeProgram program;
+    for (std::uint32_t i = 0; i < 3; ++i) {
+        publish_shared_prefix(manager, program, 71+i, 1+i, 1+i,
+                              ninfer::SharedCandidateEvidence::ExplicitBoundary);
+    }
+    // Shared slot 2 exists while the private catalog has just one entry.
+    // A different system prompt must reject all shared keys and plan from root.
+    auto inspection = manager.inspect(program, FakePreparedPrompt{99}, make_base(99), 4);
+    require(inspection.choice.has_value(), "mismatched shared keys blocked root admission");
+    require(inspection.choice->summary().prefix_reuse_path == PrefixReusePath::Root,
+            "mismatched shared digest was reused");
+}
+
 void test_escape_hatch_ranks_shared_prefixes_with_private_owners() {
     // Shared prefixes share the private owners' recency order and get a demote-to-host outcome,
     // so a ladder rung sacrifices the oldest owners of either kind instead of destroying every
@@ -5249,6 +5264,8 @@ int main() {
              test_escape_hatch_clears_all_when_nothing_fits);
     run_test("escape hatch ladder fits the committed target budget",
              test_preserved_prefix_ladder_targets_fit_the_committed_target_budget);
+    run_test("shared digest mismatch uses its own catalog",
+             test_shared_digest_mismatch_does_not_index_private_catalog);
     if (failures != 0) { return 1; }
     std::cout << "ok\n";
     return 0;

@@ -9737,6 +9737,11 @@ void ProgramImplCore::start_sequence(std::uint32_t lane, SequenceState& sequence
         throw std::invalid_argument("materialization staging is incomplete");
     }
     AdmissionCandidateImpl& request_plan = *transaction.plan->impl_;
+    sequence.kvmem_allocation = {};
+    if (runtime::kvmem_auto_allocation_enabled() && ops::detail::kvmem_window_assembly_enabled()) {
+        sequence.kvmem_allocation = runtime::plan_kvmem_allocation(
+            kv_capacity, capacity, request.prefill->prompt.system_prefix_tokens, kPagedKVPageSize);
+    }
     if (request.lifecycle == Lifecycle::Prefilling || request.lifecycle == Lifecycle::Active ||
         request.lifecycle == Lifecycle::Pending) {
         throw std::logic_error("staged prefill requires a free request lane");
@@ -12329,6 +12334,9 @@ void ProgramImplCore::validate_licensed_tokens(std::span<const TokenId> tokens) 
 runtime::PrefillStepResult
 ProgramImplCore::advance_prefill(SequenceState& sequence, RequestControl& request,
                                  runtime::ExecutionTiming* failed_timing) {
+    const ops::detail::ScopedKvmemAllocation allocation_scope(
+        sequence.kvmem_allocation.history_tokens(), sequence.kvmem_allocation.sink_tokens,
+        sequence.kvmem_allocation.retrieval_tokens, sequence.kvmem_allocation.output_tokens);
     runtime::ExecutionTimingRecorder timing(runtime::ExecutionTimingPhase::Submit, failed_timing);
     if (request.lifecycle != Lifecycle::Prefilling || !request.prefill) {
         throw std::logic_error("staged prefill step requires an active concurrent request");
@@ -14125,6 +14133,9 @@ void ProgramImplCore::reset_memory_peaks() noexcept {
 std::uint32_t ProgramImplCore::kvmem_assemble_window(
     SequenceState& sequence, std::uint32_t frontier, std::uint64_t stamp,
     std::uint32_t max_frontier, std::optional<std::int32_t> history_blocks, bool semantic_reselect) {
+    const ops::detail::ScopedKvmemAllocation allocation_scope(
+        sequence.kvmem_allocation.history_tokens(), sequence.kvmem_allocation.sink_tokens,
+        sequence.kvmem_allocation.retrieval_tokens, sequence.kvmem_allocation.output_tokens);
     (void)max_frontier;
     if (!ops::detail::kvmem_window_assembly_enabled()) { return frontier; }
     if (!sequence.kv.has_value()) { return frontier; }

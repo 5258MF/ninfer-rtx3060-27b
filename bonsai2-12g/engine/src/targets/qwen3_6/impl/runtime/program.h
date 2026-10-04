@@ -8,6 +8,7 @@
 #include "ninfer/ops/gdn_replay.h"
 #include "ninfer/ops/sampling.h"
 #include "ops/kvmem/kvmem_window.h"
+#include "runtime/kvmem_allocation.h"
 #include "ops/kvmem/kvmem_window_assembly.h"
 #include "core/decode_graph.h"
 #include <ninfer/targets/qwen3_6/prepared_prompt.h>
@@ -460,6 +461,7 @@ struct SequenceState {
     //   3. nothing else in the round still reads the ledger frontier as a KV address.
     // Arming is safe to defer: an inert carrier changes nothing at all.
     ops::detail::KvmemWindowFrontier kvmem_window{};
+    runtime::KvmemAllocation kvmem_allocation{};
     // ---- KVMem 装配臂（exp\mem-arm）的每 lane 状态；默认惰性，OFF 臂不读其中任何一项 ----------
     //
     // 块 → 槽 表：装配把 membership 重排之后，"块 b 现在在第几个逻辑页"就不再等于 b 了。类型用

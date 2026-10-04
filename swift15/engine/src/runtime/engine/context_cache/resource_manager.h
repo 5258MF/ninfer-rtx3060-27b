@@ -402,10 +402,14 @@ public:
                     // *different* session's response naturally mismatches a slot it does
                     // not own. Label those XSESSION-MISMATCH so they are not mistaken for a
                     // real key-match failure of the re-touch's own checkpoint.
-                    const CatalogEntry& probe_entry = catalog_[index.slot];
-                    const bool own_session =
-                        probe_entry.session && base.context_cache().session_key &&
-                        *probe_entry.session == *base.context_cache().session_key;
+                    // Shared slots belong to shared_catalog_; they can exceed the
+                    // private catalog size. Only private owners have a session binding.
+                    bool own_session = false;
+                    if (!index.shared) {
+                        const CatalogEntry& probe_entry = catalog_[index.slot];
+                        own_session = probe_entry.session && base.context_cache().session_key &&
+                                      *probe_entry.session == *base.context_cache().session_key;
+                    }
                     cdbg_log("[candgen] priv SKIP slot=%u %s frontier=%u "
                              "in=(%llx,%llx) st=(%llx,%llx)\n",
                              index.slot, own_session ? "DIGEST-MISMATCH" : "XSESSION-MISMATCH",

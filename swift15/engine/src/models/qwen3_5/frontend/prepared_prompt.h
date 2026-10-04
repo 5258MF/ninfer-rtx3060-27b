@@ -153,6 +153,9 @@ struct PreparedPromptData {
     std::vector<NgramSourceView> ngram_archive_sources;
     std::shared_ptr<const NgramSnapshot> ngram_snapshot;
     std::vector<TokenId> token_ids;
+    // Exact serialized instruction/tool prefix, before the first conversation message.
+    std::uint32_t system_prefix_tokens = 0;
+    bool system_prefix_proven = true;
     // Exact last User message content, excluding subsequent assistant/tool history.
     // Absent for token-only input or when the template cannot prove this token span.
     std::optional<TokenSpan> retrieval_query;

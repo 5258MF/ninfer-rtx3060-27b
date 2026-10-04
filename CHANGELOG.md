@@ -4,6 +4,24 @@
 
 按版本和日期记录已发生的改动。源码更新与网盘包更新分别标明，避免把源码中的修复误认为已经进入旧下载包。
 
+
+## 0.1.3 / Swift 0.1.2 - 2026-10-05
+
+**状态：Bonsai2 8G／12G 源码版本 0.1.3，Swift 1.5 Q2S 0.1.2。懒人包尚未按本版重打包；网盘链接仍指向此前上传的版本。**
+
+- 三套方案按本次完整渲染的系统、developer 和工具定义计算固定开头；Bonsai 对齐 64 token，Swift 对齐 128 token。256K 检索目标 32K–36K、优先 36K；128K 为 16K–18K、优先 18K，检索不包含固定开头。
+- 输出使用剩余驻留容量，最低预留 8K，取消 KVMem 的固定 16K／32K 上限。空间不足先缩检索；完整开头加 8K 输出不能容纳时返回容量错误。自然的总上下文、客户端长度和停止条件仍然生效。
+- 启动前给 Harness 生成稳定的 contextWindow 和最大申请上限；每次请求再降低实际输出预算。六个本机／懒人包启动器同步修改，旧的固定开头、输出和手动历史上限迁移为自动分配；缩窗后重算接入参数。
+- Swift 共享前缀摘要不匹配时曾误索引私有缓存目录。共享槽数大于私有槽数时会触发 Windows 0xc0000005。现在只对私有条目查询私有会话；新增共享 3 槽／私有 1 槽的失配回归。原来失败的 128K 请求序列重新通过。
+- Swift 图片完整组按本轮开头和历史预算校验，最小检索预算也优先保留完整开头；不再使用固定两页开头做图片预算。
+- 三个增量构建通过；分配数学和嵌套作用域、完整资源管理器测试、714 项启动器容量／缩窗／语法检查通过。Bonsai 四种配置与 Swift 的 128K／256K 覆盖 Chat、Messages、Responses、工具参数、长系统提示、容量拒绝及拒绝后恢复。
+- dsh 0.2.0-rc.2 自带的 standard／minimal 预设均完成真实读文件、写入 42、再读回核对的三次工具往返，覆盖 Bonsai 8G／12G 和 Swift。测试通过原生注册器显式绑定预设，未修改用户配置或使用私人提示。Bonsai 12G 同 80K 驻留容量下，输出预留从两种模式的 32K 变为约 37.6K／43.6K；短任务耗时约 13／9.3 秒，新旧基本相同，没有测出提速。
+- 8G 在 20K 驻留容量下，两种 dsh 预设可以运行并保留 8K 输出，检索分别约 5.6K／11.6K，明显低于 256K 推荐范围。另一项 11K 系统提示＋30K 重复正文、仅 1K 检索的标记测试答错，不能宣称小窗口超长召回全部通过。没有真实 8GB 硬件、完整最大长度生成或新困惑度验收；旧 KV 单测的历史失败没有算作本轮通过。
+
+English: Request-based allocation preserves the complete instruction/tool prefix, targets 36K retrieval at 256K or 18K at 128K, and gives the remainder to output with an 8K reserve. Harness limits are available before the first request. A Swift shared/private catalog indexing defect is fixed. Shipped dsh standard/minimal presets completed real tool round trips on all three configurations; output headroom improved at the same resident capacity, with no demonstrated short-task speedup. Small-window long-history recall remains limited.
+
+- 新上传的 `swift15_iq3xxs_mtp.ninfer` 为 NInfer v3 文件；12G Bonsai 引擎当前只接受 NInfer v2，实际启动在读取文件头阶段以 `artifact magic is not NInfer v2` 退出，尚未加载权重或测试显存。该文件不能直接搭配当前 Bonsai 版懒人包。
+
 ## 0.1.2 - 2026-10-04
 
 **状态：Bonsai2 8G / 12G 源码与本机懒人包更新；网盘仍为旧包，等待重新上传。Swift 1.5 保持 0.1.1。**

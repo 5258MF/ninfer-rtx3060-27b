@@ -1015,6 +1015,12 @@ PreparedPrompt Frontend::prepare(PromptInput input, const PreparationControl& co
         assign_text_positions(result);
     }
     (void)checked_token_count(result.token_ids.size());
+    const auto prefix_boundary = leading_boundary.value_or(0U);
+    if (prefix_boundary < message_boundaries.size() && message_boundaries[prefix_boundary]) {
+        result.system_prefix_tokens = *message_boundaries[prefix_boundary];
+    } else if (leading_boundary || !options.tool_jsons.empty()) {
+        result.system_prefix_proven = false;
+    }
     if (impl_->ngram_archive_enabled) {
         const std::span<const TokenId> tokens(result.token_ids);
         auto add = [&](std::span<const TokenId> span, NgramSourceKind kind, int priority) {

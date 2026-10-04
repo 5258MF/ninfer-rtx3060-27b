@@ -259,11 +259,34 @@ RequestBasePlan ProgramImpl::plan_request(const PreparedPromptData& prompt,
     base->context_cache                   = prompt.context_cache;
     base->summary.prompt_tokens           = static_cast<std::uint32_t>(prompt.token_ids.size());
     base->summary.requested_output_tokens = options.requested_output_tokens;
+    base->kvmem_prompt_pages = kvmem_prompt_window_pages(kvmem_window_pages);
+    std::uint32_t request_sink_pages = kvmem_sink_pages_cfg;
+    std::uint32_t allocation_output = options.requested_output_tokens;
+    if (kvmem_window_pages != 0 && runtime::kvmem_auto_allocation_enabled()) {
+        if (!prompt.system_prefix_proven) {
+            throw std::invalid_argument("chat template cannot prove the complete system/tool prefix boundary");
+        }
+        const auto allocation = [&] {
+            try { return runtime::plan_kvmem_allocation(
+                kvmem_window_pages * kPagedKVPageSize, capacity, prompt.system_prefix_tokens, 128U); }
+            catch (const std::invalid_argument& error) {
+                throw RequestError(RequestErrorKind::ContextLengthExceeded, error.what());
+            }
+        }();
+        base->kvmem_prompt_pages = allocation.history_tokens() / kPagedKVPageSize;
+        request_sink_pages = allocation.sink_tokens / kPagedKVPageSize;
+        allocation_output = std::min(allocation_output, allocation.output_tokens);
+        std::fprintf(stderr, "[kvmem-alloc] resident=%u prefix=%u sink=%u retrieval=%u output=%u recommended=%u..%u%s\n",
+            kvmem_window_pages * kPagedKVPageSize, allocation.prefix_tokens, allocation.sink_tokens,
+            allocation.retrieval_tokens, allocation.output_tokens, allocation.retrieval_min,
+            allocation.retrieval_target,
+            allocation.retrieval_tokens < allocation.retrieval_min ? " retrieval_below_recommended" : "");
+    }
     const std::uint32_t capacity_output =
         capacity - base->summary.prompt_tokens + static_cast<std::uint32_t>(1);
     base->summary.effective_output_tokens =
-        std::min(options.requested_output_tokens, capacity_output);
-    base->summary.effective_limit_reason = options.requested_output_tokens <= capacity_output
+        std::min(allocation_output, capacity_output);
+    base->summary.effective_limit_reason = allocation_output <= capacity_output
                                                ? FinishReason::OutputLimit
                                                : FinishReason::ContextCapacity;
     base->sampling                       = translate_sampling(options.sampling);
@@ -278,7 +301,7 @@ RequestBasePlan ProgramImpl::plan_request(const PreparedPromptData& prompt,
     // such prompts capture no shared/anchor opportunities.
     const bool kvmem_over_window =
         kvmem_window_pages != 0 &&
-        base->summary.prompt_tokens > kvmem_prompt_window_pages(kvmem_window_pages) *
+        base->summary.prompt_tokens > base->kvmem_prompt_pages *
                                           static_cast<std::uint32_t>(kPagedKVPageSize);
     const bool prefix_cache_participation =
         options.allow_prefix_reuse && prompt.identity.reusable && context_cache.enabled &&
@@ -377,7 +400,8 @@ RequestBasePlan ProgramImpl::plan_request(const PreparedPromptData& prompt,
         }
         base->vision_control_plan = std::move(vision);
         if (kvmem_window_pages != 0) {
-            validate_media_window(media_page_groups(prompt.vision_items), kvmem_window_pages);
+            validate_media_window(media_page_groups(prompt.vision_items),
+                                  base->kvmem_prompt_pages, request_sink_pages);
         }
     }
 
@@ -505,7 +529,7 @@ RequestBasePlan ProgramImpl::plan_request(const PreparedPromptData& prompt,
                                            ? 0U
                                            : base->summary.effective_output_tokens - 1U);
     if (kvmem_window_pages != 0 &&
-        reserved_context_tokens > kvmem_prompt_window_pages(kvmem_window_pages) * 64U) {
+        reserved_context_tokens > base->kvmem_prompt_pages * 64U) {
         // A single active sparse request can eventually spill every historical page.
         // Make admission reclaim Host cache before it starts, rather than discovering
         // a full Host arena midway through inference. This is preparation headroom,
@@ -519,7 +543,7 @@ RequestBasePlan ProgramImpl::plan_request(const PreparedPromptData& prompt,
     base->summary.service_work_quanta =
         projected_service_work(base->summary, 0, prefill_chunk, cold_prefill_splits,
                                base->capture_groups, prompt.identity.rewrite_execution_frontiers,
-                               prompt, kvmem_prompt_window_pages(kvmem_window_pages) * kPagedKVPageSize);
+                               prompt, base->kvmem_prompt_pages * kPagedKVPageSize);
     base->root_rebuild_work =
         rebuild_work_at_frontier(prompt, base->summary.prompt_tokens, prefill_chunk,
                                  base->capture_groups, prompt.identity.rewrite_execution_frontiers);
@@ -548,6 +572,7 @@ std::optional<AdmissionCandidate> ProgramImpl::inspect_lane(
 
     auto plan                         = std::make_unique<AdmissionCandidateImpl>();
     plan->summary                     = base.summary;
+    plan->kvmem_prompt_pages          = base.kvmem_prompt_pages;
     plan->sampling                    = base.sampling;
     plan->grammar                     = base.grammar;
     plan->first_token_top_logprobs    = base.first_token_top_logprobs;
@@ -889,7 +914,7 @@ std::optional<AdmissionCandidate> ProgramImpl::inspect_lane(
         projected_service_work(plan->summary, service_work_base(*plan), prefill_chunk,
                                prefill_splits, plan->capture_groups,
                                prompt.identity.rewrite_execution_frontiers,
-                               prompt, kvmem_prompt_window_pages(kvmem_window_pages) * kPagedKVPageSize);
+                               prompt, base.kvmem_prompt_pages * kPagedKVPageSize);
     std::uint64_t remaining_vision_items   = 0;
     std::uint64_t remaining_vision_patches = 0;
     if (plan->vision) {
@@ -1448,7 +1473,7 @@ void ProgramImpl::select_shared_captures(AdmissionCandidate& candidate,
         projected_service_work(plan.summary, service_work_base(plan), prefill_chunk,
                                prefill_splits, plan.capture_groups,
                                prompt.identity.rewrite_execution_frontiers,
-                               prompt, kvmem_prompt_window_pages(kvmem_window_pages) * kPagedKVPageSize);
+                               prompt, plan.kvmem_prompt_pages * kPagedKVPageSize);
     std::uint64_t vision_items   = 0;
     std::uint64_t vision_patches = 0;
     if (plan.vision) {

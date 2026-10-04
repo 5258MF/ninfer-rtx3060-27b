@@ -2,11 +2,11 @@
 
 **简体中文 | [English](README.en.md)**
 
-当前源码版本为 **0.1.2**，已按模型分别发布源码 Release，包含 CPU 检索索引、分块打分与窗口分配优化。网盘仍是此前上传的 **0.1.0** 包；新修复包等待重新上传，下载表中的旧链接未改成 0.1.2。详情见[更新记录](../CHANGELOG.md)。
+当前源码版本为 **0.1.3**，已按模型分别发布源码 Release，包含 CPU 检索索引、分块打分与按请求分配窗口。网盘仍是此前上传的 **0.1.0** 包；新修复包等待重新上传，下载表中的旧链接未改成 0.1.3。详情见[更新记录](../CHANGELOG.md)。
 
 本目录公开 12GB 方案的完整引擎源码（原 ninfer-tree）、构建脚本和懒人包启动器，包含此前的 sm_86、KVMem、rk8v4、显存预算等改动，以及 2026-10-04 的三项智能体兼容修复。
 
-当前源码版本为 **0.1.2**，见 [`VERSION`](VERSION)。Bonsai2 12G 已有[独立的 0.1.2 源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.2)，附件只包含本方案源码。百度、夸克懒人包见[项目首页](../README.md#下载)。
+当前源码版本为 **0.1.3**，见 [`VERSION`](VERSION)。Bonsai2 12G 已有[独立的 0.1.3 源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.3)，附件只包含本方案源码。百度、夸克懒人包见[项目首页](../README.md#下载)。
 
 ## 目录
 

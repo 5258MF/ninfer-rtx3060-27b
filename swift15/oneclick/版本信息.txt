@@ -1,9 +1,10 @@
 ﻿ninfer Swift 1.5 Q2S / MTP Q4 懒人包
-源码版本：0.1.1；引擎基线：0.1.0；2026-10-04 启动器与验收脚本共性修复
+源码版本：0.1.2；2026-10-05 按请求提示分配 KVMem，8K 输出保底；引擎基线：0.1.0
 源码：https://github.com/5258MF/ninfer-rtx3060-27b
 引擎源码基线：209c75b206e2c12e18fce340526e3261979ec549；后续启动与验收修改见 main 的 CHANGELOG.md
 引擎 MD5：DFC837D004E99BB297FFA982BAABCB5B
 引擎 SHA256：e83e4c18b6d92b37d3986c7c4c83b7d87b943776c70393ebcf8fc81429117a87
+2026-10-05 分配规则：完整系统／developer／工具提示按实际 token 计数；256K 检索目标 32–36K、128K 为 16–18K，余量给输出且至少预留 8K。Harness 上限在启动前生成，请求到达后再按实际提示降低。共享缓存摘要失配的越界访问已修复。dsh standard/minimal 两种模式的工具往返已在 Swift、Bonsai 8G 和 12G 实测。详见仓库 CHANGELOG.md。
 已包含：
   1) 引擎内部 NVML 真实物理空闲显存预算（min(cudaMemGetInfo, nvmlDeviceGetMemoryInfo)），减少 WDDM 虚报的影响；
   2) KVMem 环形池开启时内容相关性打分（Eq.10 Content Scorer）默认全路径开启，并输出 KVMem kv9 | kvmem_score: SELECT 诊断日志；

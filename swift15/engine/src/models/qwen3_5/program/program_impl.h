@@ -1,4 +1,6 @@
 #pragma once
+
+#include "runtime/kvmem_allocation.h"
 #include "models/qwen3_5/program/speculative/mtp_adaptive.h"
 #include "models/qwen3_5/program/internal.h"
 
@@ -201,6 +203,7 @@ struct CaptureAssessmentImpl {
 };
 
 struct RequestBasePlanImpl {
+    std::uint32_t kvmem_prompt_pages = 0;
     runtime::RequestPlanSummary summary;
     detail::PhysicalDemand root_demand;
     runtime::PrefillWork root_rebuild_work;
@@ -223,6 +226,7 @@ struct RequestBasePlanImpl {
 // Program-owned physical planning state shared by request materialization and active capture.
 // Request scheduling fields never enter this record, and capture never becomes an admission type.
 struct ResourceCandidateState {
+    std::uint32_t kvmem_prompt_pages = 0;
     runtime::RequestPlanSummary summary;
     runtime::IdentityMaterializationAssessment identity_assessment;
     runtime::ProgramResourceRevision planning_revision;
@@ -473,6 +477,8 @@ struct SequenceState {
 // the first lane's selected history, partial capture or query replay checkpoint.
 // Long sparse continuations are not published; reset this state at every admission.
 struct KvmemLaneState {
+    std::uint32_t sink_pages = 2;
+    std::uint32_t reserve_pages = 0;
     Tensor query_sum;
     Tensor key_sums;
     RetrievalIndex index;

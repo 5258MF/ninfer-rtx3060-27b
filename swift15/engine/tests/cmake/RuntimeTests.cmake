@@ -10,6 +10,9 @@ ninfer_add_test(ninfer_resource_manager_test SOURCES "${CMAKE_CURRENT_LIST_DIR}/
 ninfer_add_test(ninfer_kv_capacity_test SOURCES "${CMAKE_CURRENT_LIST_DIR}/../test_kv_capacity.cpp"
   LIBRARIES ninfer_runtime_support)
 
+ninfer_add_test(ninfer_kvmem_allocation_test SOURCES "${CMAKE_CURRENT_LIST_DIR}/../kvmem_allocation_test.cpp"
+  LIBRARIES ninfer_runtime_support)
+
 ninfer_add_test(ninfer_device_profile_test SOURCES "${CMAKE_CURRENT_LIST_DIR}/../test_device_profile.cpp"
   LIBRARIES ninfer_runtime_support)
 

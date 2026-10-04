@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ops/kvmem/kvmem_request_allocation.h"
+
 // KVMem 装配臂（arm-assembly）· host-only 契约。
 //
 // 为什么单独一个头：本臂要接的三件东西已经存在，但彼此不认识 ——
@@ -154,6 +156,7 @@ enum class KvmemGuardVerdict : std::uint8_t {
 // 窗口"用的是同一组带，不会张冠李戴。
 [[nodiscard]] inline std::int32_t kvmem_assembly_env_i32(const char* name,
                                                          std::int32_t fallback) noexcept {
+    if (const auto value = kvmem_request_value(name)) { return *value; }
     const char* value = std::getenv(name);
     if (value == nullptr || value[0] == '\0') { return fallback; }
     const long parsed = std::strtol(value, nullptr, 10);

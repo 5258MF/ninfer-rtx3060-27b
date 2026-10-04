@@ -88,6 +88,8 @@ $Pre = @{ normal = 'NORMAL'; kvmem = 'KVMEM'; rk4 = 'RK4'; kvrk4 = 'KVRK4' }
 $ModeName = @{ normal = '普通（全部放显存，rk8v4）'; kvmem = 'KVMem（历史放内存，rk8v4）'
                rk4 = '普通 rk4v4（全部放显存，KV 压得更狠；不推荐）'; kvrk4 = 'KVMem + rk4v4（历史放内存，KV 压得更狠；不推荐）' }
 $Dirty = [ordered]@{}                # 向导改过、启动时要写回 设置.ini 的项
+foreach ($k in @('KVMEM_ANSWER','KVRK4_ANSWER','KVMEM_SINK')) { $C[$k]='auto'; $Dirty[$k]='auto' }
+foreach ($k in @('KVMEM_WINDOW','KVRK4_WINDOW')) { $C[$k]='0'; $Dirty[$k]='0' }
 
 function Fmt([int]$n) { if ($n -gt 0 -and $n % 1024 -eq 0) { return ('{0}（{1}K）' -f $n, ($n / 1024)) } else { return "$n" } }
 function Set-C([string]$k, $v) { $C[$k] = "$v"; $Dirty[$k] = "$v" }
@@ -117,65 +119,56 @@ function Physical-8G-Cap([string]$kv, [int]$ctx, [int]$fallback) {
     $cap = [int][Math]::Floor(($free - $load - 170) / $perToken / 1024) * 1024
     return [Math]::Max(0, [Math]::Min($ctx - 8192, $cap))
 }
-function Auto-8G-Answer([int]$cap, [int]$outMax) {
-    $out = [int][Math]::Floor(($cap - 36864) / 1024) * 1024
-    return [Math]::Max(8192, [Math]::Min($outMax, $out))
+function Harness-Out([int]$cap, [int]$ctx, [int]$unit = 64) {
+    $target = [int][Math]::Floor($ctx * 9.0 / 64 / $unit) * $unit
+    $available = [Math]::Max(0, [int][Math]::Floor(($cap - $unit - 8192) / $unit) * $unit)
+    return [Math]::Max(8192, $cap - $unit - [Math]::Min($target, $available))
 }
 
 # 按当前设置算出某个模式的各项数值（不报错、不改东西）
 function Get-View([string]$m) {
     $p = $Pre[$m]
-    $r = @{ Mode = $m; On = ($m -eq 'kvmem' -or $m -eq 'kvrk4'); Kv = $(if ($m -eq 'rk4' -or $m -eq 'kvrk4') { 'rk4v4' } else { 'rk8v4' })
-            Lim = (Mode-Lim $m); Think = (CfgInt 'THINK_BUDGET' 0); Err = @(); Warn = @() }
+    $r = @{ Mode=$m; On=($m -eq 'kvmem' -or $m -eq 'kvrk4'); Kv=$(if ($m -eq 'rk4' -or $m -eq 'kvrk4') { 'rk4v4' } else { 'rk8v4' }); Lim=(Mode-Lim $m); Think=(CfgInt 'THINK_BUDGET' 0); Err=@(); Warn=@() }
     if ($r.On) {
         $r.Ctx = CfgInt "${p}_CTX" 262144
-        $answer = [string](Cfg "${p}_ANSWER" 'auto')
-        $r.AutoOut = ($answer.ToLower() -eq 'auto')
-        $r.Ans = $(if ($r.AutoOut) { Auto-8G-Answer $r.Lim $(if ($m -eq 'kvrk4') { 32768 } else { 16384 }) } else { CfgInt "${p}_ANSWER" 16384 })
-        $requested = CfgInt "${p}_WINDOW" 0
-        $r.WinTop = $(if ($requested -eq 0) { $r.Lim } else { $requested })
-        $r.Win = [Math]::Min($r.WinTop, $r.Lim - $r.Ans)
-        if ($r.Win -lt 16384) { $r.Err += "空闲显存不足：历史窗口至少要 16384；手动回答保持不变，请关闭占显存程序或改用自动回答" }
-        $r.Cap = $r.Win + $r.Ans; $r.Mt = $r.Ans
-        if ((CfgInt 'KVMEM_SINK' 8192) -ge $r.Win) { $r.Err += "KVMEM_SINK 必须比 ${p}_WINDOW（$($r.Win)）小" }
-        if ($r.Ctx -le $r.Cap) { $r.Warn += "总上下文（$($r.Ctx)）不比显存部分（$($r.Cap)）大，KVMem 起不到作用" }
+        $r.AutoOut = $true
+        $r.Cap = Mode-Lim $m
+        $r.CapAuto = $r.Cap
+        $r.Ans = Harness-Out $r.Cap $r.Ctx
+        $r.Win = $r.Cap - $r.Ans
+        $r.WinTop = $r.Win
+        $r.Mt = $r.Ans
+        if ($r.Cap -lt 8384) { $r.Err += '显存容量不足：连完整开头、最低 8K 输出和检索块都放不下。请释放显存后重试。' }
+        $min = [int][Math]::Floor($r.Ctx / 8.0 / 64) * 64
+        if ($r.Win -lt $min + 64) { $r.Warn += '实际请求将保留完整系统提示及最低 8K 输出，检索可能低于推荐范围。' }
     } else {
         $r.Ctx = CfgInt "${p}_CTX" $(if ($m -eq 'rk4') { 86016 } else { 57344 })
         $r.Mt = CfgInt "${p}_MAX_TOKENS" 32768
         $r.Cap = $r.Ctx
     }
-    if ($r.Mt -gt $r.Ctx) { $r.Err += "单次回答（$($r.Mt)）不能比总上下文（$($r.Ctx)）还大" }
-    if ($r.Cap -gt $r.Lim) { $r.Warn += "显存部分 $($r.Cap) 超过这个模式的实测上限 $($r.Lim)，8 GB 显存可能放不下" }
-    if ($r.Think -gt 0 -and $r.Think -ge $r.Mt) { $r.Warn += "思考上限（$($r.Think)）不比单次回答（$($r.Mt)）小，等于不限" }
+    if ($r.Mt -gt $r.Ctx) { $r.Err += '客户端输出上限不能大于总上下文。' }
     return $r
 }
 
 function Show-Summary([string]$m) {
     $v = Get-View $m
-    $letter = @{ normal = 'N'; kvmem = 'K'; rk4 = 'R'; kvrk4 = 'V' }[$m]
     Say ''
-    Say '  ┌──────────── 当前配置（RTX 3060 8GB）────────────'
-    $ms = Model-State
-    if (Model-Custom) { Say ('  │ 模型      : 自定义 ' + (Model-Path) + $(if ($ms -eq 'missing') { '（文件不存在）' } else { '' })) }
-    else {
-        $st = @{ ok = '已就绪'; src = '原始文件已下载，按回车后转换（约 1–2 分钟）'
-                 part = '没下完，按回车后接着下载'; missing = ('还没下载，按回车后自动下载 ' + (GiB $Orig.Size) + ' GiB 并转换') }[$ms]
-        Say ('  │ 模型      : Swift-Bonsai-2 ptq1 + Q4 MTP（' + $st + '）')
-    }
-    Say ("  │ 模式      : [{0}] {1}" -f $letter, $ModeName[$m])
-    if ($m -eq 'kvmem') { Say ('  │ 显存档    : ' + $(if (Igpu) { '核显档（仍按当前空闲显存计算）' } else { '自动（按当前空闲显存计算）' })) }
-    Say ('  │ 看图      : ' + $(if ((CfgInt 'VISION' 1) -ne 0) { '开（视觉权重放内存）' } else { '关' }))
+    Say '  ┌──────────── 当前配置 ────────────'
+    Say ('  │ 模式      : ' + $ModeName[$m])
+    Say ('  │ 模型文件  : ' + (Model-State))
     Say ('  │ 总上下文  : ' + (Fmt $v.Ctx))
-    Say ('  │ 单次回答  : ' + (Fmt $v.Mt) + '   （思考 + 正文 合计）')
-    if ($v.Think -gt 0) { Say ('  │ 思考上限  : ' + (Fmt $v.Think)) } else { Say '  │ 思考上限  : 不限（只受单次回答限制）' }
-    $pct = [int](100 * $v.Cap / $v.Lim)
-    if ($v.On) { Say ('  │ 显存      : 检索窗口 {0} + 回答 {1} = {2} / 上限 {3}（{4}%）' -f $v.Win, $v.Ans, $v.Cap, $v.Lim, $pct) }
-    else       { Say ('  │ 显存      : {0} / 上限 {1}（{2}%）' -f $v.Cap, $v.Lim, $pct) }
-    Say ('  │ 地址      : http://{0}:{1}/v1   模型名：{2}' -f (Cfg 'HOST' '127.0.0.1'), (Cfg 'PORT' '8084'), (Cfg 'MODEL_ID' 'qwen3.8-27b'))
-    Say '  └──────────────────────────────────'
-    foreach ($w in $v.Warn) { Say "  [提醒] $w" 'Yellow' }
-    foreach ($x in $v.Err)  { Say "  [错误] $x" 'Red' }
-    return $v
+    if ($v.On) {
+        Say ('  │ 驻留容量  : ' + (Fmt $v.Cap) + '，按空闲显存估算，放不下时自动缩小重试')
+        Say '  │ 固定开头  : 按实际系统、developer 指令及工具定义准确计数'
+        $lo = [int][Math]::Floor($v.Ctx / 8.0 / 64) * 64
+        $hi = [int][Math]::Floor($v.Ctx * 9.0 / 64 / 64) * 64
+        Say ('  │ 检索目标  : ' + (Fmt $lo) + ' 到 ' + (Fmt $hi) + '，不含固定开头；不足时先缩检索')
+        Say ('  │ Harness   : contextWindow=' + $v.Ctx + '，maxTokens=' + $v.Mt + '（启动前申请上限）')
+        Say '  │ 实际输出  : 收到请求后使用剩余容量，至少预留 8K；包含思考和正文'
+    } else { Say ('  │ 单次输出  : ' + (Fmt $v.Mt)) }
+    foreach ($message in $v.Warn) { Warn $message }
+    foreach ($message in $v.Err) { Say ('  │ [错误] ' + $message) 'Red' }
+    Say '  └──────────────────────────────'
 }
 
 # 测试用：ONECLICK_INPUT='c|1|2||' 按 | 分成一次次输入
@@ -261,36 +254,11 @@ function Run-Wizard([string]$m) {
             @{ Value = '131072'; Label = '131072（128K）' }) $c0 $true 65536 262144
         Set-C "${p}_CTX" $ctx
 
-        $outMax = [Math]::Max(8192, $L - $WinMin)
-        if ($m -eq 'kvrk4') { $rec = 32768; $recNote = '　推荐（和 12G 版一样回答 32K，回答不变，余量全给历史）' } else { $rec = 16384; $recNote = '　推荐（实测一次写满 16384 正常）' }
-        $o0 = $(if ($v.AutoOut) { 'auto' } else { "$($v.Ans)" }); if ($o0 -ne 'auto' -and ([int]$o0 -gt $outMax -or [int]$o0 -lt 4096)) { $o0 = $rec }
-        $items = @(@{ Value = 'auto'; Label = '自动　优先留 36K 历史，回答达到上限后余量全给历史' })
-        foreach ($x in (@(8192, 16384, 24576, 32768, $outMax) | Where-Object { $_ -le $outMax } | Sort-Object -Unique)) {
-            $w = $L - $x; $lab = (Fmt $x) + "　检索窗口 $w"
-            if ($x -eq $rec) { $lab += $recNote }; if ($x -eq $outMax) { $lab += '　上限（窗口变小，远处内容更容易漏）' }
-            $items += @{ Value = "$x"; Label = $lab }
-        }
-        $ans = (Ask-Step (StepTitle '单次回答上限（一次回答最多多少 token，思考也算在里面）') @(
-            "KVMem 下显存 = 检索窗口 + 回答，合计上限 $L。回答越大，窗口越小",
-            '超过这个长度的回答会被截断，写很长的东西请分几步') $items $o0 $true 4096 $outMax)
-        Set-C "${p}_ANSWER" $ans
-
-        $resolved = Get-View $m
-        $wauto = $resolved.Win
-        $wc = @(@(32768, 24576) | Where-Object { $_ -lt $wauto })
-        $win = $wauto
-        if ($wc.Count -gt 0) {
-            $items = @(@{ Value = "$wauto"; Label = "$wauto　推荐（自动 = 上限减去回答）。窗口越大，远处内容越不容易漏" })
-            foreach ($x in $wc) {
-                $lab = "$x"
-                if ($x -eq 32768) { $lab += '　KVMem 作者建议：长对话每轮读入明显变慢时用' } else { $lab += '　最小，读入最快，远处内容最容易漏' }
-                $items += @{ Value = "$x"; Label = $lab }
-            }
-            $w0 = $(if ($wc -contains $v.Win) { $v.Win } else { $wauto })
-            $win = [int](Ask-Step "第 $($script:si) 步（续）：检索窗口大小（每轮从历史里挑多少内容放进显存）" @() $items $w0 $false)
-        }
-        Set-C "${p}_WINDOW" $(if ($win -eq $wauto) { 0 } else { $win })
-        $mt = $ans
+        Set-C "${p}_ANSWER" 'auto'
+        Set-C "${p}_WINDOW" 0
+        Set-C 'KVMEM_SINK' 'auto'
+        $mt = (Get-View $m).Mt
+        Say '  开头按请求计数；检索随总上下文缩放；剩余容量给输出，最低 8K。'
     } else {
         $c0 = $v.Ctx; if ($c0 -gt $L -or $c0 -lt 16384) { $c0 = $L }
         $items = @(@{ Value = "$L"; Label = ((Fmt $L) + "　推荐，这个模式的默认上限（显存不足时会缩窗）") })
@@ -639,7 +607,7 @@ switch ($Mode) {
         $view = Get-View $Mode
         if ($view.Err.Count -gt 0) { Fail ($view.Err -join '；') }
         $win = [int]$view.Win; $ans = [int]$view.Ans
-        $sink = Round64 'KVMEM_SINK' (CfgInt 'KVMEM_SINK' 8192)
+        $sink = 64
         $hostMib = CfgInt "${p}_HOST_MIB" 10240
         $cap = $win + $ans; $mt = $ans
         $env:NINFER_TERNARY_KVMEM_CPU_RETRIEVAL = $(if ($CpuRetrieval) { '1' } else { '0' })
@@ -655,14 +623,15 @@ switch ($Mode) {
         $env:NINFER_TERNARY_KVMEM_NEIGHBORS = '0'
         $env:NINFER_TERNARY_HOST_KV_PAGEABLE = '1'
         $env:NINFER_TERNARY_KVMEM_NO_REBAKE = '1'
-        $env:NINFER_TERNARY_KVMEM_GEN_RESERVE = "$ans"
+        $env:NINFER_TERNARY_KVMEM_GEN_RESERVE = '0'
+        $env:NINFER_KVMEM_AUTO_ALLOCATION = '1'
         # kv8/kv9：按最后一条用户消息挑块、保护本轮新内容、重算范围 = 挑块范围（这一轮的新输入）
         $env:NINFER_TERNARY_KVMEM_SCORE_QUERY_MODE = 'msg'
         $env:NINFER_TERNARY_KVMEM_SCORE_PROTECT_NEW = '1'
         $env:NINFER_TERNARY_KVMEM_REPLAY_MODE = 'msg'
         $env:NINFER_TERNARY_KVMEM_REPLAY_MAX = "$(CfgInt 'KVMEM_REPLAY_MAX' 6144)"
         $name = if ($Mode -eq 'kvrk4') { 'KVMem+rk4v4 模式' } else { 'KVMem 模式（rk8v4）' }
-        $desc = "${name}：上下文 $ctx（显存里 $cap = 窗口 $win + 回答 $ans，其余放内存），单次回答最多 $mt"
+        $desc = "${name}：总上下文 $ctx，驻留容量 $cap；Harness 输出申请上限 $mt，实际分配在请求时计算"
     }
 }
 if ($mt -gt $ctx) { Fail "单次回答上限（$mt）不能比上下文（$ctx）还大。" }
@@ -846,10 +815,11 @@ for ($try = 1; $try -le (1 + $retry); $try++) {
     $step = [int]([Math]::Ceiling($step / 64.0) * 64); if ($step -lt 1024) { $step = 1024 }
     if ($isKv) {
         $new = [int]([Math]::Floor(($cap - $step) / 64.0) * 64)
-        $floorCap = [int]([Math]::Ceiling(($ans + 16384) / 64.0) * 64)
-        if ($new -lt $floorCap) { $new = $floorCap }
-        if ($new -ge $cap -or $new - $ans -lt 16384) { Say '  检索窗口已达到下限，请释放显存后重试。' 'Yellow'; break }
-        $cap = $new; $win = $cap - $ans
+        if ($new -lt 8384 -or $new -ge $cap) { Say '驻留容量已达到下限，请释放显存后重试。' 'Yellow'; break }
+        $cap = $new
+        $ans = Harness-Out $cap $ctx
+        $mt = $ans
+        $win = $cap - $ans
         $env:NINFER_TERNARY_KVMEM_SCORE_BUDGET = "$win"
     } else {
         $new = [int]([Math]::Floor(($ctx - $step) / 64.0) * 64)

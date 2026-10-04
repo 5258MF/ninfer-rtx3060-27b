@@ -147,6 +147,9 @@ struct PrepareStats {
 
 struct PreparedPromptData {
     std::vector<TokenId> token_ids;
+    // Exact serialized instruction/tool prefix, before the first conversation message.
+    std::uint32_t system_prefix_tokens = 0;
+    bool system_prefix_proven = true;
     std::vector<std::uint8_t> token_types;
     std::vector<std::int32_t> positions;
     std::int32_t rope_delta = 0;

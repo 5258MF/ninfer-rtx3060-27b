@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ops/kvmem/kvmem_request_allocation.h"
+
 // KVMem 选择探针（**最小切片**）· 只做三件事：按 query 打分 → 选块 → 打一行证据日志
 //
 // 【它是什么】把已经在库里的三件套接上主路径的**第一刀**：
@@ -69,6 +71,7 @@ inline bool kvmem_score_enabled() noexcept {
 }
 
 inline std::int32_t kvmem_score_env_i32(const char* name, std::int32_t fallback) noexcept {
+    if (const auto value = kvmem_request_value(name)) { return *value; }
     const char* v = std::getenv(name);
     if (v == nullptr || v[0] == '\0') { return fallback; }
     const long parsed = std::strtol(v, nullptr, 10);

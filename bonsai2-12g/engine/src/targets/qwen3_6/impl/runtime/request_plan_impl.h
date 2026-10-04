@@ -287,7 +287,31 @@ RequestBasePlan ProgramImplCore::plan_request(const PreparedPromptData& prompt,
     base->summary.effective_limit_reason = options.requested_output_tokens <= capacity_output
                                                ? FinishReason::OutputLimit
                                                : FinishReason::ContextCapacity;
-    {   // KVMem P3c: clamp one answer to the generation reserve in KVMem window mode.
+    if (runtime::kvmem_auto_allocation_enabled() && ops::detail::kvmem_window_assembly_enabled()) {
+        if (max_concurrency != 1) {
+            throw std::invalid_argument("automatic KVMem allocation requires max_concurrency=1");
+        }
+        if (!prompt.system_prefix_proven) {
+            throw std::invalid_argument("chat template cannot prove the complete system/tool prefix boundary");
+        }
+        const auto allocation = [&] {
+            try { return runtime::plan_kvmem_allocation(
+                kv_capacity, capacity, prompt.system_prefix_tokens, kPagedKVPageSize); }
+            catch (const std::invalid_argument& error) {
+                throw RequestError(RequestErrorKind::ContextLengthExceeded, error.what());
+            }
+        }();
+        base->summary.effective_output_tokens = std::min(
+            base->summary.effective_output_tokens, allocation.output_tokens);
+        if (base->summary.effective_output_tokens < options.requested_output_tokens &&
+            allocation.output_tokens < capacity_output) {
+            base->summary.effective_limit_reason = FinishReason::OutputLimit;
+        }
+        std::fprintf(stderr, "[kvmem-alloc] resident=%u prefix=%u sink=%u retrieval=%u output=%u recommended=%u..%u%s\n",
+            kv_capacity, allocation.prefix_tokens, allocation.sink_tokens, allocation.retrieval_tokens,
+            allocation.output_tokens, allocation.retrieval_min, allocation.retrieval_target,
+            allocation.retrieval_tokens < allocation.retrieval_min ? " retrieval_below_recommended" : "");
+    } else {   // Explicit legacy allocation, when request allocation is not enabled.
         static const std::uint32_t kvmem_gen_reserve = [] {
             const char* on  = std::getenv("NINFER_TERNARY_KVMEM");
             const char* asm_on = std::getenv("NINFER_TERNARY_KVMEM_WINDOW_ASSEMBLY");

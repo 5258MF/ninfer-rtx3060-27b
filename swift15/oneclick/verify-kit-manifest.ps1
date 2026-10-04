@@ -1,4 +1,4 @@
-# Verifies that the ninfer-3060-swift15-oneclick directory contains the expected
+﻿# Verifies that the ninfer-3060-swift15-oneclick directory contains the expected
 # engine binary, companion DLLs, launcher scripts, model patch files, and intact
 # root entry scripts (catching partial extraction, stale overwrite, or ZIP codepage mojibake).
 # Pure ASCII script source to avoid Windows PowerShell 5.1 encoding issues.
@@ -48,7 +48,7 @@ $EmbeddedExpected = [ordered]@{
         Role            = "VC runtime 140_1 exception handling DLL"
     }
     "launcher/launch.ps1"       = @{
-        Sha256          = "8ceb1e871272e38cdb34734ae7f7ca33ce8b22e44d86f2b84daa1fff67947648"
+        Sha256          = "51ba219983986489f3e70292792429eb9d2ccbf52ce42f2d3732808ac65a1546"
         MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2026-10-03T13:00:00", [System.DateTimeKind]::Utc)
         Role            = "One-click interactive launcher script"
     }

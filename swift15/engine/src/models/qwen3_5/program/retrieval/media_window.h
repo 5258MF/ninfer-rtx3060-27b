@@ -37,15 +37,16 @@ inline std::vector<MediaPageGroup> media_page_groups(std::span<const VisionItem>
     return groups;
 }
 
-inline void validate_media_window(std::span<const MediaPageGroup> groups, std::uint32_t budget) {
-    std::uint32_t sink_extent = 2;
+inline void validate_media_window(std::span<const MediaPageGroup> groups, std::uint32_t budget,
+                                  std::uint32_t sink = 2) {
+    std::uint32_t sink_extent = sink;
     for (const auto& group : groups) {
-        if (group.begin < 2) { sink_extent = std::max(sink_extent, group.end); }
+        if (group.begin < sink) { sink_extent = std::max(sink_extent, group.end); }
     }
     for (const auto& group : groups) {
-        // Two sink pages and two boundary/recent pages remain available. Reject at
+        // The complete system prefix and two boundary/recent pages remain available. Reject at
         // admission rather than silently cutting a media group midway through prefill.
-        const auto required = sink_extent + (group.begin < 2 ? 0 : group.end - group.begin) + 2;
+        const auto required = sink_extent + (group.begin < sink ? 0 : group.end - group.begin) + 2;
         if (required > budget) {
             throw std::invalid_argument("KVMem window cannot hold a complete media group plus sink and tail pages");
         }
@@ -57,8 +58,9 @@ inline void validate_media_window(std::span<const MediaPageGroup> groups, std::u
 // Text-only requests retain the existing selection policy exactly.
 inline std::vector<std::uint32_t> media_window_page_set(
     std::uint32_t mapped, std::uint32_t budget, std::span<const std::uint32_t> preferred,
-    std::span<const MediaPageGroup> groups, bool fill_recent = true) {
-    if (groups.empty()) { return decode_window_page_set(mapped, budget, preferred); }
+    std::span<const MediaPageGroup> groups, bool fill_recent = true,
+    std::uint32_t sink = kvmem_sink_pages_cfg) {
+    if (groups.empty()) { return decode_window_page_set(mapped, budget, preferred, sink); }
     std::vector<std::uint8_t> kept(mapped, 0);
     std::uint32_t used = 0;
     const auto keep = [&](std::uint32_t page) {
@@ -78,7 +80,7 @@ inline std::vector<std::uint32_t> media_window_page_set(
         used += cost;
         return true;
     };
-    for (std::uint32_t p = 0; p < std::min(mapped, std::min(budget, kvmem_sink_pages_cfg)); ++p) {
+    for (std::uint32_t p = 0; p < std::min(mapped, std::min(budget, sink)); ++p) {
         if (!keep(p)) { throw std::logic_error("KVMem media sink exceeds its admitted window"); }
     }
     for (auto it = groups.rbegin(); it != groups.rend(); ++it) {

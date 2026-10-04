@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ops/kvmem/kvmem_request_allocation.h"
+
 // KVMem P4 (kv8) -- 2026-09-29.
 // Shared, host-only bookkeeping for two opt-in upgrades of the boundary retrieval:
 //   * NINFER_TERNARY_KVMEM_SCORE_QUERY_MODE=msg : the retrieval query is the head + tail of the LAST
@@ -18,6 +20,7 @@
 namespace ninfer::ops::detail {
 
 inline std::int32_t kvmem_q4_env_i32(const char* name, std::int32_t fallback) noexcept {
+    if (const auto value = kvmem_request_value(name)) { return *value; }
     const char* v = std::getenv(name);
     if (v == nullptr || v[0] == '\0') { return fallback; }
     const long parsed = std::strtol(v, nullptr, 10);

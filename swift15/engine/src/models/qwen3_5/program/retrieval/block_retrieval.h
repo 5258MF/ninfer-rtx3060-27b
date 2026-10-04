@@ -31,8 +31,9 @@ inline std::uint32_t kvmem_gen_reserve_pages_cfg = 0U;
 // NINFER_KVMEM_LONG_REUSE=1: a conversation past the prompt share keeps its continuation
 // (in-place endpoint / rewrite restore only), so each turn prefills just the new suffix.
 inline bool kvmem_long_reuse_cfg = false;
-inline std::uint32_t kvmem_prompt_window_pages(std::uint32_t window_pages) noexcept {
-    return window_pages > kvmem_gen_reserve_pages_cfg ? window_pages - kvmem_gen_reserve_pages_cfg
+inline std::uint32_t kvmem_prompt_window_pages(std::uint32_t window_pages,
+    std::uint32_t reserve_pages = kvmem_gen_reserve_pages_cfg) noexcept {
+    return window_pages > reserve_pages ? window_pages - reserve_pages
                                                       : window_pages;
 }
 
@@ -169,9 +170,9 @@ inline std::vector<std::uint32_t> block_pages(std::span<const std::uint32_t> blo
 // Preserve retrieved historical pages throughout decode; only the remaining share
 // rolls with generated tokens. The total includes the sink and never exceeds budget.
 inline std::vector<std::uint32_t> decode_window_page_set(
-    std::uint32_t mapped, std::uint32_t budget, std::span<const std::uint32_t> retrieved) {
+    std::uint32_t mapped, std::uint32_t budget, std::span<const std::uint32_t> retrieved,
+    std::uint32_t sink = kvmem_sink_pages_cfg) {
     std::vector<std::uint32_t> pages;
-    const std::uint32_t sink = kvmem_sink_pages_cfg;
     for (std::uint32_t p = 0; p < std::min({mapped, budget, sink}); ++p) { pages.push_back(p); }
     for (const auto p : retrieved) {
         if (p < mapped && p >= sink && pages.size() < budget) { pages.push_back(p); }

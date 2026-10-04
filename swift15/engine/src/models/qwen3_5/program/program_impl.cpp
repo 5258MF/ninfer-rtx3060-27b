@@ -293,6 +293,10 @@ ProgramImpl::ProgramImpl(const execution::Parameters& parameters_in, const Seque
         }
         kvmem_sink_pages_cfg        = sink;
         kvmem_gen_reserve_pages_cfg = reserve;
+        for (auto& sparse : kvmem_lanes_) {
+            sparse.sink_pages = sink;
+            sparse.reserve_pages = reserve;
+        }
         kvmem_long_reuse_cfg        = env_pages("NINFER_KVMEM_LONG_REUSE", 0U) != 0U;
         std::fprintf(stderr,
                      "KVMem allocation | window %u pages | sink %u | prompt share %u | output "
