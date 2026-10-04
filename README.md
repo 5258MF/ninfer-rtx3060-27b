@@ -19,12 +19,12 @@ Swift 1.5 默认总上下文为 200K，最多可配置 256K；KVMem 会从历史
 | 版本 | 文件名 | 网盘 | 提取码 |
 |---|---|---|---|
 | Swift 1.5 Q2S · 0.1.0 | `ninfer-3060-swift15-q2s-mtp-oneclick-0.1.0.zip` | [百度网盘](https://pan.baidu.com/s/1-t29Y9MZIHWliToRQI6i7g) | `t7f6` |
-| Swift 1.5 Q2S · 0.1.0 | `ninfer-3060-swift15-q2s-mtp-oneclick.zip`（夸克分享名） | [夸克网盘](https://pan.quark.cn/s/d49c7ff92264) | `wHbw` |
+| Swift 1.5 Q2S · 0.1.0 | `ninfer-3060-swift15-q2s-mtp-oneclick-0.1.0.zip` | [夸克网盘](https://pan.quark.cn/s/8f383d9bb626) | `pnps` |
 | Bonsai2 12G · 0.1.0 | `ninfer-3060-12g-bonsai2-oneclick-0.1.0.zip` | [百度网盘](https://pan.baidu.com/s/1-S14MappSh7uttKqIw1M_A) | `c62v` |
 | Bonsai2 12G · 0.1.0 | 同上 | [夸克网盘](https://pan.quark.cn/s/b526dae6d411) | `aHfN` |
 | Bonsai2 8G · 旧版 | `ninfer-3060-8g-oneclick.zip` | [百度网盘](https://pan.baidu.com/s/1_ZIDNnMaaOGRk-YnHb0jUA) | `gkyy` |
 
-**发布状态：Swift 1.5 Q2S 与 Bonsai2 12G 的 0.1.0 包均已上传百度和夸克，包含 2026-10-04 同步的三项智能体兼容修改。** Swift 夸克分享仍显示无版本后缀的文件名，按本表链接获取即可。8G 版沿用之前的发布包。版本识别信息、修复记录和相关报错处理见 [CHANGELOG.md](CHANGELOG.md)。
+**发布状态：Swift 1.5 Q2S 与 Bonsai2 12G 的 0.1.0 包均已上传百度和夸克，包含 2026-10-04 同步的三项智能体兼容修改。** Swift 夸克链接已按用户最新提供的信息更正，请使用本表中的版本化文件名、链接和提取码。8G 版沿用之前的发布包。版本识别信息、修复记录和相关报错处理见 [CHANGELOG.md](CHANGELOG.md)。
 
 源码同样标为 **0.1.0**：仓库根目录及两套源码目录都提供 `VERSION`，Git 标签为 [`v0.1.0`](https://github.com/5258MF/ninfer-rtx3060-27b/tree/v0.1.0)。需要固定版本时，可[下载 0.1.0 完整源码 ZIP](https://github.com/5258MF/ninfer-rtx3060-27b/archive/refs/tags/v0.1.0.zip)，或克隆后运行 `git checkout v0.1.0`；`main` 后续会继续更新。版本的修改内容集中记录在 CHANGELOG。
 
