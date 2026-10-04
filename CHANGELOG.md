@@ -4,9 +4,13 @@
 
 按版本和日期记录已发生的改动。源码更新与网盘包更新分别标明，避免把源码中的修复误认为已经进入旧下载包。
 
-## 未发布：2026-10-04 启动与验收共性修复
+## 0.1.1 - 2026-10-04
 
-**状态：Swift 1.5 Q2S 与 Bonsai2 12G 修复已同步 main，本机懒人包已重新验收；新网盘包待用户上传。0.1.0 标签与 Release 附件保留原快照。**
+**状态：0.1.1 源码已按模型分别发布 Release；本机新懒人包已验证，网盘待用户重新上传。0.1.0 标签、Release 和现有网盘链接保留原快照。**
+
+- 根目录、Swift 1.5 和 Bonsai2 12G 的 VERSION 均升级为 0.1.1。
+- [Swift 1.5 Q2S 0.1.1 源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.1) 与 [Bonsai2 12G 0.1.1 源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.1) 分别提供对应模型的完整源码附件；不创建新的合并源码 Release。
+- 软件版本包含启动器、验收和发布资料；C++ 与引擎二进制未改变，版本递增不代表重新量化或性能变化。
 
 - 根据 listening 日志判断启动完成，替代 120 秒运行时长阈值；仅启动期容量错误触发缩窗，运行中退出采用有上限的重启。
 - 缩窗后按实际输出上限更新客户端接入信息文字与 YAML；本机启动器在允许同步时同步 dsh，保存配置不写入临时缩窗结果。必要时联动限制思考预算。
@@ -16,7 +20,7 @@
 - Windows PowerShell 5.1 模拟回归 48 项通过；RTX 3060 12GB 上两套引擎小窗口验收均 exit 0（含 12,326 token 负对照、12,244 token 藏针）。没有重新测满 256K/32K、性能或困惑度。
 - 引擎 C++ 与二进制不变，本轮没有新的容量或速度收益；保留已有本地鉴权配置方式。
 
-English: launcher recovery now uses readiness, client limits follow retries, and verification distinguishes pass/fail/inconclusive. Real tool-result, output-cap, API and vision checks passed on an RTX 3060 12GB. Existing 0.1.0 releases and cloud links remain historical snapshots.
+English: launcher recovery now uses readiness, client limits follow retries, and verification distinguishes pass/fail/inconclusive. Real tool-result, output-cap, API and vision checks passed on an RTX 3060 12GB. The model-specific 0.1.1 source releases include these fixes; existing 0.1.0 cloud links remain unchanged.
 
 ## 0.1.0 - 2026-10-04
 

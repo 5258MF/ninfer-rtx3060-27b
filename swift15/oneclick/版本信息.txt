@@ -1,5 +1,5 @@
 ﻿ninfer Swift 1.5 Q2S / MTP Q4 懒人包
-版本：0.1.0 引擎基线；2026-10-04 启动器与验收脚本共性修复
+源码版本：0.1.1；引擎基线：0.1.0；2026-10-04 启动器与验收脚本共性修复
 源码：https://github.com/5258MF/ninfer-rtx3060-27b
 引擎源码基线：209c75b206e2c12e18fce340526e3261979ec549；后续启动与验收修改见 main 的 CHANGELOG.md
 引擎 MD5：DFC837D004E99BB297FFA982BAABCB5B

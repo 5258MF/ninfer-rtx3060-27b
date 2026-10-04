@@ -2,7 +2,7 @@
 
 **Language:** [简体中文](README.md) | English
 
-2026-10-04: main includes launcher and verification fixes; the 0.1.0 Release remains the original snapshot. Client limits follow capacity retries, startup is detected from listening logs, and verification returns 0/1/2 for pass/fail/inconclusive. Updated kits await upload; existing cloud links still point to older packages. See the [changelog](CHANGELOG.md).
+The current source version is **0.1.1**, published as separate model-specific source releases with the launcher and verification fixes. Cloud downloads still contain the previously uploaded **0.1.0** packages; fixed kits await upload. Existing download links have not been relabeled as 0.1.1. See the [changelog](CHANGELOG.md).
 
 Run Swift 1.5 and Bonsai2 locally on Windows, with chat, image input, tool calling, and long-context KVMem. The one-click package starts after extraction; the model is downloaded on first launch.
 
@@ -30,7 +30,7 @@ The one-click packages do not include model files. Extract the full archive and 
 
 **Release status:** The Swift 1.5 Q2S and Bonsai2 12G 0.1.0 packages are uploaded to both Baidu and Quark. They include the three agent-compatibility changes synchronized on 2026-10-04. The Swift Quark link was corrected using the latest link supplied by the user; use the versioned archive name and code shown above. The 8G package remains on its previous release. Build identification, fixes, and startup troubleshooting are in [CHANGELOG.md](CHANGELOG.md).
 
-The 0.1.0 source is published separately by model. Each release includes an asset containing only that model's source directory: [Swift 1.5 Q2S source release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.0) and [Bonsai2 12G source release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.0). Each source tree has its own `VERSION` file set to `0.1.0`. Development continues on `main`; release changes are listed in CHANGELOG.
+The 0.1.1 source is published separately by model. Each release includes an asset containing only that model's source directory: [Swift 1.5 Q2S source release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.1) and [Bonsai2 12G source release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.1). Each source tree has its own `VERSION` file set to `0.1.1`. Development continues on `main`; release changes are listed in CHANGELOG.
 
 ## Quick Start
 

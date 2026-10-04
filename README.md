@@ -2,7 +2,7 @@
 
 **简体中文 | [English](README.en.md)**
 
-2026-10-04：main 已增加启动与验收脚本修复；0.1.0 Release 保留原始快照。缩窗后同步客户端限制，按 listening 判断启动完成，验收以 0/1/2 区分通过、失败和未确认。修复后的懒人包等待重新上传，旧网盘链接仍对应旧包。详情见[更新记录](CHANGELOG.md)。
+当前源码版本为 **0.1.1**，已按模型分别发布源码 Release，包含启动与验收修复。网盘仍是此前上传的 **0.1.0** 包；新修复包等待重新上传，下载表中的旧链接未改成 0.1.1。详情见[更新记录](CHANGELOG.md)。
 
 为 Windows 提供 Swift 1.5 和 Bonsai2 的本地推理方案，支持对话、图片输入、工具调用和 KVMem 长上下文。懒人包解压后双击启动，模型在第一次运行时下载。
 
@@ -30,7 +30,7 @@ Swift 1.5 默认总上下文为 200K，最多可配置 256K；KVMem 会从历史
 
 **发布状态：Swift 1.5 Q2S 与 Bonsai2 12G 的 0.1.0 包均已上传百度和夸克，包含 2026-10-04 同步的三项智能体兼容修改。** Swift 夸克链接已按用户最新提供的信息更正，请使用本表中的版本化文件名、链接和提取码。8G 版沿用之前的发布包。版本识别信息、修复记录和相关报错处理见 [CHANGELOG.md](CHANGELOG.md)。
 
-0.1.0 源码按模型分别发布，每个 Release 都提供只包含对应源码目录的附件：[Swift 1.5 Q2S 源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.0) 和 [Bonsai2 12G 源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.0)。两个方案各自的 `VERSION` 都是 `0.1.0`；后续开发继续在 `main` 更新，发布内容见 CHANGELOG。
+0.1.1 源码按模型分别发布，每个 Release 都提供只包含对应源码目录的附件：[Swift 1.5 Q2S 源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.1) 和 [Bonsai2 12G 源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.1)。两个方案各自的 `VERSION` 都是 `0.1.1`；后续开发继续在 `main` 更新，发布内容见 CHANGELOG。
 
 ## 快速开始
 
