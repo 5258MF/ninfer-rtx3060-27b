@@ -8,7 +8,7 @@
 
 **源码与懒人包均已发布。** 本次给 Swift 1.5 Q2S 和 Bonsai2 12G 统一建立软件版本号 0.1.0；8G 方案继续使用此前的发布包。
 
-- 固定源码标签：[`v0.1.0`](https://github.com/5258MF/ninfer-rtx3060-27b/tree/v0.1.0)，包括两套完整源码、构建入口和启动器；源码基线为 [209c75b](https://github.com/5258MF/ninfer-rtx3060-27b/commit/209c75b206e2c12e18fce340526e3261979ec549)。
+- 固定源码标签：[`v0.1.0`](https://github.com/5258MF/ninfer-rtx3060-27b/tree/v0.1.0)，并已建立[GitHub Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/v0.1.0)，包括两套完整源码、构建入口和启动器；源码基线为 [209c75b](https://github.com/5258MF/ninfer-rtx3060-27b/commit/209c75b206e2c12e18fce340526e3261979ec549)。
 - 仓库根目录、`swift15/`、`bonsai2-12g/` 各自提供 `VERSION`，值为 `0.1.0`。后续发布使用新版本文件和 Git 标签保留快照，`main` 继续开发。
 - 两款包的百度、夸克新链接和提取码已更新到[下载表](README.md#下载)。2026-10-04，用户确认此前 Swift 夸克分享链接错误；现已按最新提供的版本化文件名、链接和提取码更正，旧地址不再作为下载入口。
 - 包含下面记录的显存预算、长对话/看图缓存、三项智能体兼容修改和 Bonsai2 完整源码公开；已知接口限制继续适用。

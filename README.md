@@ -28,7 +28,7 @@ Swift 1.5 默认总上下文为 200K，最多可配置 256K；KVMem 会从历史
 
 **发布状态：Swift 1.5 Q2S 与 Bonsai2 12G 的 0.1.0 包均已上传百度和夸克，包含 2026-10-04 同步的三项智能体兼容修改。** Swift 夸克链接已按用户最新提供的信息更正，请使用本表中的版本化文件名、链接和提取码。8G 版沿用之前的发布包。版本识别信息、修复记录和相关报错处理见 [CHANGELOG.md](CHANGELOG.md)。
 
-源码同样标为 **0.1.0**：仓库根目录及两套源码目录都提供 `VERSION`，Git 标签为 [`v0.1.0`](https://github.com/5258MF/ninfer-rtx3060-27b/tree/v0.1.0)。需要固定版本时，可[下载 0.1.0 完整源码 ZIP](https://github.com/5258MF/ninfer-rtx3060-27b/archive/refs/tags/v0.1.0.zip)，或克隆后运行 `git checkout v0.1.0`；`main` 后续会继续更新。版本的修改内容集中记录在 CHANGELOG。
+源码同样标为 **0.1.0**：仓库根目录及两套源码目录都提供 `VERSION`，Git 标签为 [`v0.1.0`](https://github.com/5258MF/ninfer-rtx3060-27b/tree/v0.1.0)。固定版本和查看发布说明请进入 [GitHub Release：v0.1.0](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/v0.1.0)，也可以克隆仓库后运行 `git checkout v0.1.0`；`main` 后续会继续更新。版本修改内容集中记录在 CHANGELOG。
 
 ## 快速开始
 
