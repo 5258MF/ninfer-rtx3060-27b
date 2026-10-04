@@ -12,7 +12,7 @@ if (-not $KitRoot) { $KitRoot = $PSScriptRoot }
 
 $EmbeddedExpected = [ordered]@{
     "engine/ninfer-serve.exe"       = @{
-        Sha256          = "3f137098e3ac1dc9c4695de75cbc44170db38cdf6594fb98573d80a9e1e73e4a"
+        Sha256          = "8240fef86cfe2730ead6bd2a92dcd99714806c0b8fd19a8597f25b8fa0c194c4"
         MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2026-10-03T14:00:00", [System.DateTimeKind]::Utc)
         Role            = "Main 12G Bonsai-2 sm86 inference server binary"
     }
@@ -47,7 +47,7 @@ $EmbeddedExpected = [ordered]@{
         Role            = "FFmpeg avutil runtime DLL"
     }
     "launcher/launch.ps1"           = @{
-        Sha256          = "eb596ffa589ecbc9f1b40aa3d480d80797ebcc2e76e0bb83616cc26c065fed21"
+        Sha256          = "68945e61b374be98c22ebf9cd4def13c313c0ee6ab3d216186daa2a9d0f132b0"
         MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2026-10-03T14:00:00", [System.DateTimeKind]::Utc)
         Role            = "One-click interactive launcher script"
     }
@@ -57,7 +57,7 @@ $EmbeddedExpected = [ordered]@{
         Role            = "Connectivity and speed test script"
     }
     "verify-arch-engine.ps1"        = @{
-        Sha256          = "f0d7fccf447590bde84424aa8839ff6d4c0eccfe92f463ed2e8cd54618bb05d9"
+        Sha256          = "2ff3f94704e301d5f51e0dcbe655ea8216fd00fa93d7237c04fef0a9e23fe711"
         MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2026-10-03T14:00:00", [System.DateTimeKind]::Utc)
         Role            = "End-to-end hardware & needle verification harness"
     }

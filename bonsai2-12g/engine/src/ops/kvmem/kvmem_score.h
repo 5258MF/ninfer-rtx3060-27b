@@ -37,6 +37,9 @@
 //   * 本探针**不改可见集** ⇒ 它与"答案对不对"无关；要验证"被选中 ⇒ 真的进了 softmax"必须等第二刀。
 
 #include "ops/kvmem/kvmem_retrieve_launch.h"
+#include "ops/kvmem/kvmem_cpu_score.h"
+#include <chrono>
+#include <optional>
 #include "ops/kvmem/kvmem_select.h"
 #include "ops/kvmem/mean_k_index.h"
 #include "ops/kvmem/kvmem_q4.h"   // KVMem P4 (kv8)
@@ -130,6 +133,9 @@ struct KvMemScoreProbe {
     std::int32_t  q4_layers         = 0;
     std::int32_t  q4_row_elems      = 0;      // n_heads * head_dim (bf16)
     std::int32_t  q4_stash_rows     = 0;      // rows per layer allocated
+    std::optional<PinnedHostBuffer> q4_host_stash;
+    std::optional<PinnedHostBuffer> tail_host_stash;
+    std::int32_t tail_host_rows = 0;
     void*         q4_stash          = nullptr;  // bf16 [layers][stash_rows][row_elems]
     float*        q4_score          = nullptr;  // [kQ4MaxSeg][q4_score_cap]
     std::int32_t  q4_score_cap      = 0;
@@ -152,7 +158,7 @@ struct KvMemScoreProbe {
 };
 
 // 3060 round 10 (user-approved): msg-mode query size, was hard-capped at 256. Env
-// NINFER_TERNARY_KVMEM_SCORE_QUERY_MAX, default 512, range [8, 2048]. Device stash per process =
+// NINFER_TERNARY_KVMEM_SCORE_QUERY_MAX, default 512, range [8, 2048]. Host stash by default (GPU when CPU_RETRIEVAL=0) =
 // layers x (roundup64(qmax) + qmax - qmax/2) rows x n_heads*head_dim x 2 B (Qwen3.6-27B: 192 KiB/row
 // => 256: 72 MiB, 512: 144 MiB, 1024: 288 MiB). 256 + TAIL_ALIGN=0 + EQ10_EXCLUDE=0 = old behaviour.
 inline std::int32_t kvmem_q4_qmax() noexcept {
@@ -540,13 +546,25 @@ inline void kvmem_q4_begin_chunk(const std::int32_t* ids, std::int64_t n, std::i
     if (p.q4_stash == nullptr ||
         p.q4_stash_rows < std::max(p.q4_rows, kvmem_q4_qmax()) + kvmem_q4_qrows() ||
         p.q4_layers != layers_total || p.q4_row_elems != row_elems) {
-        if (p.q4_stash != nullptr) { (void)cudaFree(p.q4_stash); p.q4_stash = nullptr; }
+        if (p.q4_stash != nullptr) {
+            if (p.q4_host_stash) { p.q4_host_stash.reset(); }
+            else { (void)cudaFree(p.q4_stash); }
+            p.q4_stash = nullptr;
+        }
         // kv9: main rows fixed at >= kQ4MainRows (no re-allocation between plans) + Q-stash rows
         const std::int32_t rows_cap =
             ((std::max(p.q4_rows, kvmem_q4_qmax()) + 63) / 64) * 64 + kvmem_q4_qrows();
         const std::size_t bytes = static_cast<std::size_t>(layers_total) * rows_cap *
                                   static_cast<std::size_t>(row_elems) * 2U;
-        if (cudaMalloc(&p.q4_stash, bytes) != cudaSuccess) {
+        if (kvmem_cpu_retrieval_enabled()) {
+            try {
+                p.q4_host_stash.emplace(bytes);
+                p.q4_stash = p.q4_host_stash->data();
+            } catch (...) {
+                kvmem_score_fail("q4 host stash allocation");
+                return;
+            }
+        } else if (cudaMalloc(&p.q4_stash, bytes) != cudaSuccess) {
             p.q4_stash = nullptr;
             kvmem_score_fail("q4 stash cudaMalloc");
             return;
@@ -563,8 +581,9 @@ inline void kvmem_q4_begin_chunk(const std::int32_t* ids, std::int64_t n, std::i
             p.q4q_have_hi[k] = p.q4q_begin[k];
         }
         p.q4q_inject = false;
-        std::fprintf(stderr, "[kvmem-q4] stash allocated layers=%d rows=%d row_elems=%d bytes=%zu\n",
-                     layers_total, rows_cap, row_elems, bytes);
+        std::fprintf(stderr, "[kvmem-q4] stash allocated layers=%d rows=%d row_elems=%d bytes=%zu storage=%s\n",
+                     layers_total, rows_cap, row_elems, bytes,
+                     kvmem_cpu_retrieval_enabled() ? "host" : "device");
     }
     if (p.q4_score == nullptr || p.q4_score_cap < capacity_blocks) {
         if (p.q4_score != nullptr) { (void)cudaFree(p.q4_score); p.q4_score = nullptr; }
@@ -590,6 +609,10 @@ inline void kvmem_q4_begin_chunk(const std::int32_t* ids, std::int64_t n, std::i
     // kv9 (item 1): tool round -- copy the real user message's rows from the Q stash into its plan
     // segments (same absolute positions, same tokens), so the question keeps steering retrieval.
     if (p.q4q_inject) {
+        if (kvmem_cpu_retrieval_enabled() && cudaStreamSynchronize(stream) != cudaSuccess) {
+            kvmem_score_fail("q9 host injection sync");
+            return;
+        }
         p.q4q_inject = false;
         const std::size_t row_bytes = static_cast<std::size_t>(p.q4_row_elems) * 2U;
         const std::size_t pitch     = static_cast<std::size_t>(p.q4_stash_rows) * row_bytes;
@@ -604,7 +627,13 @@ inline void kvmem_q4_begin_chunk(const std::int32_t* ids, std::int64_t n, std::i
                 char* base = static_cast<char*>(p.q4_stash);
                 const std::size_t src = static_cast<std::size_t>(qbase + p.q4q_row0[k] + lo - p.q4q_begin[k]) * row_bytes;
                 const std::size_t dst = static_cast<std::size_t>(p.q4_seg_row0[s] + lo - p.q4_seg_begin[s]) * row_bytes;
-                if (cudaMemcpy2DAsync(base + dst, pitch, base + src, pitch,
+                if (kvmem_cpu_retrieval_enabled()) {
+                    for (std::int32_t l = 0; l < p.q4_layers; ++l) {
+                        std::memcpy(base + static_cast<std::size_t>(l) * pitch + dst,
+                                    base + static_cast<std::size_t>(l) * pitch + src,
+                                    static_cast<std::size_t>(hi - lo) * row_bytes);
+                    }
+                } else if (cudaMemcpy2DAsync(base + dst, pitch, base + src, pitch,
                                       static_cast<std::size_t>(hi - lo) * row_bytes,
                                       static_cast<std::size_t>(p.q4_layers), cudaMemcpyDeviceToDevice,
                                       stream) != cudaSuccess) {
@@ -656,7 +685,8 @@ inline void kvmem_q4_accumulate(std::int32_t fidx, const void* q, std::int32_t r
         if (lo >= hi) { continue; }
         if (cudaMemcpyAsync(stash_l + static_cast<std::size_t>(p.q4_seg_row0[s] + lo - p.q4_seg_begin[s]) * row_bytes,
                             static_cast<const char*>(q) + static_cast<std::size_t>(lo - base) * row_bytes,
-                            static_cast<std::size_t>(hi - lo) * row_bytes, cudaMemcpyDeviceToDevice,
+                            static_cast<std::size_t>(hi - lo) * row_bytes,
+                            kvmem_cpu_retrieval_enabled() ? cudaMemcpyDeviceToHost : cudaMemcpyDeviceToDevice,
                             stream) != cudaSuccess) {
             kvmem_score_fail("q4 stash copy");
             return;
@@ -670,7 +700,8 @@ inline void kvmem_q4_accumulate(std::int32_t fidx, const void* q, std::int32_t r
             if (lo >= hi) { continue; }
             if (cudaMemcpyAsync(qstash_l + static_cast<std::size_t>(p.q4q_row0[k] + lo - p.q4q_begin[k]) * row_bytes,
                                 static_cast<const char*>(q) + static_cast<std::size_t>(lo - base) * row_bytes,
-                                static_cast<std::size_t>(hi - lo) * row_bytes, cudaMemcpyDeviceToDevice,
+                                static_cast<std::size_t>(hi - lo) * row_bytes,
+                            kvmem_cpu_retrieval_enabled() ? cudaMemcpyDeviceToHost : cudaMemcpyDeviceToDevice,
                                 stream) != cudaSuccess) {
                 kvmem_score_fail("q9 stash copy");
                 return;
@@ -727,6 +758,14 @@ inline void kvmem_q4_accumulate(std::int32_t fidx, const void* q, std::int32_t r
             std::fprintf(stderr, "[kvmem-q4] eq10 exclude n_blocks=%d sink=%d excluded=%d%s\n", nb, sink_b,
                          cnt, (cnt > 0 && cnt < nb) ? "" : " (off: nothing to exclude / nothing left)");
         }
+    }
+    if (kvmem_cpu_retrieval_enabled()) {
+        for (std::int32_t s = 0; s < p.q4_nseg; ++s) {
+            std::int32_t lo = 0, hi = 0;
+            p.q4_used[s] = kvmem_q4_avail(p, s, lo, hi) ? hi - lo : 0;
+        }
+        p.q4_complete_chunk = true;
+        return; // Host scoring runs once, after all layers' query copies complete.
     }
     for (std::int32_t s = 0; s < p.q4_nseg; ++s) {
         std::int32_t lo = 0, hi = 0;
@@ -792,16 +831,58 @@ inline void kvmem_q4_finish(cudaStream_t stream) noexcept {
     const std::int32_t nb = p.n_blocks;
     const std::int32_t ns = p.q4_nseg;
     p.q4_host.assign(static_cast<std::size_t>(ns) * nb, 0.0F);
-    for (std::int32_t s = 0; s < ns; ++s) {
-        if (cudaMemcpyAsync(p.q4_host.data() + static_cast<std::size_t>(s) * nb,
-                            p.q4_score + static_cast<std::size_t>(s) * p.q4_score_cap,
-                            static_cast<std::size_t>(nb) * sizeof(float), cudaMemcpyDeviceToHost,
-                            stream) != cudaSuccess) {
-            kvmem_score_fail("q4 score D2H");
+    if (kvmem_cpu_retrieval_enabled()) {
+        if (cudaStreamSynchronize(stream) != cudaSuccess) { kvmem_score_fail("q4 host sync"); return; }
+        const auto started = std::chrono::steady_clock::now();
+        try {
+            MeanKIndex* index = mean_k_index_for(p.layers_total, p.n_kv_heads, p.head_dim,
+                                               p.capacity_blocks);
+            if (index == nullptr || !index->host_resident()) {
+                kvmem_score_fail("q4 missing host index");
+                return;
+            }
+            std::vector<KvMemCpuQuery> queries(static_cast<std::size_t>(ns));
+            const auto* rows = static_cast<const std::uint16_t*>(p.q4_stash);
+            for (std::int32_t seg = 0; seg < ns; ++seg) {
+                std::int32_t lo = 0, hi = 0;
+                if (!kvmem_q4_avail(p, seg, lo, hi)) { continue; }
+                queries[seg] = {rows + static_cast<std::size_t>(p.q4_seg_row0[seg] + lo -
+                               p.q4_seg_begin[seg]) * p.q4_row_elems,
+                               static_cast<std::uint32_t>(hi - lo),
+                               static_cast<std::size_t>(p.q4_stash_rows)};
+            }
+            std::vector<std::vector<float>> scores;
+            const std::span<const std::uint8_t> exclude = p.q4_excl_n > 0
+                ? std::span<const std::uint8_t>(p.q4_excl_host.data(), nb)
+                : std::span<const std::uint8_t>{};
+            kvmem_cpu_scores(index->host_data(), index->layer_elements(),
+                             p.layers_total, p.n_kv_heads, p.n_heads, p.head_dim,
+                             std::span<const std::int32_t>(p.tokens_host.data(), nb),
+                             exclude, queries, scores);
+            for (std::int32_t seg = 0; seg < ns; ++seg) {
+                std::copy(scores[seg].begin(), scores[seg].end(),
+                          p.q4_host.begin() + static_cast<std::size_t>(seg) * nb);
+            }
+        } catch (const std::exception& e) {
+            std::fprintf(stderr, "[kvmem-cpu] scoring failed: %s\n", e.what());
+            kvmem_score_fail("q4 CPU scoring");
             return;
         }
+        const double ms = std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now() - started).count();
+        std::fprintf(stderr, "[kvmem-cpu] score mode=msg blocks=%d ms=%.3f\n", nb, ms);
+    } else {
+        for (std::int32_t s = 0; s < ns; ++s) {
+            if (cudaMemcpyAsync(p.q4_host.data() + static_cast<std::size_t>(s) * nb,
+                                p.q4_score + static_cast<std::size_t>(s) * p.q4_score_cap,
+                                static_cast<std::size_t>(nb) * sizeof(float), cudaMemcpyDeviceToHost,
+                                stream) != cudaSuccess) {
+                kvmem_score_fail("q4 score D2H");
+                return;
+            }
+        }
+        if (cudaStreamSynchronize(stream) != cudaSuccess) { kvmem_score_fail("q4 sync"); return; }
     }
-    if (cudaStreamSynchronize(stream) != cudaSuccess) { kvmem_score_fail("q4 sync"); return; }
 
     std::int32_t active = 0, used_total = 0;
     for (std::int32_t s = 0; s < ns; ++s) {
@@ -917,7 +998,10 @@ inline void kvmem_score_accumulate(std::int32_t fidx, const void* q, std::int32_
         const bool carry = p.carry_ok && query_tail > 0 && chunk_tokens > 0 &&
                            chunk_tokens < query_tail;
         const std::int32_t clear_from = carry ? p.carry_prev_blocks : 0;
-        if (clear_from < p.n_blocks &&
+        if (kvmem_cpu_retrieval_enabled()) {
+            std::fill(p.score_host.begin() + clear_from,
+                      p.score_host.begin() + p.n_blocks, 0.0F);
+        } else if (clear_from < p.n_blocks &&
             cudaMemsetAsync(p.score + clear_from, 0,
                             static_cast<std::size_t>(p.n_blocks - clear_from) * sizeof(float),
                             stream) != cudaSuccess) {
@@ -938,6 +1022,30 @@ inline void kvmem_score_accumulate(std::int32_t fidx, const void* q, std::int32_
                                                   p.capacity_blocks);
     if (index == nullptr || index->blocks_written() <= 0) { return; }
     if (fidx < 0 || fidx >= index->layers()) { return; }
+
+    if (kvmem_cpu_retrieval_enabled()) {
+        try {
+            if (!p.tail_host_stash || p.tail_host_rows < span_tokens) {
+                if (cudaStreamSynchronize(stream) != cudaSuccess) {
+                    kvmem_score_fail("tail host resize sync"); return;
+                }
+                p.tail_host_stash.emplace(static_cast<std::size_t>(p.layers_total) *
+                    span_tokens * p.n_heads * p.head_dim * sizeof(std::uint16_t));
+                p.tail_host_rows = span_tokens;
+            }
+        } catch (...) { kvmem_score_fail("tail host stash allocation"); return; }
+        const std::size_t row_bytes = static_cast<std::size_t>(p.n_heads) * p.head_dim * 2U;
+        auto* dst = static_cast<char*>(p.tail_host_stash->data()) +
+                    static_cast<std::size_t>(fidx) * p.tail_host_rows * row_bytes;
+        if (cudaMemcpyAsync(dst, static_cast<const char*>(q) +
+                            static_cast<std::size_t>(span_begin) * row_bytes,
+                            static_cast<std::size_t>(span_tokens) * row_bytes,
+                            cudaMemcpyDeviceToHost, stream) != cudaSuccess) {
+            kvmem_score_fail("tail query D2H"); return;
+        }
+        p.scored_this_chunk = true;
+        return;
+    }
 
     const Tensor& sums = index->layer_sums(fidx);
     if (sums.data == nullptr) { return; }
@@ -1003,14 +1111,31 @@ inline void kvmem_score_finish(const char* label, std::int32_t query_tokens,
                                            : 0;
 
     const std::size_t bytes = static_cast<std::size_t>(p.n_blocks) * sizeof(float);
-    if (cudaMemcpyAsync(p.score_host.data(), p.score, bytes, cudaMemcpyDeviceToHost, stream) !=
-        cudaSuccess) {
-        kvmem_score_fail("score D2H");
-        return;
-    }
-    if (cudaStreamSynchronize(stream) != cudaSuccess) {
-        kvmem_score_fail("sync");
-        return;
+    if (kvmem_cpu_retrieval_enabled()) {
+        if (cudaStreamSynchronize(stream) != cudaSuccess) { kvmem_score_fail("tail host sync"); return; }
+        try {
+            MeanKIndex* index = mean_k_index_for(p.layers_total, p.n_kv_heads, p.head_dim,
+                                               p.capacity_blocks);
+            if (!index || !index->host_resident() || !p.tail_host_stash) {
+                kvmem_score_fail("tail missing host buffers"); return;
+            }
+            const KvMemCpuQuery query{static_cast<const std::uint16_t*>(p.tail_host_stash->data()),
+                static_cast<std::uint32_t>(p.query_span_tokens),
+                static_cast<std::size_t>(p.tail_host_rows)};
+            std::vector<std::vector<float>> scores;
+            kvmem_cpu_scores(index->host_data(), index->layer_elements(), p.layers_total,
+                             p.n_kv_heads, p.n_heads, p.head_dim,
+                             std::span<const std::int32_t>(p.tokens_host.data(), p.n_blocks),
+                             {}, std::span<const KvMemCpuQuery>(&query, 1), scores);
+            for (std::int32_t b = 0; b < p.n_blocks; ++b) { p.score_host[b] += scores[0][b]; }
+        } catch (const std::exception& e) {
+            std::fprintf(stderr, "[kvmem-cpu] tail scoring failed: %s\n", e.what());
+            kvmem_score_fail("tail CPU scoring"); return;
+        }
+    } else {
+        if (cudaMemcpyAsync(p.score_host.data(), p.score, bytes, cudaMemcpyDeviceToHost, stream) !=
+            cudaSuccess) { kvmem_score_fail("score D2H"); return; }
+        if (cudaStreamSynchronize(stream) != cudaSuccess) { kvmem_score_fail("sync"); return; }
     }
 
     double sum_score = 0.0;

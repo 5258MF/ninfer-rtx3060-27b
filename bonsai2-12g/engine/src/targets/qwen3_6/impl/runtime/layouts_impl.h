@@ -665,8 +665,7 @@ WorkspacePlan build_workspace_plan(const SequencePlanImpl& plan) {
 // rk4 engine: sm_86 build that carries the sm_89 i8 attention family (int8 / rk4v4 / rk4v4-e8).
 inline constexpr bool kNinferRk4Sm86Build = true;
 inline bool ninfer_rk4_kvmem_no_rebake_env() {
-    const char* v = std::getenv("NINFER_TERNARY_KVMEM_NO_REBAKE");
-    return v != nullptr && v[0] == '1' && v[1] == '\0';
+    return ops::detail::kvmem_no_rebake();
 }
 inline bool ninfer_rk4_kvmem_env() {
     const char* v = std::getenv("NINFER_TERNARY_KVMEM");

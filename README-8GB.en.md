@@ -24,6 +24,20 @@ Default Base URL: `http://127.0.0.1:8084/v1`. Model ID: `qwen3.8-27b`. The clien
 
 ## Modes and Capacity
 
+### CPU Retrieval and Resident Window (0.1.2)
+
+KVMem places the FP32 index and BF16 query stash in pinned host RAM and scores blocks on the CPU using AVX2/FMA. Index precision and the configurable 256K total context are preserved. At 256K, approximately 256.25 MiB of index and 144 MiB of query storage move out of VRAM, with corresponding host RAM usage.
+
+Allocation follows **current free VRAM → total resident capacity → answer reserve → remaining history**, using each model's calibrated memory costs. Auto output aims to leave 36K history, then caps output at 16K for 8G rk8v4 and 32K for other Bonsai modes. All remaining capacity goes to history, including the fixed prefix. `WINDOW=0` uses all remaining history capacity; a positive value keeps a manual history limit. Explicit answer lengths are preserved; insufficient capacity causes an error. On a 12GB test card, the 8G kit still uses an 8GB total budget.
+
+At identical capacities on an RTX 3060 12GB, sampled savings were approximately **404 MiB** for 8G rk8v4, **402 MiB** for 8G rk4v4 and **401 MiB** for 12G rk8v4. These are whole-card samples minus the pre-launch baseline, affected by desktop activity. Four short outputs matched between CPU/GPU paths. Decode speed was essentially unchanged; short prompt processing added roughly 13–16 ms.
+
+Measured configurations, **not fixed defaults**: 8G rk8v4 56K = 40K history + 16K output; 8G rk4v4 84K = 52K + 32K; 12G rk8v4 112K = 80K + 32K. The 12G test retrieved three needles and completed two follow-ups from a 252K-token input. See the [changelog](CHANGELOG.md#012---2026-10-04) for the 8G comparison. Full 16K/32K generation and perplexity were not retested; no actual 8GB card was qualified.
+
+Set `NINFER_TERNARY_KVMEM_CPU_RETRIEVAL=0` to use the GPU index/scorer for diagnosis; the launcher uses the corresponding memory budget. Ordinary modes do not receive this saving.
+
+
+
 As with the 12G build, four modes are available. The startup wizard lists recommended values and limits.
 
 | Mode | Maximum context | Maximum response | Best for |

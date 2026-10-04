@@ -161,6 +161,7 @@ add_library(ninfer_ops STATIC
   # keys are still in hand. The official implementation rejects the alternative -- rebuilding the
   # index from the paged cache after the prefill -- because a block offloaded mid-prefill would never
   # be reachable by a later scan, so the index would silently lose history. See mean_k_index.h.
+  ops/kvmem/kvmem_cpu_score.cpp
   ops/kvmem/mean_k_index.cpp
   ops/kvmem/mean_k_index_launch.cu
   # KVMem block selection (reference section 5): which blocks survive into the assembled window. Pure

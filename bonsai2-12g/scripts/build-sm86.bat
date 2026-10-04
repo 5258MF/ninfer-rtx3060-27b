@@ -4,7 +4,9 @@ REM ASCII-only batch source. Set the toolchain paths below or via environment.
 REM Usage: build-sm86.bat [configure^|build]
 setlocal
 set "TREE=%~dp0..\engine"
+if not defined NINFER_RK4_SM86 set "NINFER_RK4_SM86=OFF"
 set "BUILD=%~dp0..\build"
+if /i "%NINFER_RK4_SM86%"=="ON" set "BUILD=%~dp0..\build-rk4"
 if not defined NINFER_CUDA_PATH set "NINFER_CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.3"
 if not defined NINFER_VCVARS64 set "NINFER_VCVARS64=C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
 if not defined NINFER_DISABLE_MEDIA set "NINFER_DISABLE_MEDIA=OFF"
@@ -44,7 +46,7 @@ cmake -B "%BUILD%" -S "%TREE%" -G Ninja ^
   -DCUDAToolkit_ROOT="%NINFER_CUDA_PATH%" ^
   -DNINFER_BUILD_APPS=ON ^
   -DNINFER_DISABLE_MEDIA=%NINFER_DISABLE_MEDIA% ^
-  -DNINFER_RK4_SM86=OFF ^
+  -DNINFER_RK4_SM86=%NINFER_RK4_SM86% ^
   -DBUILD_TESTING=%NINFER_BUILD_TESTING% ^
   -DNINFER_BUILD_BENCHMARKS=%NINFER_BUILD_BENCHMARKS% ^
   -DCMAKE_C_FLAGS="/DWIN32 /D_WINDOWS /utf-8" ^

@@ -87,6 +87,9 @@
 //   verifier carries a negative control showing the judge CAN see an un-zeroed destination.
 //
 // OWNERSHIP
+//   Production KVMem now places this exact FP32 layout in mapped pinned host RAM.
+//   Ordered GPU appends remain capture-safe; host scoring synchronizes before reads.
+//   Direct callers retain device storage unless they explicitly request host_resident.
 //   Same rule as the harvest: index slots are owned for the lifetime of the engine (they outlive
 //   every TextContext, and a captured graph must never point at recycled workspace). Allocation
 //   happens in the constructor, which therefore must not run inside a capture.
@@ -97,6 +100,8 @@
 
 #include <array>
 #include <vector>
+#include <memory>
+#include <optional>
 #include <cstddef>
 #include <cstdint>
 
@@ -130,7 +135,7 @@ public:
     // `capacity_blocks` logical blocks (the caller sizes this from the workspace it is willing to
     // spend, not from the model's context ceiling).
     MeanKIndex(std::int32_t layers, std::int32_t heads, std::int32_t head_dim,
-               std::int32_t capacity_blocks);
+               std::int32_t capacity_blocks, bool host_resident = false);
 
     MeanKIndex(const MeanKIndex&)            = delete;
     MeanKIndex& operator=(const MeanKIndex&) = delete;
@@ -168,6 +173,15 @@ public:
     // throwing, matching the launch entry point: a caller in a capture must not get an exception from a
     // stream-ordered operation.
     [[nodiscard]] cudaError_t zero(cudaStream_t stream);
+
+    // Host storage uses mapped pinned RAM: the existing ordered GPU append writes
+    // directly to it. CPU readers must first synchronize the producing stream.
+    [[nodiscard]] bool host_resident() const noexcept { return host_ != nullptr; }
+    [[nodiscard]] const float* host_data() const noexcept { return host_.get(); }
+    [[nodiscard]] std::size_t layer_elements() const noexcept { return elements_per_layer_; }
+    [[nodiscard]] cudaError_t read_counts(std::int32_t layer, std::int32_t first,
+                                          std::int32_t count, float* out,
+                                          cudaStream_t stream) const;
 
     [[nodiscard]] std::int32_t layers() const noexcept { return layers_; }
     [[nodiscard]] std::int32_t heads() const noexcept { return heads_; }
@@ -226,7 +240,11 @@ private:
     std::size_t  elements_per_layer_ = 0;  // F32 elements per layer, sums + counts
     std::size_t  per_layer_bytes_    = 0;
     std::size_t  total_bytes_        = 0;
-    DeviceArena  arena_;
+    struct HostDeleter {
+        void operator()(float* data) const noexcept { if (data) { (void)cudaFreeHost(data); } }
+    };
+    std::unique_ptr<float, HostDeleter> host_;
+    std::optional<DeviceArena> arena_;
     Tensor       flat_;  // F32 [elements_per_layer, layers] view of the arena
     std::array<Tensor, kMeanKMaxLayers> views_{};   // per-layer [blocks, heads, head_dim] sums
     std::array<Tensor, kMeanKMaxLayers> counts_{};  // per-layer [blocks] token counts

@@ -6,7 +6,7 @@ Run the Swift-Bonsai-2 27B ternary model on Windows with an RTX 3060 12 GB. The 
 
 ## Download and Start
 
-Current source release: **0.1.1**, available from the [Bonsai2 12G source Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.1). Cloud packages remain **0.1.0**: download `ninfer-3060-12g-bonsai2-oneclick-0.1.0.zip` using the links on the [project home](README.en.md#downloads). Fixed kits await upload. See [CHANGELOG](CHANGELOG.md#011---2026-10-04).
+Current source release: **0.1.2**, available from the [Bonsai2 12G source Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.2). Cloud packages remain **0.1.0**: download `ninfer-3060-12g-bonsai2-oneclick-0.1.0.zip` using the links on the [project home](README.en.md#downloads). Fixed kits await upload. See [CHANGELOG](CHANGELOG.md#012---2026-10-04).
 
 An RTX 30 series GPU is required; settings are tuned for the RTX 3060 12 GB. Use Windows 10/11, 32 GB RAM recommended, and about 10 GB of free disk space. The model is not included and downloads on first launch.
 
@@ -25,6 +25,20 @@ Default Base URL: `http://127.0.0.1:8084/v1`. Model ID: `qwen3.8-27b`. The clien
 In 0.1.0, large client output limits are capped by the server settings. With KVMem, requests that compress, edit, or branch from earlier history fall back to a fresh prefill; direct continuation can still reuse cache. With multiple tools, `required`/`any` is handled as `Auto` and does not guarantee a tool call. `strict:true` is accepted as a declaration but does not enforce strict JSON Schema constraints. See [compatibility scope and limits](CHANGELOG.md#2026-10-04三项智能体兼容修改与-bonsai2-12g-源码公开) (Chinese).
 
 ## Modes and Capacity
+
+### CPU Retrieval and Resident Window (0.1.2)
+
+KVMem places the FP32 index and BF16 query stash in pinned host RAM and scores blocks on the CPU using AVX2/FMA. Index precision and the configurable 256K total context are preserved. At 256K, approximately 256.25 MiB of index and 144 MiB of query storage move out of VRAM, with corresponding host RAM usage.
+
+Allocation follows **current free VRAM → total resident capacity → answer reserve → remaining history**, using each model's calibrated memory costs. Auto output aims to leave 36K history, then caps output at 16K for 8G rk8v4 and 32K for other Bonsai modes. All remaining capacity goes to history, including the fixed prefix. `WINDOW=0` uses all remaining history capacity; a positive value keeps a manual history limit. Explicit answer lengths are preserved; insufficient capacity causes an error. On a 12GB test card, the 8G kit still uses an 8GB total budget.
+
+At identical capacities on an RTX 3060 12GB, sampled savings were approximately **404 MiB** for 8G rk8v4, **402 MiB** for 8G rk4v4 and **401 MiB** for 12G rk8v4. These are whole-card samples minus the pre-launch baseline, affected by desktop activity. Four short outputs matched between CPU/GPU paths. Decode speed was essentially unchanged; short prompt processing added roughly 13–16 ms.
+
+Measured configurations, **not fixed defaults**: 8G rk8v4 56K = 40K history + 16K output; 8G rk4v4 84K = 52K + 32K; 12G rk8v4 112K = 80K + 32K. The 12G test retrieved three needles and completed two follow-ups from a 252K-token input. See the [changelog](CHANGELOG.md#012---2026-10-04) for the 8G comparison. Full 16K/32K generation and perplexity were not retested; no actual 8GB card was qualified.
+
+Set `NINFER_TERNARY_KVMEM_CPU_RETRIEVAL=0` to use the GPU index/scorer for diagnosis; the launcher uses the corresponding memory budget. Ordinary modes do not receive this saving.
+
+
 
 The 12 GB card has four modes. The launch wizard shows recommended values and limits. These are the 0.1.0 ranges; automatic output depends on free VRAM at startup.
 

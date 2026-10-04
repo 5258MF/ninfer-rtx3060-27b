@@ -1,4 +1,6 @@
 #include "ops/kvmem/mean_k_index.h"
+#include "ops/kvmem/kvmem_cpu_score.h"
+#include <cstring>
 #include <cstdio>
 #include <vector>
 
@@ -56,7 +58,7 @@ std::size_t checked_bytes(std::int32_t layers, std::int32_t blocks, std::int32_t
 } // namespace
 
 MeanKIndex::MeanKIndex(std::int32_t layers, std::int32_t heads, std::int32_t head_dim,
-                       std::int32_t capacity_blocks)
+                       std::int32_t capacity_blocks, bool host_resident)
     : layers_(layers),
       heads_(heads),
       head_dim_(head_dim),
@@ -67,8 +69,7 @@ MeanKIndex::MeanKIndex(std::int32_t layers, std::int32_t heads, std::int32_t hea
       elements_per_layer_(sums_per_layer_ +
                           static_cast<std::size_t>(capacity_blocks > 0 ? capacity_blocks : 0)),
       per_layer_bytes_(mean_k_index_bytes(1, capacity_blocks, heads, head_dim)),
-      total_bytes_(checked_bytes(layers, capacity_blocks, heads, head_dim)),
-      arena_(total_bytes_) {
+      total_bytes_(checked_bytes(layers, capacity_blocks, heads, head_dim)) {
     if (total_bytes_ == 0) {
         // A zero-capacity index is a supported state, not an error: it is what a caller that chose
         // not to reserve index memory gets, and empty() tells it so.
@@ -79,7 +80,19 @@ MeanKIndex::MeanKIndex(std::int32_t layers, std::int32_t heads, std::int32_t hea
     // same machine check) as RawKShadowHarvest's constructor. The sums and the counts of a layer live
     // in that same region ([sums][counts]) rather than in a second allocation, so the count offset the
     // kernel derives cannot drift from the view built here.
-    flat_ = arena_.alloc(DType::FP32, {static_cast<std::int32_t>(elements_per_layer_), layers_});
+    if (host_resident) {
+        void* data = nullptr;
+        CUDA_CHECK(cudaHostAlloc(&data, total_bytes_, cudaHostAllocMapped));
+        host_.reset(static_cast<float*>(data));
+        void* mapped = nullptr;
+        CUDA_CHECK(cudaHostGetDevicePointer(&mapped, data, 0));
+        flat_ = Tensor(mapped, DType::FP32,
+                       {static_cast<std::int32_t>(elements_per_layer_), layers_});
+    } else {
+        arena_.emplace(total_bytes_);
+        flat_ = arena_->alloc(DType::FP32,
+                            {static_cast<std::int32_t>(elements_per_layer_), layers_});
+    }
     if (flat_.bytes() != total_bytes_) {
         throw std::logic_error(std::string(kSubject) +
                                ": arena allocation does not match the declared index size");
@@ -112,8 +125,13 @@ cudaError_t MeanKIndex::zero(cudaStream_t stream) {
     // verbatim inside a captured decode graph, and a replayed memset would wipe the sums the prefill
     // accumulated -- the accumulation is state that outlives the graph. Zeroing is therefore an
     // explicit setup step on a stream the caller controls, and the append stays a single launch.
-    const cudaError_t st =
-        cudaMemsetAsync(flat_.data, 0, total_bytes_, stream);
+    cudaError_t st = cudaSuccess;
+    if (host_) {
+        st = cudaStreamSynchronize(stream);
+        if (st == cudaSuccess) { std::memset(host_.get(), 0, total_bytes_); }
+    } else {
+        st = cudaMemsetAsync(flat_.data, 0, total_bytes_, stream);
+    }
     if (st != cudaSuccess) { return st; }
     blocks_written_ = 0;
     tail_fill_      = 0;
@@ -273,6 +291,24 @@ void MeanKIndex::append_one(const void* raw_key_bf16, std::int32_t layer_index,
     tail_fill_      = tail_fill;
 }
 
+cudaError_t MeanKIndex::read_counts(std::int32_t layer, std::int32_t first,
+                                    std::int32_t count, float* out,
+                                    cudaStream_t stream) const {
+    if (layer < 0 || layer >= layers_ || first < 0 || count < 0 ||
+        first > capacity_blocks_ - count || out == nullptr) { return cudaErrorInvalidValue; }
+    if (host_) {
+        const cudaError_t st = cudaStreamSynchronize(stream);
+        if (st == cudaSuccess) {
+            std::memcpy(out, host_.get() + static_cast<std::size_t>(layer) * elements_per_layer_ +
+                        sums_per_layer_ + first, static_cast<std::size_t>(count) * sizeof(float));
+        }
+        return st;
+    }
+    return cudaMemcpyAsync(out, static_cast<const float*>(counts_[layer].data) + first,
+                            static_cast<std::size_t>(count) * sizeof(float),
+                            cudaMemcpyDeviceToHost, stream);
+}
+
 // ---- KVMem P3a-g -------------------------------------------------------------------------------
 cudaError_t MeanKIndex::save_used(std::vector<float>& out, cudaStream_t stream) const {
     out.clear();
@@ -281,6 +317,17 @@ cudaError_t MeanKIndex::save_used(std::vector<float>& out, cudaStream_t stream) 
     const std::size_t sums_n = b * static_cast<std::size_t>(heads_) * static_cast<std::size_t>(head_dim_);
     const std::size_t L      = static_cast<std::size_t>(layers_);
     out.resize((sums_n + b) * L);
+    if (host_) {
+        const cudaError_t st = cudaStreamSynchronize(stream);
+        if (st != cudaSuccess) { out.clear(); return st; }
+        for (std::size_t l = 0; l < L; ++l) {
+            const float* src = host_.get() + l * elements_per_layer_;
+            std::memcpy(out.data() + l * sums_n, src, sums_n * sizeof(float));
+            std::memcpy(out.data() + sums_n * L + l * b,
+                        src + sums_per_layer_, b * sizeof(float));
+        }
+        return cudaSuccess;
+    }
     const std::size_t pitch = elements_per_layer_ * sizeof(float);
     const char* base        = static_cast<const char*>(flat_.data);
     cudaError_t st = cudaMemcpy2DAsync(out.data(), sums_n * sizeof(float), base, pitch,
@@ -303,6 +350,20 @@ cudaError_t MeanKIndex::load_used(const std::vector<float>& in, std::int32_t blo
     const std::size_t L      = static_cast<std::size_t>(layers_);
     if (blocks <= 0 || blocks > capacity_blocks_ || in.size() != (sums_n + b) * L) {
         return cudaErrorInvalidValue;
+    }
+    if (host_) {
+        const cudaError_t st = cudaStreamSynchronize(stream);
+        if (st != cudaSuccess) { return st; }
+        std::memset(host_.get(), 0, total_bytes_);
+        for (std::size_t l = 0; l < L; ++l) {
+            float* dst = host_.get() + l * elements_per_layer_;
+            std::memcpy(dst, in.data() + l * sums_n, sums_n * sizeof(float));
+            std::memcpy(dst + sums_per_layer_,
+                        in.data() + sums_n * L + l * b, b * sizeof(float));
+        }
+        blocks_written_ = blocks;
+        tail_fill_ = tail_fill;
+        return cudaSuccess;
     }
     cudaError_t st = cudaMemsetAsync(flat_.data, 0, total_bytes_, stream);
     const std::size_t pitch = elements_per_layer_ * sizeof(float);
@@ -393,7 +454,8 @@ MeanKIndex* mean_k_index_for(std::int32_t layers, std::int32_t heads, std::int32
 
     static MeanKIndex* installed = nullptr;
     if (installed == nullptr) {
-        installed = new MeanKIndex(layers, heads, head_dim, capacity_blocks);
+        installed = new MeanKIndex(layers, heads, head_dim, capacity_blocks,
+                                  detail::kvmem_cpu_retrieval_enabled());
         // REQUIRED before the first append: arena bytes are not guaranteed zero, and the accumulate
         // kernel ADDS into the destination, so an unwritten block would otherwise start from
         // garbage and its count would claim tokens it never saw.
@@ -407,10 +469,11 @@ MeanKIndex* mean_k_index_for(std::int32_t layers, std::int32_t heads, std::int32
         g_meank_installed = installed;   // KVMem kv9
         std::fprintf(stderr,
                      "kvmem_index: installed layers=%d heads=%d head_dim=%d blocks=%d "
-                     "bytes=%.1f MiB zero=%s\n",
+                     "bytes=%.1f MiB storage=%s zero=%s\n",
                      static_cast<int>(layers), static_cast<int>(heads),
                      static_cast<int>(head_dim), static_cast<int>(capacity_blocks),
                      static_cast<double>(installed->bytes_total()) / (1024.0 * 1024.0),
+                     installed->host_resident() ? "host" : "device",
                      cudaGetErrorName(zero_status));
         if (zero_status != cudaSuccess) {
             // Fail loudly instead of handing back an index whose counts are noise: a bad count is not

@@ -4,6 +4,22 @@
 
 按版本和日期记录已发生的改动。源码更新与网盘包更新分别标明，避免把源码中的修复误认为已经进入旧下载包。
 
+## 0.1.2 - 2026-10-04
+
+**状态：Bonsai2 8G / 12G 源码与本机懒人包更新；网盘仍为旧包，等待重新上传。Swift 1.5 保持 0.1.1。**
+
+- KVMem 的 FP32 块和计数索引、BF16 查询暂存迁到锁页内存；保持 GPU 按原顺序追加索引，CPU 用 AVX2/FMA 分块打分，支持标量回退。快照恢复和 CUDA Graph 重放覆盖原布局。
+- CPU 打分在本段索引追加前完成，使用预填开始时的历史计数，避免当前段或部分尾块进入错误统计域；召回掩码、消息查询和段融合保留原规则。
+- 窗口按 Swift 1.5 默认逻辑分配：先预算总容量，优先留 36K 历史，自动回答封顶 16K（8G rk8v4）/32K（其他 Bonsai 模式），余量全给历史。取消固定历史上限与旧自动回答预算推导，手动回答保持不变。
+- 公开 8G 启动器和验收源码，与 12G 共用 `engine/`；构建脚本支持 `NINFER_RK4_SM86=ON`，RK4 使用独立输出目录。
+- 两个 CUDA 构建通过；FP64 打分 oracle 与 GPU/映射主机索引精确对照、部分块、快照恢复、Graph 重放单测通过；四种 KV/模型功能验收通过，包括工具往返、输出封顶、Messages/Responses 和图片。
+- 同容量整卡采样节省约 401–404 MiB；短请求输出一致，解码速度基本持平，短提示词读入略慢。扩容与测试边界见 [8G](README-8GB.md)、[12G](README-12GB.md) 说明。
+- 12G 在 112K 驻留容量（80K 历史 + 32K 输出预留）下，252,552 token 的三处藏针及两轮续问通过。8G CPU 在 56K 驻留容量下首次提问 A 时答成 C；原 GPU 路径同容量、同输入也把 A 答成 C（B 同样漏召回，C 正确）。至少首次错误在原路径中也重现，不能宣称该项通过。
+- Swift 窗口分配回归 788 项、最终命令/环境变量对照 18 项通过；扩大窗口的四种 KV 配置均通过工具、双 API、看图与至少 256 token 连续解码。8G 同容量看图对照为 GPU 7721 / CPU 7319 MiB；单次扩大窗口整卡采样曾出现 8048 MiB，不能按该配置保证真实 8GB 看图峰值。
+- 本轮未重测完整 16K/32K 长输出、困惑度或真实 8GB 硬件。此前完整旧 KV 单测的三项历史断言失败没有算作通过。
+
+English: Bonsai2 moves its FP32 index and BF16 query stash to host RAM and uses blocked CPU scoring, saving about 400 MiB at the same capacity. Allocation now follows Swift's default policy: budget the whole resident window, cap auto output, and assign the remainder to history. Explicit answer limits stay unchanged. Small-window functionality and the 12G 252K-token retrieval test passed; 8G long-retrieval comparison is reported separately.
+
 ## 0.1.1 - 2026-10-04
 
 **状态：0.1.1 源码已按模型分别发布 Release；本机新懒人包已验证，网盘待用户重新上传。0.1.0 标签、Release 和现有网盘链接保留原快照。**

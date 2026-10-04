@@ -224,9 +224,8 @@ PrefillChunkResult prefill_text_chunk(PrefillContext& state, std::span<const Tok
         if (kvmem_index != nullptr) {
             const std::int32_t round_first_block =
                 static_cast<std::int32_t>(state.text_kv_base / kPagedKVPageSize);
-            kvmem_index->append_round_at(*harvest, static_cast<std::int32_t>(state.text_kv_base),
-                                         state.execution.device.stream);   // kvmem_kv6_aligned_append
-
+            // Retrieval observes only the pre-chunk history. Host scoring must
+            // finish before this append can mutate its partial tail block.
             // ---- KVMem 选择探针：本 chunk 收尾（D2H + 选块 + 一行证据日志）--------------------
             //
             // 放在这里与下面那两段既有探针同一个理由：chunk 尾巴、任何 CUDA graph 捕获之外，
@@ -237,6 +236,9 @@ PrefillChunkResult prefill_text_chunk(PrefillContext& state, std::span<const Tok
                                                 state.execution.device.stream);
                 ops::detail::kvmem_score_dump_if_requested("prefill_chunk");
             }
+
+            kvmem_index->append_round_at(*harvest, static_cast<std::int32_t>(state.text_kv_base),
+                                         state.execution.device.stream);   // kvmem_kv6_aligned_append
 
             // ---- Self-proof that the index is really being FED, not merely that it compiled -------
             //
@@ -266,9 +268,8 @@ PrefillChunkResult prefill_text_chunk(PrefillContext& state, std::span<const Tok
                 const std::int32_t from   = total - span;
                 if (counts.data != nullptr && from >= 0) {
                     float block_counts[kProbeBlocks] = {0.0F, 0.0F, 0.0F, 0.0F};
-                    const cudaError_t read_status = cudaMemcpyAsync(
-                        block_counts, static_cast<const float*>(counts.data) + from,
-                        static_cast<std::size_t>(span) * sizeof(float), cudaMemcpyDeviceToHost, stream);
+                    const cudaError_t read_status = kvmem_index->read_counts(
+                        kProbeLayer, from, span, block_counts, stream);
                     if (read_status == cudaSuccess) {
                         const cudaError_t sync_status = cudaStreamSynchronize(stream);
                         if (sync_status == cudaSuccess) {
