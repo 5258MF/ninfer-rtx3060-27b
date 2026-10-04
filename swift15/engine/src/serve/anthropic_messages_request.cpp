@@ -813,15 +813,14 @@ void lower_tools(const Json& body, GenerationRequest& request) {
                         "tools", "toolsets_not_supported");
         }
         if (tool.source == ToolSource::AnthropicProvided) {
+            if (selection.kind != ToolSelectionKind::Named ||
+                tool.definition.name != selection.name) {
+                continue;
+            }
             bad_request("Anthropic-provided tool type '" + tool.source_type +
                             "' requires its predefined prompt schema or server executor, which "
                             "NInfer does not provide",
                         "tools", "anthropic_tools_not_supported");
-        }
-        if (tool.strict) {
-            bad_request("strict=true requires generated tool input to satisfy the declared JSON "
-                        "Schema, which NInfer cannot guarantee",
-                        "tools", "strict_tools_not_supported");
         }
         if (tool.defer_loading) {
             bad_request("defer_loading=true requires a deferred tool loader that NInfer does not "
@@ -844,18 +843,13 @@ void lower_tools(const Json& body, GenerationRequest& request) {
     if (selection.kind == ToolSelectionKind::Named) {
         request.tool_choice.forced_name = selection.name;
     } else if (selection.kind == ToolSelectionKind::Any) {
-        if (request.tools.size() != 1) {
-            bad_request("tool_choice.type='any' over several tools leaves the tool to the model, "
-                        "which NInfer cannot constrain; select the tool by name instead",
-                        "tool_choice", "tool_choice_not_supported");
+        if (request.tools.size() == 1) {
+            request.tool_choice.forced_name = request.tools.front().name;
         }
-        request.tool_choice.forced_name = request.tools.front().name;
     }
 
     if (selection.disable_parallel && !request.tools.empty()) {
-        bad_request("disable_parallel_tool_use=true requires at most one tool call, which NInfer "
-                    "cannot guarantee",
-                    "tool_choice", "parallel_tool_use_not_supported");
+        request.parallel_tool_calls = false;
     }
 }
 
@@ -1064,6 +1058,7 @@ AnthropicMessagesRequest parse_anthropic_messages_request(const Json& body,
     result.stream                          = optional_bool(body, "stream", false);
 
     const std::optional<int> max_tokens = optional_int(body, "max_tokens");
+    int validation_max_tokens           = limits.default_max_tokens;
     if (max_tokens) {
         result.output_tokens_explicit = true;
         if (*max_tokens == 0) {
@@ -1072,13 +1067,29 @@ AnthropicMessagesRequest parse_anthropic_messages_request(const Json& body,
                         "max_tokens", "cache_prewarm_not_supported");
         }
         if (*max_tokens < 0) { bad_request("max_tokens must be positive", "max_tokens"); }
-        result.generation.max_tokens = *max_tokens;
+        validation_max_tokens = *max_tokens;
+        int requested         = *max_tokens;
+        if (limits.default_max_tokens > 0 &&
+            limits.default_max_tokens != kUnboundedOutputTokens &&
+            requested > limits.default_max_tokens) {
+            requested = limits.default_max_tokens;
+        }
+        result.generation.max_tokens = requested;
     } else {
         result.generation.max_tokens = limits.default_max_tokens;
     }
 
     parse_common_prompt(body, result.generation, ParsePurpose::Messages,
-                        result.generation.max_tokens);
+                        validation_max_tokens);
+    if (result.generation.thinking_budget &&
+        result.generation.max_tokens > 0 &&
+        result.generation.max_tokens != kUnboundedOutputTokens) {
+        const auto eff_max = static_cast<std::uint32_t>(result.generation.max_tokens);
+        if (*result.generation.thinking_budget + 64U > eff_max) {
+            result.generation.thinking_budget =
+                eff_max > 1088U ? eff_max - 64U : (eff_max > 64U ? eff_max - 64U : eff_max / 2U);
+        }
+    }
     parse_generation_fields(body, result.generation);
     return result;
 }

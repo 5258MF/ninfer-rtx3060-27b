@@ -246,15 +246,21 @@ public:
                 options.execution.sampling.seed ^=
                     (static_cast<std::uint64_t>(entropy()) << 32) ^ entropy();
             }
+            const std::uint32_t capacity_output =
+                max_context_ - prompt_summary.prompt_tokens + static_cast<std::uint32_t>(1);
+            const std::uint32_t effective_output =
+                std::min(options.execution.requested_output_tokens, capacity_output);
+            if (options.execution.thinking.budget &&
+                effective_output > 64U &&
+                *options.execution.thinking.budget + 64U > effective_output) {
+                options.execution.thinking.budget = effective_output - 64U;
+            }
             auto output = instance_.frontend.make_output_session(
                 prompt, options.stop, options.output, options.execution.thinking,
                 options.execution.structured_output);
             options.execution.grammar = output.grammar_state();
-            const std::uint32_t capacity_output =
-                max_context_ - prompt_summary.prompt_tokens + static_cast<std::uint32_t>(1);
             try {
-                output.validate_generation_capacity(
-                    std::min(options.execution.requested_output_tokens, capacity_output));
+                output.validate_generation_capacity(effective_output);
             } catch (const std::invalid_argument& error) {
                 throw RequestError(RequestErrorKind::ThinkingBudgetCapacityInsufficient,
                                    error.what());

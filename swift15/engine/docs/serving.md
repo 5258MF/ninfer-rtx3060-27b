@@ -1,5 +1,8 @@
 # HTTP serving
 
+> RTX 3060 distribution note (2026-10-04): request limits and tool parameter handling have changed in this fork. The current compatibility behavior and remaining boundaries are recorded in the [project changelog](../../../CHANGELOG.md#2026-10-04三项智能体兼容修改与-bonsai2-12g-源码公开). Multi-tool required/any uses Auto; accepted strict declarations do not enable constrained decoding. The upstream contract descriptions below must be read with that dated note.
+
+
 `build/apps/ninfer-serve` loads one v3 `.ninfer` artifact and exposes OpenAI- and
 Anthropic-compatible HTTP endpoints over one resident NInfer Engine.
 

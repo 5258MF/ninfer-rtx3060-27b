@@ -4,6 +4,35 @@
 
 按版本和日期记录已发生的改动。源码更新与网盘包更新分别标明，避免把源码中的修复误认为已经进入旧下载包。
 
+## 2026-10-04：三项智能体兼容修改与 Bonsai2 12G 源码公开
+
+**状态：Swift 1.5 Q2S 与 12G Bonsai2 的最新完整源码、启动器和构建入口已同步；两款新版网盘链接待用户上传后更新。** 当前下载链接仍对应此前已发布包。
+
+| 方案 | 完整源码 | 启动器 | 编译入口 |
+|---|---|---|---|
+| Swift 1.5 Q2S | [`swift15/engine/`](swift15/engine/) | [`swift15/oneclick/`](swift15/oneclick/) | [`build-sm86.bat`](swift15/scripts/build-sm86.bat) |
+| Bonsai2 12G | [`bonsai2-12g/engine/`](bonsai2-12g/engine/) | [`bonsai2-12g/oneclick/`](bonsai2-12g/oneclick/) | [`build-sm86.bat`](bonsai2-12g/scripts/build-sm86.bat) |
+
+Bonsai2 首次公开的是完整 CMake 工程、实现、应用、测试、工具和第三方源码，包含此前 sm_86、SM 自适应、KVMem、rk8v4、显存预算、连接保活与长生成/多轮缓存修复。保留上游 LICENSE、NOTICE 和第三方许可；本机虚拟环境、评测运行记录、下载的语料、历史回退副本、私人配置、模型、DLL 与 EXE 不进入源码提交。
+
+三项修改按当前源码同步：
+
+1. **压缩、编辑历史与分叉的 KVMem 缓存保护。** 仅复用上一轮末尾的直接续写；中途截断、分叉和稳定前缀候选回退到 root 重新预填。预留额度不满足时跳过候选，避免继续沿用无效候选。回退会增加该请求的读入时间。
+2. **输出与思考预算限制。** Chat、Messages、Responses 将过大的客户端输出请求按服务端 `default_max_tokens` 封顶，核心进一步受剩余上下文容量限制。通过原始请求校验后，思考预算也按实际输出与容量裁剪。Bonsai2 补齐 `reasoning_effort` 别名映射：none 关闭思考、minimal/low 映射 Low、medium 映射 Medium、high/xhigh 映射 XHigh。
+3. **工具声明参数适配。** OpenAI 的 `required` / Anthropic 的 `any` 在单工具时指定该工具，多工具按 Auto 处理。接收相关并行控制声明；未强制的内置工具声明按现有实现处理。指定工具时关闭本轮思考，避免该组合直接报错。
+
+当前实现仍有以下边界，不能据此声明所有智能体接口都完全兼容：
+
+- 多工具 `required/any` 降级为 Auto，不保证每轮一定调用工具。
+- `strict:true` 被接受的入口将其作为声明处理，不提供严格 JSON Schema 约束；**Swift Responses 的函数工具仍明确拒绝 `strict:true`**。其它工具字段也仍受各入口的校验规则限制。
+- 未强制的内置工具声明被忽略，不代表引擎会执行网页搜索、MCP 等宿主工具。
+- Anthropic 思考预算仍需满足原始请求的基本校验，例如正数/最小值和 `budget_tokens < max_tokens`；封顶逻辑发生在这些校验之后，不能消除所有 400。
+- `<think>` 块内部工具识别保持原实现，本次没有合入用户未要求的第 4 项。
+
+本机对应引擎：Swift MD5 `DFC837D004E99BB297FFA982BAABCB5B`、SHA256 `e83e4c18b6d92b37d3986c7c4c83b7d87b943776c70393ebcf8fc81429117a87`；Bonsai2 12G MD5 `6449090F250188CA9C1EE72A526CF74A`、SHA256 `3f137098e3ac1dc9c4695de75cbc44170db38cdf6594fb98573d80a9e1e73e4a`。源树与发布包分别标识，自行编译不会得到同一二进制哈希。
+
+本次同步核对源文件哈希、两套现有 CUDA 13.3 / sm_86 构建、PowerShell 语法、文档链接、校验清单与新增公开内容；实机功能结果来自已有交接记录，本次未重新跑 GPU 推理、完整单测或性能测试。此前完整旧 KV 单测的三项断言失败未被算作通过。
+
 ## 2026-10-04：Swift 1.5 Q2S 源码与启动器同步
 
 **状态：最新完整源码与启动器已同步到仓库，新版网盘链接待用户上传后更新。当前下载链接仍为下面的首次显卡校准修复包。** 模型文件和转换方式不变，已有模型可以继续使用。

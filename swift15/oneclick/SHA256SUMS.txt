@@ -1,7 +1,6 @@
 # ninfer-3060-swift15-oneclick release manifest (2026-10-03)
 # Pure-ASCII relative paths so verification works across all Windows locales/codepages.
-# Run: powershell -ExecutionPolicy Bypass -File .\verify-kit-manifest.ps1
-ceece6ab31c72e5b0f0d89e68ad55d96b9b1691aae2922817ba8551f58da2c24  engine/ninfer-serve.exe
+e83e4c18b6d92b37d3986c7c4c83b7d87b943776c70393ebcf8fc81429117a87  engine/ninfer-serve.exe
 b00ca6f53699120da815bf3e06e2e4285fae2f201235b883dcbb50eec51e2a2a  engine/cudart64_13.dll
 f1d500d0cd892f5b8c6b6cdbffd82d0c55d5f5427215668e7ceb55aeeccc1b63  engine/cublas64_13.dll
 b592cd016d7673e9cb97716a22b27c4010ee635377a3ba28f37070a9bdb76a68  engine/cublasLt64_13.dll
@@ -12,4 +11,5 @@ eeabf29a2afd528ae7c414ac86d451210cc4683eb319117e5760fadfb2e5e2da  launcher/launc
 c6991fb22c6c0a0f442c2594dfb91105bb383ede7ac78dfde367f04a0f6ce55a  launcher/test.ps1
 43e035c1c5cb0d136b880ca7df95cc7d9b5ef61fd9a4bd8b9aa62e57eec9eaea  patch/ops.txt
 71dd3214d5dd3e9138b6989b121fe2f847447382a3fad4d9b33ffb73af9bac72  patch/lit.bin
+09f3ef2c04d3c150982b97d67e9777438f5cb1c64a19c5f9a30e805b1cb6d517  verify-kit-manifest.ps1
 0bb2ed529e9ac061fbf60cda9f0210a55bca56a76a8a90320e98a81ed2719d64  verify-arch-engine.ps1

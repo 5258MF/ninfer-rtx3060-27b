@@ -4,7 +4,7 @@
 
 ## 下载与开始
 
-下载 `ninfer-3060-12g-oneclick.zip`，网盘链接和提取码见[项目首页](README.md#下载)。现有网盘包为 2026-10-01 版；2026-10-03 的本机新构建待发布，差异见[更新记录](CHANGELOG.md)。
+下载 `ninfer-3060-12g-oneclick.zip`，网盘链接和提取码见[项目首页](README.md#下载)。现有网盘包为 2026-10-01 版；最新源码已公开，包含 2026-10-04 三项智能体兼容修改，新版网盘包待上传，差异见[更新记录](CHANGELOG.md)。
 
 需要 RTX 30 系显卡，参数按 3060 12GB 调整。Windows 10 / 11，内存建议 32 GB，磁盘预留约 10 GB。模型不在包内，首次运行自动下载。
 
@@ -19,6 +19,8 @@
 完整解压后运行 `启动.bat`；回车使用当前配置，按 C 打开向导。首次使用会下载模型。出现 `listening` 后运行 `测试.bat`。客户端按生成的 `接入信息.txt` 填写。
 
 默认 Base URL 是 `http://127.0.0.1:8084/v1`，模型 ID 是 `qwen3.8-27b`。上下文和输出上限必须与启动配置一致。
+
+最新源码会将较大的客户端输出上限按服务端配置封顶。KVMem 下中途压缩、编辑历史或分叉会回退到重新预填，直接续写仍可复用缓存。多工具 `required/any` 按 `Auto` 处理，不保证一定调用工具；`strict:true` 作为声明接受，不提供严格 JSON Schema 约束。接口覆盖和边界见[更新记录](CHANGELOG.md#2026-10-04三项智能体兼容修改与-bonsai2-12g-源码公开)，这些行为尚未进入现有网盘旧包。
 
 ## 模式与容量
 
@@ -63,6 +65,20 @@
   本机用 AIME 20 题各跑 2 轮，Swift 37/40、原版 35/40。样本小，可以认为两者差不多。
 
 完整测试范围见[测试结果与已知限制](#测试结果与已知限制)，内部改动见[技术实现](#技术实现)。
+
+### 最新源码版的启动器设置
+
+以下设置对应已公开的最新启动器，新版网盘包待上传：
+
+| 设置 | 行为 |
+|---|---|
+| `KVMEM_WINDOW` / `KVRK_WINDOW` | 0 表示按空闲显存自动分配检索窗口，上限 36K |
+| `KVMEM_ANSWER` / `KVRK_ANSWER` | `auto` 优先分配检索窗口，余量给输出，int8 自动最高 40K、rk8v4 自动最高 64K，至少保留 8K 输出 |
+| `POST_THINKING` | 默认 1，思考结束后降低正文采样温度 |
+| `RECOVER_INVARIANT` | 默认 1，对支持恢复的内部不变量错误尝试恢复 |
+| 启动菜单 P / `设置显卡功耗.bat` | 可选设置显卡功耗和开机恢复；需要管理员权限，以设备支持的范围为准 |
+
+包内 `verify-kit-manifest.ps1` 检查指定发布构建的文件、依赖和中文文件名；`verify-arch-engine.ps1` 会启动测试引擎并占用显存，运行前关闭其他模型。校验清单与内嵌哈希需随自行编译或修改脚本一起更新。
 
 ## 测试结果与已知限制
 
@@ -138,6 +154,8 @@
 - 自动缩窗重试的正例使用模拟容量报告；真实显存压力测试未触发同一报错，部分尝试遇到主机锁页分配失败。
 - 普通 88K、rk8v4 112K、KVMem 总上下文 256K 的配置上限沿用之前结果，本轮没有证明显存容量或回答质量提升。
 
+上述缩窗限制属于第十轮最初验收。后续本机记录补测了真实占显存下自动缩窗启动和引擎容量报告后的重启成功；本次源码公开没有重新测量速度、困惑度或完整旧 KV 单测，原有历史结果保留其日期和范围。
+
 ## 技术实现
 
 下列性能数字对应原有测试，不表示每次更新都会再次获得同等提升。按日期发生的修复和发布状态见[更新记录](CHANGELOG.md)。
@@ -200,6 +218,26 @@
   - 读入分段 512：当时读入慢约 2%，省的显存不够多开一档；2026-10-03 的本机第十轮构建按本轮目标统一使用 512。
 
 
+## 源码与编译
+
+完整源码在 [`bonsai2-12g/engine/`](bonsai2-12g/engine/)，启动器、公开默认设置、测试与功耗工具在 [`oneclick/`](bonsai2-12g/oneclick/)，构建入口为 [`build-sm86.bat`](bonsai2-12g/scripts/build-sm86.bat)。目录索引见 [bonsai2-12g/README.md](bonsai2-12g/README.md)。
+
+Windows 构建需要 CUDA 13.1 以上（现有构建使用 13.3）、MSVC C++ 工具链、CMake 3.28 以上和 Ninja。看图构建还需 FFmpeg 开发包，将 `include` 和 `lib` 放入 `bonsai2-12g/engine/ffmpeg/`；该目录和运行时 DLL 由使用者准备，不随源码提交。
+
+在仓库根目录运行：
+
+```bat
+set "NINFER_CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.3"
+set "NINFER_VCVARS64=C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
+bonsai2-12g\scripts\build-sm86.bat
+```
+
+脚本按仓库相对路径定位源码，输出到 `bonsai2-12g/build/`，默认构建 sm_86 的 `apps/ninfer-serve.exe` 和 `apps/ninfer-perplexity.exe`。按安装位置设置工具链路径；CMake 和 Ninja 需在 PATH 中，也可用 `NINFER_TOOLS_PATH` 指定它们的目录（多个目录用分号分隔）。源码和构建目录使用纯英文路径。完成后将程序及相应运行时 DLL 放入懒人包的 `engine` 目录，已有模型继续使用。
+
+已有构建只需运行 `build-sm86.bat build`；`configure` 仅生成构建。若只编译文字服务，可设置 `NINFER_DISABLE_MEDIA=ON`；这样不提供图片/视频解码。测试和基准默认关闭，可以通过 `NINFER_BUILD_TESTING=ON`、`NINFER_BUILD_BENCHMARKS=ON` 配置，再构建相应目标。完整旧 KV 单测的三项历史断言失败仍需按上方说明解读。
+
+引擎数学实现、模型绑定、KVMem、工具和依赖源码均在仓库中；模型、编译产物、运行记录及个人配置不属于源码目录。三项修改的发布状态和接口限制见 [CHANGELOG](CHANGELOG.md#2026-10-04三项智能体兼容修改与-bonsai2-12g-源码公开)。
+
 ## 常见问题
 
 - 启动失败或突然很慢：关闭其他占显存程序，在向导里把上下文或输出调小一档后重新启动。
@@ -218,5 +256,7 @@ Swift 1.5 的两项启动修复有各自适用范围，见[修复记录](CHANGEL
 - **KVMem**：kvmem-llama.cpp 项目和它的论文。
 - **rk8v4**：ninfer-all 项目的实现。
 - 3090 分支和其他 3060 用户公开的调优记录，也提供了很多参考。
+
+引擎代码许可见 [`engine/LICENSE`](bonsai2-12g/engine/LICENSE)，上游声明见 [`NOTICE`](bonsai2-12g/engine/NOTICE)；第三方目录保留各自许可，模型许可与代码许可分别适用。
 
 8GB 显卡见[8G 版](README-8GB.md)。Swift 1.5 方案见[项目首页](README.md)。

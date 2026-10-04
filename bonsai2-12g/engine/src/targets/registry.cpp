@@ -1,0 +1,295 @@
+#include "targets/registry.h"
+
+#include "artifact/binder.h"
+#include "artifact/materializer.h"
+#include "artifact/reader.h"
+#include "core/arena.h"
+#include "core/device.h"
+#include "core/startup.h"
+#include "core/vram_budget.h"
+#include "runtime/engine/kv_capacity.h"
+#include "runtime/engine/context_cost.h"
+
+#include <algorithm>
+#include <chrono>
+#include <cstdint>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <utility>
+
+namespace ninfer::targets {
+namespace {
+
+using Clock = std::chrono::steady_clock;
+
+void validate_options(const EngineOptions& options) {
+    if (options.artifact_path.empty()) {
+        throw std::invalid_argument("Engine artifact_path must not be empty");
+    }
+    if (options.artifact_path.extension() != ".ninfer") {
+        throw std::invalid_argument("NInfer accepts only .ninfer artifacts");
+    }
+    if (options.max_context == 0) {
+        throw std::invalid_argument("Engine max_context must be nonzero");
+    }
+    switch (options.kv_capacity.mode) {
+    case KvCapacityMode::Explicit:
+        if (options.kv_capacity.explicit_tokens == 0) {
+            throw std::invalid_argument("Engine explicit kv_capacity must be nonzero");
+        }
+        if (options.kv_capacity.automatic_headroom_bytes != 0) {
+            throw std::invalid_argument(
+                "Engine explicit kv_capacity must not carry automatic headroom");
+        }
+        break;
+    case KvCapacityMode::Automatic:
+        if (options.kv_capacity.explicit_tokens != 0) {
+            throw std::invalid_argument(
+                "Engine automatic kv_capacity must not carry explicit tokens");
+        }
+        break;
+    default:
+        throw std::invalid_argument("Engine kv_capacity mode is invalid");
+    }
+    if (options.max_concurrency == 0 || options.max_concurrency > kMaximumConcurrency) {
+        throw std::invalid_argument("Engine max_concurrency must be in [1,8]");
+    }
+    if (options.max_pending_requests == 0 || options.pending_timeout_ms == 0) {
+        throw std::invalid_argument("Engine pending request capacity and timeout must be nonzero");
+    }
+    if (options.enable_vision && options.media_live_bytes == 0) {
+        throw std::invalid_argument(
+            "Engine media_live_bytes must be nonzero when Vision is enabled");
+    }
+    if (options.media_preprocess_threads > 64) {
+        throw std::invalid_argument("Engine media_preprocess_threads must be in [0,64]");
+    }
+}
+
+std::size_t runtime_bytes_after_planned_weights(std::uint64_t weight_bytes,
+                                                bool wddm_evictable_budget = false) {
+    std::size_t free_bytes  = 0;
+    std::size_t total_bytes = 0;
+    CUDA_CHECK(cudaMemGetInfo(&free_bytes, &total_bytes));
+    std::size_t cuda_free = 0;
+    std::size_t nvml_free = 0;
+    free_bytes            = physical_free_device_bytes(&cuda_free, &nvml_free, false);
+#if defined(_WIN32)
+    // Allow WDDM to evict background apps down to a 512 MiB non-evictable DWM display floor.
+    // Opt-in only: on a card that is also driving the desktop the background allocations are
+    // frequently not evictable, so budgeting against total VRAM oversubscribes the device and
+    // pushes the runtime into WDDM paging.
+    constexpr std::size_t kMinDwmHeadroom = 512ULL * 1024ULL * 1024ULL;
+    if (wddm_evictable_budget && total_bytes > weight_bytes + kMinDwmHeadroom) {
+        const std::size_t evictable_capacity =
+            total_bytes - static_cast<std::size_t>(weight_bytes) - kMinDwmHeadroom;
+        const std::size_t free_after_weights =
+            free_bytes > weight_bytes ? free_bytes - static_cast<std::size_t>(weight_bytes) : 0;
+        return std::max(free_after_weights, evictable_capacity);
+    }
+#endif
+    if (weight_bytes > free_bytes) {
+        throw std::invalid_argument("model weights require " + std::to_string(weight_bytes) +
+                                    " bytes of device memory, but only " +
+                                    std::to_string(free_bytes) +
+                                    " bytes are free before loading weights");
+    }
+    std::size_t rem = free_bytes - static_cast<std::size_t>(weight_bytes);
+    if (const char* env_cap = std::getenv("NINFER_FREE_VRAM_MIB");
+        env_cap != nullptr && env_cap[0] != '\0') {
+        char* end                        = nullptr;
+        const unsigned long long cap_mib = std::strtoull(env_cap, &end, 10);
+        if (end != env_cap && cap_mib > 0) {
+            const std::size_t cap_bytes = static_cast<std::size_t>(cap_mib) * 1024ULL * 1024ULL;
+            const std::size_t cap_rem   = cap_bytes > weight_bytes
+                                              ? cap_bytes - static_cast<std::size_t>(weight_bytes)
+                                              : cap_bytes;
+            rem = std::min(rem, cap_rem);
+        }
+    }
+    return rem;
+}
+
+std::size_t current_free_device_bytes(std::size_t weights_bytes = 0,
+                                      bool wddm_evictable_budget = false,
+                                      std::size_t planned_runtime_bytes = 0) {
+    std::size_t free_bytes  = 0;
+    std::size_t total_bytes = 0;
+    CUDA_CHECK(cudaMemGetInfo(&free_bytes, &total_bytes));
+    std::size_t cuda_free = 0;
+    std::size_t nvml_free = 0;
+    free_bytes            = physical_free_device_bytes(&cuda_free, &nvml_free, true);
+    std::fprintf(stderr,
+                 "VRAM budget | nvml_free=%.1f MiB | cuda_free=%.1f MiB | effective_free=%.1f MiB\n",
+                 static_cast<double>(nvml_free) / (1024.0 * 1024.0),
+                 static_cast<double>(cuda_free) / (1024.0 * 1024.0),
+                 static_cast<double>(free_bytes) / (1024.0 * 1024.0));
+    std::fflush(stderr);
+#if defined(_WIN32)
+    if (wddm_evictable_budget && weights_bytes > 0) {
+        // Allow WDDM to evict background apps down to 512 MiB non-evictable DWM display floor
+        constexpr std::size_t kMinDwmHeadroom = 512ULL * 1024ULL * 1024ULL;
+        if (total_bytes > weights_bytes + kMinDwmHeadroom) {
+            const std::size_t evictable_free = total_bytes - weights_bytes - kMinDwmHeadroom;
+            return std::max(free_bytes, evictable_free);
+        }
+    }
+    // The arena already owns the pre-flight budget, so free_bytes understates what the runtime
+    // may still place. Report the budget the arena was actually sized from.
+    const char* env_cap    = std::getenv("NINFER_FREE_VRAM_MIB");
+    const bool has_env_cap = (env_cap != nullptr && env_cap[0] != '\0');
+    if (weights_bytes > 0 && planned_runtime_bytes > 0 && !has_env_cap) {
+        const std::size_t floor_cap =
+            (nvml_free > 0) ? std::min(planned_runtime_bytes, nvml_free) : planned_runtime_bytes;
+        return std::max(free_bytes, floor_cap);
+    }
+#endif
+    return free_bytes;
+}
+
+template <class Target, class Loaded, class Instance>
+ConstructedTarget construct_registered(const EngineOptions& options, DeviceContext& device,
+                                       artifact::Reader& reader, Clock::time_point load_start,
+                                       std::string_view target_key) {
+#if defined(_WIN32)
+    core::set_wddm_residency_lock_enabled(options.wddm_evictable_budget);
+#endif
+    StartupPhaseScope target_plan_phase(options.startup_observer, StartupPhase::TargetPlan);
+    const auto& identity                          = reader.identity();
+    const auto weights_profile                    = Target::resolve_weights(identity);
+    const ModelSamplingDefaults sampling_defaults = Target::sampling_defaults(identity.model_id);
+    const runtime::ContextCostIdentity context_cost_identity{
+        .hardware_class = runtime::context_cost_hardware_class(
+            device.props.name, device.props.major, device.props.minor),
+        .model_id   = identity.model_id,
+        .weights_id = identity.weights_id,
+    };
+    runtime::ResolvedContextMachineCost context_cost = runtime::resolve_context_machine_cost(
+        context_cost_identity, options.context_cost.preset_path);
+
+    artifact::Binder binder(reader);
+    auto load_plan        = Target::plan_load(binder, options, weights_profile);
+    auto sequence_planner = Target::make_sequence_planner(device, options, weights_profile);
+    const runtime::SequenceCapacityCurve curve = sequence_planner.capacity_curve();
+    const std::size_t preflight_runtime_bytes = runtime_bytes_after_planned_weights(
+        load_plan.materialization().device_capacity_bytes, options.wddm_evictable_budget);
+    (void)runtime::resolve_kv_capacity(options.kv_capacity, curve, preflight_runtime_bytes);
+    target_plan_phase.complete();
+
+    auto materialized = artifact::materialize(reader, load_plan.materialization(), device,
+                                              &options.startup_observer);
+    const artifact::MaterializationStats stats = materialized.stats();
+
+    StartupPhaseScope target_finalize_phase(options.startup_observer, StartupPhase::TargetFinalize);
+    auto model = Target::construct_loaded_model(std::move(load_plan), std::move(materialized));
+    device.synchronize();
+    const std::size_t weights_capacity_bytes = stats.h2d_bytes;
+    runtime::KvCapacityResolution capacity_resolution = runtime::resolve_kv_capacity(
+        options.kv_capacity, curve,
+        current_free_device_bytes(weights_capacity_bytes, options.wddm_evictable_budget,
+                                  preflight_runtime_bytes));
+    std::fprintf(stderr, "[kv-capacity-trace] mode=%d explicit=%u curve_min=%u curve_max=%u resolved_pages=%u resolved_tokens=%u\r\n",
+                 static_cast<int>(options.kv_capacity.mode), options.kv_capacity.explicit_tokens,
+                 curve.minimum_main_page_groups, curve.maximum_main_page_groups,
+                 capacity_resolution.main_page_groups, capacity_resolution.resolved_tokens);
+    auto sequence_plan = std::move(sequence_planner).finalize(capacity_resolution.main_page_groups);
+    if (sequence_plan.device_reservation_bytes() != capacity_resolution.runtime_reservation_bytes ||
+        sequence_plan.kv_capacity() != capacity_resolution.resolved_tokens) {
+        throw std::logic_error("resolved KV capacity does not match the finalized target plan");
+    }
+    target_finalize_phase.complete();
+
+    StartupPhaseScope frontend_phase(options.startup_observer, StartupPhase::FrontendInitialize);
+    auto loaded = std::make_unique<Loaded>(std::move(model), options);
+    frontend_phase.complete();
+
+    StartupPhaseScope program_phase(options.startup_observer, StartupPhase::ProgramInitialize);
+    auto instance =
+        std::make_unique<Instance>(std::move(loaded), capacity_resolution, std::move(sequence_plan),
+                                   device, options.startup_observer);
+    device.synchronize();
+    program_phase.complete();
+    instance->kv_capacity_resolution.available_after_startup_bytes = current_free_device_bytes();
+
+    LoadSummary summary;
+    summary.target               = std::string(target_key);
+    summary.model_id             = identity.model_id;
+    summary.weights_id           = identity.weights_id;
+    summary.load_seconds         = std::chrono::duration<double>(Clock::now() - load_start).count();
+    summary.upload_seconds       = stats.upload_seconds;
+    summary.artifact_bytes_read  = stats.file_bytes;
+    summary.host_to_device_bytes = stats.h2d_bytes;
+    summary.peak_staging_bytes   = stats.peak_staging_bytes;
+    summary.tensor_count         = stats.tensor_count;
+    summary.resource_count       = stats.resource_count;
+    summary.context_cost         = context_cost.summary;
+    return ConstructedTarget{.active            = ActiveTarget(std::move(instance)),
+                             .load              = std::move(summary),
+                             .sampling_defaults = sampling_defaults,
+                             .context_cost      = std::move(context_cost.model)};
+}
+
+} // namespace
+
+LoadedQwen3_6_27B::LoadedQwen3_6_27B(std::unique_ptr<Qwen3_6_27B::LoadedModel> stable_model,
+                                     const EngineOptions& options)
+    : model(std::move(stable_model)), frontend(Qwen3_6_27B::make_frontend(*model, options)) {}
+
+LoadedQwen3_6_27B::~LoadedQwen3_6_27B() = default;
+
+Qwen3_6_27BInstance::Qwen3_6_27BInstance(std::unique_ptr<LoadedQwen3_6_27B> stable_loaded,
+                                         runtime::KvCapacityResolution resolution,
+                                         Qwen3_6_27B::SequencePlan sequence_plan,
+                                         DeviceContext& device,
+                                         const StartupObserver& startup_observer)
+    : loaded(std::move(stable_loaded)), kv_capacity_resolution(resolution),
+      capacity(sequence_plan.capacity()),
+      program(Qwen3_6_27B::create_program(*loaded->model, std::move(sequence_plan), device,
+                                          startup_observer)) {}
+
+Qwen3_6_27BInstance::~Qwen3_6_27BInstance() = default;
+
+LoadedQwen3_6_35BA3B::LoadedQwen3_6_35BA3B(
+    std::unique_ptr<Qwen3_6_35BA3B::LoadedModel> stable_model, const EngineOptions& options)
+    : model(std::move(stable_model)), frontend(Qwen3_6_35BA3B::make_frontend(*model, options)) {}
+
+LoadedQwen3_6_35BA3B::~LoadedQwen3_6_35BA3B() = default;
+
+Qwen3_6_35BA3BInstance::Qwen3_6_35BA3BInstance(std::unique_ptr<LoadedQwen3_6_35BA3B> stable_loaded,
+                                               runtime::KvCapacityResolution resolution,
+                                               Qwen3_6_35BA3B::SequencePlan sequence_plan,
+                                               DeviceContext& device,
+                                               const StartupObserver& startup_observer)
+    : loaded(std::move(stable_loaded)), kv_capacity_resolution(resolution),
+      capacity(sequence_plan.capacity()),
+      program(Qwen3_6_35BA3B::create_program(*loaded->model, std::move(sequence_plan), device,
+                                             startup_observer)) {}
+
+Qwen3_6_35BA3BInstance::~Qwen3_6_35BA3BInstance() = default;
+
+ConstructedTarget construct_target(const EngineOptions& options, DeviceContext& device) {
+    validate_options(options);
+    const auto load_start = Clock::now();
+
+    StartupPhaseScope inspect_phase(options.startup_observer, StartupPhase::ArtifactInspect);
+    artifact::Reader reader(options.artifact_path);
+    inspect_phase.complete();
+    const auto& identity = reader.identity();
+    if (identity.model_id == Qwen3_6_27B::model_id) {
+        return construct_registered<Qwen3_6_27B, LoadedQwen3_6_27B, Qwen3_6_27BInstance>(
+            options, device, reader, load_start, Qwen3_6_27B::target_key);
+    }
+    if (identity.model_id == Qwen3_6_27B::qwen3_8_model_id) {
+        return construct_registered<Qwen3_6_27B, LoadedQwen3_6_27B, Qwen3_6_27BInstance>(
+            options, device, reader, load_start, Qwen3_6_27B::qwen3_8_target_key);
+    }
+    if (identity.model_id == Qwen3_6_35BA3B::model_id) {
+        return construct_registered<Qwen3_6_35BA3B, LoadedQwen3_6_35BA3B, Qwen3_6_35BA3BInstance>(
+            options, device, reader, load_start, Qwen3_6_35BA3B::target_key);
+    }
+    throw std::runtime_error("artifact identity '" + identity.model_id + "/" + identity.weights_id +
+                             "' has no registered target for this device");
+}
+
+} // namespace ninfer::targets

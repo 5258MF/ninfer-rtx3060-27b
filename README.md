@@ -23,7 +23,7 @@ Swift 1.5 默认总上下文为 200K，最多可配置 256K；KVMem 会从历史
 | Bonsai2 12G | `ninfer-3060-12g-oneclick.zip` | [百度网盘](https://pan.baidu.com/s/1p4OL2EzR0h4iCD2Mu40Ecw) | `9vc5` |
 | Bonsai2 8G | `ninfer-3060-8g-oneclick.zip` | [百度网盘](https://pan.baidu.com/s/1_ZIDNnMaaOGRk-YnHb0jUA) | `gkyy` |
 
-**发布状态：Swift 1.5 的 2026-10-04 最新源码与启动器已同步，新版网盘包待上传。上面的 Swift 链接仍是 2026-10-03 首次显卡校准修复包；Bonsai2 12G 的新构建也尚待发布。** 版本识别信息、修复记录和相关报错处理见 [CHANGELOG.md](CHANGELOG.md)。
+**发布状态：Swift 1.5 与 Bonsai2 12G 的最新源码已同步，包含 2026-10-04 的三项智能体兼容修改；两款新版网盘包均待上传。** 上面的 Swift 链接仍是 2026-10-03 首次显卡校准修复包，12G 链接仍为 2026-10-01 版。版本识别信息、修复记录和相关报错处理见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 快速开始
 
@@ -134,6 +134,8 @@ Swift 1.5 默认总上下文为 200K，最多可配置 256K；KVMem 会从历史
 一次处理一个请求，多个请求会排队。需要局域网访问时，将 `HOST` 改为 `0.0.0.0` 并设置 `API_KEY`；接入信息中会列出可用地址。
 
 修改 dsh 的配置后，完全退出程序和托盘图标，再重新打开，避免它把内存中的旧配置写回文件。
+
+最新源码对客户端发送的较大输出上限按服务端配置封顶；中途压缩、编辑历史或分叉的 KVMem 请求回退到重新预填，因此可能比直接续写慢。多工具 `required/any` 按 `Auto` 处理，不能保证一定调用工具；接受 `strict:true` 的入口也不提供严格 JSON Schema 约束。Swift Responses 入口仍拒绝 `strict:true`。具体覆盖范围见[三项兼容修改与限制](CHANGELOG.md#2026-10-04三项智能体兼容修改与-bonsai2-12g-源码公开)。当前网盘旧包尚未包含这些修改。
 
 ### 模型下载和转换
 
@@ -302,7 +304,9 @@ Swift 1.5 的模型格式（GGUF 量化块，IQ2_S / IQ3_XXS 等十几种）只�
 
 ## 源码与编译
 
-Swift 1.5 的完整引擎源码在 [`swift15/engine/`](swift15/engine/)，包含 CMake 工程、实现、应用、测试和第三方源码。启动器和设置在 [`swift15/oneclick/`](swift15/oneclick/)，构建脚本在 [`swift15/scripts/`](swift15/scripts/)。目录索引见 [swift15/README.md](swift15/README.md)。Bonsai2 8G / 12G 的改造源码尚未整理进本仓库。
+Swift 1.5 的完整引擎源码在 [`swift15/engine/`](swift15/engine/)，包含 CMake 工程、实现、应用、测试和第三方源码。启动器和设置在 [`swift15/oneclick/`](swift15/oneclick/)，构建脚本在 [`swift15/scripts/`](swift15/scripts/)。目录索引见 [swift15/README.md](swift15/README.md)。
+
+Bonsai2 12G 的完整源码、构建脚本和启动器已公开在 [`bonsai2-12g/`](bonsai2-12g/README.md)，从源码编译见 [12G README](README-12GB.md#源码与编译)。两套引擎分别对应不同模型格式。8G 方案的专用改造源码尚未整理公开。
 
 ### 从源码编译
 

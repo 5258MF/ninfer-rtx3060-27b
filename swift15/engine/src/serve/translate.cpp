@@ -238,19 +238,8 @@ ResolvedPromptSemantics resolve_prompt_semantics(const GenerationRequest& reques
         }
     }
     if (!request.tool_choice.forced_name.empty() && result.enable_thinking != false) {
-        // The call opener is written into the generation prompt, and a thinking prompt ends
-        // inside the reasoning block, where the opener has no place. Reasoning that only a
-        // default turned on (the server's, or the chat template's when nothing is set) yields to
-        // the forced call, so clients that never mention reasoning can force a function;
-        // reasoning the request itself asks for is refused rather than silently dropped.
-        const bool reasoning_requested =
-            thinking.value_or(false) || (effort && *effort != RequestedReasoningEffort::None);
-        if (reasoning_requested) {
-            invalid_prompt_option("a forced tool_choice cannot be combined with reasoning that "
-                                  "the request enables",
-                                  "tool_choice", "tool_choice_not_supported");
-        }
         result.enable_thinking = false;
+        result.reasoning_effort.reset();
     }
     if (request.continuation == ninfer::PromptContinuationMode::ContinueFinalAssistant &&
         result.enable_thinking == true) {

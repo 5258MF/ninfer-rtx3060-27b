@@ -12,7 +12,7 @@ $ErrorActionPreference = "Stop"
 
 $EmbeddedExpected = [ordered]@{
     "engine/ninfer-serve.exe"   = @{
-        Sha256          = "ceece6ab31c72e5b0f0d89e68ad55d96b9b1691aae2922817ba8551f58da2c24"
+        Sha256          = "e83e4c18b6d92b37d3986c7c4c83b7d87b943776c70393ebcf8fc81429117a87"
         MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2026-10-03T13:00:00", [System.DateTimeKind]::Utc)
         Role            = "Swift 1.5 sm86 engine binary (NVML physical VRAM budget + KVMem Eq.10 content scorer ON + Windows TCP keepalive)"
     }

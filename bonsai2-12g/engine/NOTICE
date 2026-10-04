@@ -1,0 +1,107 @@
+NInfer 4090 Windows
+Copyright 2026 The NInfer 4090 Windows Contributors
+
+This product includes software developed by:
+- Neroued (https://github.com/Neroued/ninfer)
+  Canonical upstream NInfer inference engine: C++20/CUDA core, DFlash2,
+  ReplaySSM, and Paged KV Cache. Licensed under Apache License 2.0.
+
+- UDPSendToFailed (https://github.com/UDPSendToFailed/ninfer-4090)
+  Creator of the original RTX 4090 fork and pioneer of the WDDM
+  evictable-budget bypass on Windows WDDM and of E8 lattice (Conway-Sloane)
+  geometric quantization (rk4v4-e8). The --wddm-evictable-budget feature
+  and the rk4v4-e8 KV storage in this branch originate in that fork.
+
+- sergiuszm (https://github.com/sergiuszm/ninfer-4090)
+  Ada Lovelace sm_89 kernel optimizations, rk4v4-e8 adaptation, and the
+  GDN cooperative-launch fix.
+
+- natpate (https://github.com/natpate/ninfer-windows)
+  Base Win32/MSVC portability layer, unbuffered asynchronous I/O
+  (OVERLAPPED), and the initial Windows scripts.
+
+- headpiece747 (https://github.com/headpiece747/ninfer-5090-windows)
+  Native Windows MSVC compilation base from which this branch descends
+  (C-runtime compatibility patches, Windows dependency tooling, FFmpeg
+  integration).
+
+- Don-Chad (https://github.com/Don-Chad/ninfer-3090)
+  Pioneering work on the Ampere architecture and early compatibility
+  bridges; reference Windows/MSVC adaptations and build configurations.
+
+This product contains modifications by the 4090 fork contributors to support:
+- Native Windows 11 MSVC compilation on Ada Lovelace (sm_89), with kernels
+  adapted to the 48 KiB static shared-memory limit
+- Integration of rk4v4-e8 (real 4-bit quantization over Conway-Sloane E8
+  lattices) as a KV cache storage
+- Multi-Token Prediction (MTP3) and DFlash legacy speculative profiles on
+  Qwen3.6-35B-A3B
+- WDDM evictable-budget residency lock (--wddm-evictable-budget, v1.0.6):
+  D3D12/DXGI-based negotiation with the Windows WDDM memory manager,
+  enabling 260k-token rk4v4-e8 KV contexts at C=4
+
+Model foundations (weights distributed under their own licenses):
+- Qwen Team (Alibaba Cloud) - foundational model architectures (Qwen3.6/Qwen3.8 families)
+- unsloth (https://huggingface.co/unsloth) - NVFP4 quantizations
+- z-lab (https://huggingface.co/z-lab) - DFlash/DFlash2 companion weights
+
+========================================================================
+Third-Party Software and Attributions:
+========================================================================
+
+1. cpp-httplib
+   Copyright (c) 2024 Yuji Hirose
+   License: MIT
+
+2. JSON for Modern C++ (nlohmann/json)
+   Copyright (c) 2013-2022 Niels Lohmann
+   License: MIT
+
+3. utf8proc
+   Copyright (c) 2014-2021 Public Software Group e.V. and contributors
+   Copyright (c) 2009-2013 Steven G. Johnson, Jiahao Chen, Tony Kelman
+   License: MIT
+
+4. spdlog (Fast C++ logging library)
+   Copyright (c) 2016 Gabi Melman
+   License: MIT
+
+5. FFmpeg Windows Shared Binaries (used in multimodal / vision builds)
+   Developed by the FFmpeg developers (https://ffmpeg.org/)
+   Binaries distributed via BtbN/FFmpeg-Builds (GPL v3.0 / LGPL v2.1)
+
+6. KVMem policy layer -- ported from kvmem-qw3
+   Upstream: https://github.com/kvmem/kvmem-qw3 (branch main)
+   Retrieved: 2026-09-19; ported into this branch on 2026-09-21.
+   License: Apache License 2.0. Full text kept in-tree at
+   src/ops/kvmem/qw3/LICENSE-kvmem-qw3.txt (and at repository level in LICENSE).
+
+   Per Apache-2.0 section 4(b) each ported file carries a prominent notice of
+   what was changed. The port is byte-identical to upstream apart from a
+   prepended attribution block ("Changes: NONE"), verified by comparing the
+   SHA-256 of each file with the attribution block removed against upstream:
+
+     src/ops/kvmem/qw3/kvmem_store.hpp              <- include/qw3/kvmem_store.hpp
+     src/ops/kvmem/qw3/kvmem_store.cpp              <- src/kvmem_store.cpp
+     src/ops/kvmem/qw3/kvmem_gc.hpp                 <- include/qw3/kvmem_gc.hpp
+     src/ops/kvmem/qw3/kvmem_gc.cpp                 <- src/kvmem_gc.cpp
+     src/ops/kvmem/qw3/pinned_kv_tier.hpp           <- include/qw3/pinned_kv_tier.hpp
+     src/ops/kvmem/qw3/kvmem_refresh_policy.hpp     <- src/kvmem_refresh_policy.hpp
+     src/ops/kvmem/qw3/kvmem_prefix_reuse_policy.hpp<- src/kvmem_prefix_reuse_policy.hpp
+     src/ops/kvmem/qw3/multimodal_prefix_cache.hpp  <- src/multimodal_prefix_cache.hpp
+
+   The upstream THIRD_PARTY_NOTICES.md is redistributed verbatim as
+   src/ops/kvmem/qw3/THIRD_PARTY_NOTICES-kvmem-qw3.md, and its attributions are
+   reproduced here because that file travels with this distribution. NOTE WHICH
+   OF THEM THIS BRANCH ACTUALLY USES -- only the host policy layer above was
+   ported; the rest are NOT included and NOT compiled by this branch:
+
+     - nlohmann/json 3.11.3 (MIT, third_party/json.hpp upstream)
+       NOT used here (upstream pulls it in via the KVMem archive path).
+     - cpp-httplib 0.15.3 (MIT, third_party/httplib.h upstream)
+       NOT used here (upstream pulls it in via its HTTP server).
+     - llama.cpp-derived CUDA files (MIT, upstream commit
+       57ebaf4edd99ea675f256ae2286cd99206dbfcd1: cuda_helpers.cuh,
+       fattn_vec_decode.cu, gated_delta_net.cu, mmvq_q8.cu, mmq_q8.cu,
+       kernel_legacy.cu) -- NOT used here; this branch has its own ternary
+       CUDA kernels and ports nothing from that group.

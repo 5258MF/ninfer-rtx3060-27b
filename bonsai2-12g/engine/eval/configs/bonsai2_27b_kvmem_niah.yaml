@@ -1,0 +1,172 @@
+schema_version: 1
+
+# KVMem P1 needle test on the local RTX 3060 (Swift-Bonsai-2, port 8084).
+# Derived from the repository's qwen3_6_35b_needle_haystack.yaml: same backend, generation and
+# rule judge; only the target, local paths, lengths and depths differ.
+
+targets:
+  bonsai_api:
+    protocol: openai_chat
+    base_url: http://127.0.0.1:8084/v1
+    model: qwen3.8-27b
+    max_concurrency: 1
+    request:
+      timeout_seconds: 86400
+      retries: 1
+      retry_interval_seconds: 10
+
+suites:
+  smoke:
+    jobs:
+      - id: niah_smoke_8k
+        backend: evalscope
+        dataset: needle_haystack
+        target: bonsai_api
+        max_concurrency: 1
+        limit: 1
+        generation: &retrieval_generation
+          temperature: 0
+          max_tokens: 512
+          seed: 42
+          extra_body:
+            enable_thinking: false
+        backend_args:
+          subset_list: [english]
+          judge_strategy: rule
+          dataset_args:
+            local_path: datasets/needle-haystack
+            extra_params:
+              context_lengths_min: 8192
+              context_lengths_max: 8192
+              context_lengths_num_intervals: 1
+              document_depth_percent_min: 50
+              document_depth_percent_max: 50
+              document_depth_percent_intervals: 1
+              tokenizer_path: tokenizers/Qwen3.6-27B
+              show_score: true
+
+  k100:
+    jobs:
+      - id: niah_100k
+        backend: evalscope
+        dataset: needle_haystack
+        target: bonsai_api
+        max_concurrency: 1
+        generation: *retrieval_generation
+        backend_args:
+          subset_list: [english]
+          judge_strategy: rule
+          dataset_args:
+            local_path: datasets/needle-haystack
+            extra_params:
+              context_lengths_min: 100000
+              context_lengths_max: 100000
+              context_lengths_num_intervals: 1
+              document_depth_percent_min: 10
+              document_depth_percent_max: 90
+              document_depth_percent_intervals: 3
+              tokenizer_path: tokenizers/Qwen3.6-27B
+              show_score: true
+
+  k200:
+    jobs:
+      - id: niah_200k
+        backend: evalscope
+        dataset: needle_haystack
+        target: bonsai_api
+        max_concurrency: 1
+        generation: *retrieval_generation
+        backend_args:
+          subset_list: [english]
+          judge_strategy: rule
+          dataset_args:
+            local_path: datasets/needle-haystack
+            extra_params:
+              context_lengths_min: 200000
+              context_lengths_max: 200000
+              context_lengths_num_intervals: 1
+              document_depth_percent_min: 10
+              document_depth_percent_max: 90
+              document_depth_percent_intervals: 3
+              tokenizer_path: tokenizers/Qwen3.6-27B
+              show_score: true
+
+  k45:
+    jobs:
+      - id: niah_45k
+        backend: evalscope
+        dataset: needle_haystack
+        target: bonsai_api
+        max_concurrency: 1
+        generation: *retrieval_generation
+        backend_args:
+          subset_list: [english]
+          judge_strategy: rule
+          dataset_args:
+            local_path: datasets/needle-haystack
+            extra_params:
+              context_lengths_min: 45000
+              context_lengths_max: 45000
+              context_lengths_num_intervals: 1
+              document_depth_percent_min: 10
+              document_depth_percent_max: 90
+              document_depth_percent_intervals: 3
+              tokenizer_path: tokenizers/Qwen3.6-27B
+              show_score: true
+
+  k86:
+    jobs:
+      - id: niah_86k
+        backend: evalscope
+        dataset: needle_haystack
+        target: bonsai_api
+        max_concurrency: 1
+        generation: *retrieval_generation
+        backend_args:
+          subset_list: [english]
+          judge_strategy: rule
+          dataset_args:
+            local_path: datasets/needle-haystack
+            extra_params:
+              context_lengths_min: 86000
+              context_lengths_max: 86000
+              context_lengths_num_intervals: 1
+              document_depth_percent_min: 10
+              document_depth_percent_max: 90
+              document_depth_percent_intervals: 3
+              tokenizer_path: tokenizers/Qwen3.6-27B
+              show_score: true
+
+
+  k120:
+    jobs:
+      - id: niah_120k
+        backend: evalscope
+        dataset: needle_haystack
+        target: bonsai_api
+        max_concurrency: 1
+        generation: *retrieval_generation
+        backend_args:
+          subset_list: [english]
+          judge_strategy: rule
+          dataset_args:
+            local_path: datasets/needle-haystack
+            extra_params:
+              context_lengths_min: 120000
+              context_lengths_max: 120000
+              context_lengths_num_intervals: 1
+              document_depth_percent_min: 10
+              document_depth_percent_max: 90
+              document_depth_percent_intervals: 3
+              tokenizer_path: tokenizers/Qwen3.6-27B
+              show_score: true
+
+runtime:
+  max_parallel_jobs: 1
+  runs_dir: eval/runs
+  progress:
+    enabled: false
+    refresh_seconds: 5
+    heartbeat_seconds: 30
+  samples:
+    retention: all

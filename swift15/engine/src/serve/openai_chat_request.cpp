@@ -718,12 +718,9 @@ void force_single_callable_tool(GenerationRequest& output, const std::string& re
     if (output.tools.empty()) {
         bad_request(request + " requires at least one tool", "tool_choice");
     }
-    if (output.tools.size() != 1) {
-        bad_request(request + " over several tools leaves the function to the model, which NInfer "
-                              "cannot constrain; name the function instead",
-                    "tool_choice", "tool_choice_not_supported");
+    if (output.tools.size() == 1) {
+        output.tool_choice.forced_name = output.tools.front().name;
     }
-    output.tool_choice.forced_name = output.tools.front().name;
 }
 
 void apply_allowed_tools(const Json& config, GenerationRequest& output) {
@@ -972,7 +969,13 @@ void parse_output_limit(const Json& body, const RequestLimits& limits, OpenAICha
         if (*limit < -1) {
             bad_request(std::string(param) + " must be nonnegative, or -1 for no limit", param);
         }
-        output.generation.max_tokens  = *limit == -1 ? kUnboundedOutputTokens : *limit;
+        int requested = *limit == -1 ? kUnboundedOutputTokens : *limit;
+        if (limits.default_max_tokens > 0 &&
+            limits.default_max_tokens != kUnboundedOutputTokens &&
+            requested > limits.default_max_tokens) {
+            requested = limits.default_max_tokens;
+        }
+        output.generation.max_tokens  = requested;
         output.output_tokens_explicit = true;
     } else {
         output.generation.max_tokens = limits.default_max_tokens;

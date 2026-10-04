@@ -887,12 +887,9 @@ void parse_tools(const Json& body, ParsedPromptFields& out) {
 void force_single_callable_tool(ParsedPromptFields& out, const std::string& request) {
     std::vector<ToolDefinition>& tools = out.prompt.generation.tools;
     if (tools.empty()) { bad_request(request + " requires at least one tool", "tool_choice"); }
-    if (tools.size() != 1) {
-        bad_request(request + " over several tools leaves the function to the model, which NInfer "
-                              "cannot constrain; name the function instead",
-                    "tool_choice", "tool_choice_not_supported");
+    if (tools.size() == 1) {
+        out.prompt.generation.tool_choice.forced_name = tools.front().name;
     }
-    out.prompt.generation.tool_choice.forced_name = tools.front().name;
 }
 
 void filter_allowed_tools(const Json& choice, ParsedPromptFields& out) {
@@ -1382,7 +1379,13 @@ OpenAIResponsesCreateRequest parse_openai_responses_create_request(const Json& b
             bad_request("max_output_tokens must be non-negative", "max_output_tokens");
         }
         out.requested_max_output_tokens  = *max_output;
-        out.prompt.generation.max_tokens = *max_output;
+        int requested                    = *max_output;
+        if (limits.default_max_tokens > 0 &&
+            limits.default_max_tokens != kUnboundedOutputTokens &&
+            requested > limits.default_max_tokens) {
+            requested = limits.default_max_tokens;
+        }
+        out.prompt.generation.max_tokens = requested;
     }
     return out;
 }

@@ -1,0 +1,83 @@
+{
+  "schema": "ninfer.artifact-manifest",
+  "schema_version": 1,
+  "artifact": {
+    "filename": "qwen3_8_27b_nvfp4.ninfer",
+    "bytes": 23719496192,
+    "sha256": "552c374c685dce302603b95fbe940fb04243c0cd44c083efc644ad3d980d462c",
+    "container_version": 2,
+    "model_id": "qwen3.8-27b",
+    "weights_id": "nvfp4",
+    "target_key": "qwen3_8_27b"
+  },
+  "source": {
+    "base": {
+      "repo_id": "Qwen/Qwen3.8-27B",
+      "revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+      "download_source": "https://modelscope.cn/models/Qwen/Qwen3.8-27B",
+      "license": "Apache-2.0"
+    },
+    "quantized": {
+      "repo_id": "unsloth/Qwen3.8-27B-NVFP4",
+      "revision": "60e813d4dbbdc5d64cf3f5a8caf2897bedf03679",
+      "license": "Apache-2.0"
+    },
+    "dflash2": {
+      "repo_id": "z-lab/Qwen3.8-27B-DFlash2",
+      "revision": "50307d4c4cde6860d4eee73e2547cd786fe8e8a4",
+      "license": "Apache-2.0"
+    }
+  },
+  "conversion": {
+    "recipe_id": "qwen3_8_27b_nvfp4-v2",
+    "embedding_encoder": "MAXABS_BF16S_RECIP_E4M3FN_RNE_V1",
+    "converter_repository": "https://github.com/Neroued/ninfer",
+    "converter_revision": "863aa8a5f1e866db74f29f8999b83b4021398dee",
+    "ranking_input": {
+      "path": "tools/freq_corpus/fixtures/ranking/ranking.train.counts.i64",
+      "sha256": "c692dc76388132c910547589b4fb4a0503fbd6ad50aaac6a509bbcb192a8afa5"
+    }
+  },
+  "runtime": {
+    "repository": "https://github.com/Neroued/ninfer",
+    "minimum_revision": "385b30ce1757bafe5a82680e9b5aeb940b14eec1",
+    "cuda_architecture": "sm_120a",
+    "dflash2_draft_tokens": {
+      "recommended": 7,
+      "minimum": 1,
+      "maximum": 15
+    }
+  },
+  "inventory": {
+    "objects": 1190,
+    "tensors": 1184,
+    "resources": 6,
+    "formats": {
+      "BF16": 579,
+      "FP32": 208,
+      "FP8_E4M3FN_ROW_BF16S": 146,
+      "I32": 1,
+      "NVFP4": 112,
+      "Q4G64_F16S": 55,
+      "Q5G64_F16S": 54,
+      "Q6G64_F16S": 1,
+      "W8G32_F16S": 28
+    },
+    "layouts": {
+      "blockscale-k16-m128x4-v1": 112,
+      "contiguous-le-v1": 788,
+      "row-scale-v1": 146,
+      "row-split-k128-v1": 138
+    },
+    "encodings": {
+      "raw-bytes-v1": 6
+    },
+    "bytes": {
+      "tensor": 23706400032,
+      "resource": 12837177,
+      "object": 23719237209,
+      "payload_span": 23719307776,
+      "alignment": 70567
+    }
+  }
+}

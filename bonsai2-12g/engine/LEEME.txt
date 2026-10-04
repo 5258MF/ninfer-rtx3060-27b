@@ -1,0 +1,96 @@
+================================================================
+ NInfer 4090 Windows - v1.0.8 (pre-compiled portable build)
+ NInfer 4090 Windows - v1.0.8 (build portable precompilada)
+================================================================
+
+WHAT THIS IS / QUE ES
+  Native Windows 11 build of NInfer (https://github.com/Neroued/ninfer)
+  for NVIDIA GeForce RTX 4090 (sm_89, Ada Lovelace), synced to upstream
+  v1.0.7 (commit b88c0f6f) + five v1.0.8 fork ports (GDN gating
+  pairwise-K, T=1 double-buffered Ada MMA, SM-count CTA sizing - all
+  sm_89; --tolerant-tool-calls, incremental host encode - frontend) +
+  sm_89 layer: kernels adapted to the 48 KiB static shared-memory limit,
+  rk4v4-e8 KV storage (E8 lattice 4-bit), MTP3 and DFlash2 speculative
+  decoding, WDDM evictable-budget bypass. Apache License 2.0.
+  A/B vs the v1.0.7 binaries (same day, same hardware): no regression on
+  any serve-level point; the 35B profile gains +3 % at C=2 and the
+  production shape (C8 rk4v4-e8 131,072) is stable.
+
+CONTENTS / CONTENIDO
+  ninfer-serve.exe    server binary / binario del servidor
+  *.dll               FFmpeg runtime libraries (vision support)
+  start_4090.bat      generic startup (131k ctx, rk4v4-e8 KV, MTP3,
+                      --wddm-evictable-budget); tune it to your VRAM
+  download_model.bat  downloads the model (~19 GB)
+  LICENSE-FFMPEG.txt  FFmpeg (GPL v2+) license text for the bundled DLLs
+  LEEME.txt           this file
+
+REQUIREMENTS / REQUISITOS
+  - Windows 11 x64
+  - NVIDIA GeForce RTX 4090 (24 GB VRAM)
+  - NVIDIA driver with CUDA 13.x support
+  - Microsoft Visual C++ Redistributable 2015-2022 (x64)
+  - ~19 GB free disk for the model file
+
+QUICK START
+  1. Extract this ZIP to a folder. / Descomprime el ZIP en una carpeta.
+  2. Double-click download_model.bat
+     (or download manually / o descarga manualmente:
+      https://huggingface.co/neroued/Qwen3.6-35B-A3B-NInfer/resolve/main/qwen3_6_35b_a3b.ninfer)
+  3. Double-click start_4090.bat
+     -> server on http://127.0.0.1:8080 / servidor en
+        OpenAI-compatible: /v1/chat/completions
+        Anthropic-compatible: /v1/messages
+
+WDDM (dedicated GPUs)
+  Keep --wddm-evictable-budget enabled (it is in the shipped bat): it
+  makes the engine budget against TOTAL VRAM instead of the Windows
+  WDDM process budget, so a dedicated GPU can be used to the maximum.
+  Measured with this build: 260,032-token rk4v4-e8 KV pool at C=4 with
+  23,651 MiB resident of 24,564 MiB (96% of the card).
+
+MEASURED WITH THIS BUILD (RTX 4090, single stream, 2026-09-08)
+  35B-A3B  rk4v4-e8 MTP3 C=4 260k : prefill 10.9k tok/s (12.7k tok),
+                                    decode 391 tok/s (52.8% accept)
+  27B      rk4v4-e8 MTP3 C=2 131k : prefill 2.1k tok/s (12.8k tok),
+                                    decode 97.8 tok/s (37.7% accept)
+  27B      rk4v4-e8 DFlash2 C=2 131k: decode 104 tok/s (28.5% of 7 tok)
+  Full table + comparison vs upstream published 5090 numbers: README.md
+  of this repository.
+
+NOTES / NOTAS
+  - rk4v4-e8 is a RUNTIME KV quantization, not a weight format: the
+    public artifact from download_model.bat works as-is.
+  - Each person has their own workload: edit the flags in
+    start_4090.bat (context, capacity, concurrency, spec) to taste.
+  - Set CUDA_VISIBLE_DEVICES to your GPU index if you have several
+    GPUs (CUDA enumeration order can differ from nvidia-smi order).
+
+THIRD-PARTY BINARY LICENSES
+  - This package includes binary libraries of the FFmpeg project,
+    licensed under the GNU General Public License v2 or later
+    (BtbN "gpl" shared build). Full license text: LICENSE-FFMPEG.txt
+    in this package. FFmpeg source: https://ffmpeg.org
+  - NVIDIA, CUDA and RTX are trademarks of NVIDIA Corporation.
+
+DISCLAIMER / DESCARGO DE RESPONSABILIDAD
+  This software is provided "as is" (AS IS), without warranty of
+  any kind, express or implied. The author is not liable for
+  hardware damage, system instability, data loss or overheating
+  resulting from the use of these binaries or configurations. You
+  run this software at your own responsibility.
+
+MODELS (published by Neroued / publicados por Neroued)
+  https://huggingface.co/neroued/Qwen3.6-35B-A3B-NInfer   (primary, ~19 GB)
+  https://huggingface.co/neroued/Qwen3.8-27B-NInfer       (also verified here)
+
+SOURCES / FUENTES
+  https://github.com/Ambolio/ninfer-4090-windows  (branch main)
+
+CREDITS
+  Neroued (upstream) - UDPSendToFailed (original 4090 fork creator:
+  WDDM bypass + rk4v4-e8) - sergiuszm (sm_89 kernels, GDN fix) -
+  natpate (Win32 base) - headpiece747 (Windows MSVC base) -
+  Don-Chad (Ampere pioneer) - Qwen Team - unsloth (NVFP4) -
+  z-lab (DFlash companion weights).
+  Full legal attribution: NOTICE in this repository.

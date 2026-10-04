@@ -699,6 +699,11 @@ std::optional<AdmissionCandidate> ProgramImpl::inspect_lane(
         plan->source_mode == runtime::PrivateSourceMode::ConsumeToActive) {
         const StateImageHandle endpoint =
             selected_state(*source, plan->reuse, plan->selected_checkpoint);
+        if (kvmem_window_pages != 0 &&
+            plan->rewrite_disposition == RewriteCheckpointDisposition::RetainExisting &&
+            source->rewrite_state && *source->rewrite_state == endpoint) {
+            plan->rewrite_disposition = RewriteCheckpointDisposition::DropOptional;
+        }
         std::vector<StateImageHandle> optional_states;
         optional_states.reserve(1U + source->long_anchors.size());
         if (plan->rewrite_disposition == RewriteCheckpointDisposition::RetainExisting &&
@@ -706,6 +711,7 @@ std::optional<AdmissionCandidate> ProgramImpl::inspect_lane(
             optional_states.push_back(*source->rewrite_state);
         }
         for (const LongAnchorCheckpoint& anchor : source->long_anchors) {
+            if (kvmem_window_pages != 0 && anchor.state == endpoint) { continue; }
             optional_states.push_back(anchor.state);
         }
         if (std::find(optional_states.begin(), optional_states.end(), endpoint) !=
@@ -737,51 +743,44 @@ std::optional<AdmissionCandidate> ProgramImpl::inspect_lane(
     // would expose Host-backed or shared pages to sparse demotion; a rewrite restore must only
     // truncate Device-only pages (the previous turn's output tail never left the device).
     if (kvmem_window_pages != 0 && plan->reuse != ReusePath::Root) {
-        const std::uint32_t prompt_pages = kvmem_prompt_window_pages(kvmem_window_pages);
-        const bool over_window =
-            plan->summary.prompt_tokens > prompt_pages * static_cast<std::uint32_t>(kPagedKVPageSize);
-        const bool sparse_source = source != nullptr && source->kv &&
-                                   text_kv_addresses->mapped_pages(source->kv->text) > prompt_pages;
-        if (over_window || sparse_source) {
-            const auto refuse = [&](const char* why) {
-                std::fprintf(stderr,
-                             "KVMem reuse refused | %s | path %d | base %u | source frontier %u | "
-                             "prompt %u\n",
-                             why, static_cast<int>(plan->reuse), plan->reuse_base,
-                             source != nullptr ? source->execution_frontier : 0U,
-                             plan->summary.prompt_tokens);
-            };
-            if (!kvmem_long_reuse_cfg || source == nullptr ||
-                plan->source_mode != runtime::PrivateSourceMode::ConsumeToActive ||
-                !(plan->reuse == ReusePath::PrivateEndpoint ||
-                  is_rewrite_checkpoint_restore(plan->reuse))) {
-                refuse(source == nullptr ? "shared source" : "needs fork/retain or anchor");
+        const auto refuse = [&](const char* why) {
+            std::fprintf(stderr,
+                         "KVMem reuse refused | %s | path %d | base %u | source frontier %u | "
+                         "prompt %u\n",
+                         why, static_cast<int>(plan->reuse), plan->reuse_base,
+                         source != nullptr ? source->execution_frontier : 0U,
+                         plan->summary.prompt_tokens);
+        };
+        if (!kvmem_long_reuse_cfg || source == nullptr ||
+            plan->source_mode != runtime::PrivateSourceMode::ConsumeToActive ||
+            !(plan->reuse == ReusePath::PrivateEndpoint ||
+              is_rewrite_checkpoint_restore(plan->reuse))) {
+            refuse(source == nullptr ? "shared source" : "needs fork/retain or anchor");
+            return std::nullopt;
+        }
+        if (plan->reuse_base < source->execution_frontier) {
+            const auto page = static_cast<std::uint32_t>(kPagedKVPageSize);
+            const std::uint32_t first_text    = plan->reuse_base / page;
+            const std::uint32_t first_backend =
+                plan->reuse_base == 0 ? 0U : (plan->reuse_base - 1U) / page;
+            if (!text_kv_addresses->device_only_from(source->kv->text, first_text) ||
+                (source->kv->backend &&
+                 !backend_kv_addresses->device_only_from(*source->kv->backend,
+                                                         first_backend))) {
+                refuse("truncated pages left the device");
                 return std::nullopt;
             }
-            if (plan->reuse_base < source->execution_frontier) {
-                const auto page = static_cast<std::uint32_t>(kPagedKVPageSize);
-                const std::uint32_t first_text    = plan->reuse_base / page;
-                const std::uint32_t first_backend =
-                    plan->reuse_base == 0 ? 0U : (plan->reuse_base - 1U) / page;
-                if (!text_kv_addresses->device_only_from(source->kv->text, first_text) ||
-                    (source->kv->backend &&
-                     !backend_kv_addresses->device_only_from(*source->kv->backend,
-                                                             first_backend))) {
-                    refuse("truncated pages left the device");
-                    return std::nullopt;
-                }
-            }
-            // A partial tail that needs copy-on-write goes through the prefix-fork path,
-            // which expects every source page on the device.
-            const std::uint32_t backend_frontier =
-                backend_frontier_at(speculative_backend, plan->reuse_base);
-            if (partial_tail_cow_required(*text_kv_addresses, source->kv->text, plan->reuse_base) ||
-                (source->kv->backend && backend_frontier != 0 &&
-                 partial_tail_cow_required(*backend_kv_addresses, *source->kv->backend,
-                                           backend_frontier))) {
-                refuse("partial tail needs copy-on-write");
-                return std::nullopt;
-            }
+        }
+        // A partial tail that needs copy-on-write goes through the prefix-fork path,
+        // which expects every source page on the device.
+        const std::uint32_t backend_frontier =
+            backend_frontier_at(speculative_backend, plan->reuse_base);
+        if (partial_tail_cow_required(*text_kv_addresses, source->kv->text, plan->reuse_base) ||
+            (source->kv->backend && backend_frontier != 0 &&
+             partial_tail_cow_required(*backend_kv_addresses, *source->kv->backend,
+                                       backend_frontier))) {
+            refuse("partial tail needs copy-on-write");
+            return std::nullopt;
         }
     }
     if (source != nullptr &&
@@ -1104,7 +1103,7 @@ std::optional<AdmissionCandidate> ProgramImpl::inspect_lane(
             backend_frontier / static_cast<std::uint32_t>(kPagedKVPageSize);
         if (main_full_pages > active.main_kv_pages ||
             backend_full_pages > active.backend_kv_pages) {
-            throw std::logic_error("retained prefix exceeds its active KV entitlement");
+            return std::nullopt;
         }
         detail::PhysicalResources active_resources{
             .device =
