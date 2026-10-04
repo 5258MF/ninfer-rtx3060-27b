@@ -18,12 +18,15 @@ Swift 1.5 默认总上下文为 200K，最多可配置 256K；KVMem 会从历史
 
 | 版本 | 文件名 | 网盘 | 提取码 |
 |---|---|---|---|
-| Swift 1.5 | `ninfer-3060-swift15-q2s-mtp-oneclick.zip` | [百度网盘](https://pan.baidu.com/s/1hx59lT9PjNVZJNYZbaFRlw) | `wcb2` |
-| Swift 1.5 | 同上 | [夸克网盘](https://pan.quark.cn/s/86c3e53f11df) | `JXdT` |
-| Bonsai2 12G | `ninfer-3060-12g-oneclick.zip` | [百度网盘](https://pan.baidu.com/s/1p4OL2EzR0h4iCD2Mu40Ecw) | `9vc5` |
-| Bonsai2 8G | `ninfer-3060-8g-oneclick.zip` | [百度网盘](https://pan.baidu.com/s/1_ZIDNnMaaOGRk-YnHb0jUA) | `gkyy` |
+| Swift 1.5 Q2S · 0.1.0 | `ninfer-3060-swift15-q2s-mtp-oneclick-0.1.0.zip` | [百度网盘](https://pan.baidu.com/s/1-t29Y9MZIHWliToRQI6i7g) | `t7f6` |
+| Swift 1.5 Q2S · 0.1.0 | `ninfer-3060-swift15-q2s-mtp-oneclick.zip`（夸克分享名） | [夸克网盘](https://pan.quark.cn/s/d49c7ff92264) | `wHbw` |
+| Bonsai2 12G · 0.1.0 | `ninfer-3060-12g-bonsai2-oneclick-0.1.0.zip` | [百度网盘](https://pan.baidu.com/s/1-S14MappSh7uttKqIw1M_A) | `c62v` |
+| Bonsai2 12G · 0.1.0 | 同上 | [夸克网盘](https://pan.quark.cn/s/b526dae6d411) | `aHfN` |
+| Bonsai2 8G · 旧版 | `ninfer-3060-8g-oneclick.zip` | [百度网盘](https://pan.baidu.com/s/1_ZIDNnMaaOGRk-YnHb0jUA) | `gkyy` |
 
-**发布状态：Swift 1.5 与 Bonsai2 12G 的最新源码已同步，包含 2026-10-04 的三项智能体兼容修改；两款新版网盘包均待上传。** 上面的 Swift 链接仍是 2026-10-03 首次显卡校准修复包，12G 链接仍为 2026-10-01 版。版本识别信息、修复记录和相关报错处理见 [CHANGELOG.md](CHANGELOG.md)。
+**发布状态：Swift 1.5 Q2S 与 Bonsai2 12G 的 0.1.0 包均已上传百度和夸克，包含 2026-10-04 同步的三项智能体兼容修改。** Swift 夸克分享仍显示无版本后缀的文件名，按本表链接获取即可。8G 版沿用之前的发布包。版本识别信息、修复记录和相关报错处理见 [CHANGELOG.md](CHANGELOG.md)。
+
+源码同样标为 **0.1.0**：仓库根目录及两套源码目录都提供 `VERSION`，Git 标签为 [`v0.1.0`](https://github.com/5258MF/ninfer-rtx3060-27b/tree/v0.1.0)。需要固定版本时，可[下载 0.1.0 完整源码 ZIP](https://github.com/5258MF/ninfer-rtx3060-27b/archive/refs/tags/v0.1.0.zip)，或克隆后运行 `git checkout v0.1.0`；`main` 后续会继续更新。版本的修改内容集中记录在 CHANGELOG。
 
 ## 快速开始
 
@@ -114,7 +117,7 @@ Swift 1.5 默认总上下文为 200K，最多可配置 256K；KVMem 会从历史
 
 窗口与自动输出会随空闲显存变化。把 `OUT` 调大，会减少留给检索的空间；启动后以生成的 `接入信息.txt` 为准。
 
-推理控制设置从 2026-10-04 同步的启动器开始提供，当前旧网盘包尚未包含这些启动器设置。需要使用时可从源码构建，或等新版网盘包发布。`RECOVER_INVARIANT` 只处理引擎支持恢复的内部错误，不能保证所有错误都能恢复。
+推理控制设置已包含在 0.1.0 包中。`RECOVER_INVARIANT` 只处理引擎支持恢复的内部错误，不能保证所有错误都能恢复。
 
 ### 连接客户端
 
@@ -135,7 +138,7 @@ Swift 1.5 默认总上下文为 200K，最多可配置 256K；KVMem 会从历史
 
 修改 dsh 的配置后，完全退出程序和托盘图标，再重新打开，避免它把内存中的旧配置写回文件。
 
-最新源码对客户端发送的较大输出上限按服务端配置封顶；中途压缩、编辑历史或分叉的 KVMem 请求回退到重新预填，因此可能比直接续写慢。多工具 `required/any` 按 `Auto` 处理，不能保证一定调用工具；接受 `strict:true` 的入口也不提供严格 JSON Schema 约束。Swift Responses 入口仍拒绝 `strict:true`。具体覆盖范围见[三项兼容修改与限制](CHANGELOG.md#2026-10-04三项智能体兼容修改与-bonsai2-12g-源码公开)。当前网盘旧包尚未包含这些修改。
+0.1.0 对客户端发送的较大输出上限按服务端配置封顶；中途压缩、编辑历史或分叉的 KVMem 请求回退到重新预填，因此可能比直接续写慢。多工具 `required/any` 按 `Auto` 处理，不能保证一定调用工具；接受 `strict:true` 的入口也不提供严格 JSON Schema 约束。Swift Responses 入口仍拒绝 `strict:true`。具体覆盖范围见[三项兼容修改与限制](CHANGELOG.md#2026-10-04三项智能体兼容修改与-bonsai2-12g-源码公开)。
 
 ### 模型下载和转换
 
@@ -166,7 +169,7 @@ Swift 1.5 默认总上下文为 200K，最多可配置 256K；KVMem 会从历史
 
 包里的 `使用说明.txt` 可离线查阅；速度与长文召回范围见[测试结果与已知限制](#测试结果与已知限制)。
 
-上述校验和验收工具已随源码公开，新版网盘包待上传。完整包解压后可运行：
+上述校验和验收工具已随 0.1.0 源码及懒人包提供。完整包解压后可运行：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\verify-kit-manifest.ps1
