@@ -6,7 +6,7 @@ Run the Swift-Bonsai-2 27B ternary model on Windows with an RTX 3060 12 GB. The 
 
 ## Download and Start
 
-Current release: **0.1.0**. Download `ninfer-3060-12g-bonsai2-oneclick-0.1.0.zip`. Baidu and Quark links and access codes are on the [project home](README.en.md#downloads). The complete source is also version 0.1.0; see the [`v0.1.0` tag](https://github.com/5258MF/ninfer-rtx3060-27b/tree/v0.1.0). Release details are in [CHANGELOG](CHANGELOG.md#010---2026-10-04).
+Current release: **0.1.0**. Download `ninfer-3060-12g-bonsai2-oneclick-0.1.0.zip`. Baidu and Quark links and access codes are on the [project home](README.en.md#downloads). The Bonsai2 source has its own [12G 0.1.0 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.0) with an asset containing only the Bonsai2 12G source. Release details are in [CHANGELOG](CHANGELOG.md#010---2026-10-04).
 
 An RTX 30 series GPU is required; settings are tuned for the RTX 3060 12 GB. Use Windows 10/11, 32 GB RAM recommended, and about 10 GB of free disk space. The model is not included and downloads on first launch.
 

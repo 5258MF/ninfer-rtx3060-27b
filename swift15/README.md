@@ -4,7 +4,7 @@
 
 本目录提供 Swift 1.5 方案的完整引擎源码、Windows 构建脚本、启动器和模型转换工具。上游基线为 Ryan-gsq 分支 `b06908b`，KVMem、SM 数量识别及启动修复已合入源码。
 
-当前源码版本为 **0.1.0**，见 [`VERSION`](VERSION)，对应 Git 标签 [`v0.1.0`](https://github.com/5258MF/ninfer-rtx3060-27b/tree/v0.1.0)。百度、夸克 0.1.0 包已发布，下载入口在[项目首页](../README.md#下载)。
+当前源码版本为 **0.1.0**，见 [`VERSION`](VERSION)。Swift 1.5 Q2S 已有[独立的 0.1.0 源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.0)，附件只包含本方案源码。百度、夸克懒人包见[项目首页](../README.md#下载)。
 
 2026-10-04 已同步最新 Q2S 源码与启动器，包括显存预算、内容打分、连接保活、推理控制、验收工具和多轮看图 KV 借页时序修复。
 

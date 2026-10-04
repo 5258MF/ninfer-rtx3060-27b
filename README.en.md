@@ -28,7 +28,7 @@ The one-click packages do not include model files. Extract the full archive and 
 
 **Release status:** The Swift 1.5 Q2S and Bonsai2 12G 0.1.0 packages are uploaded to both Baidu and Quark. They include the three agent-compatibility changes synchronized on 2026-10-04. The Swift Quark link was corrected using the latest link supplied by the user; use the versioned archive name and code shown above. The 8G package remains on its previous release. Build identification, fixes, and startup troubleshooting are in [CHANGELOG.md](CHANGELOG.md).
 
-The source is also versioned **0.1.0**. The repository root and both source directories contain a `VERSION` file, and the Git tag is [`v0.1.0`](https://github.com/5258MF/ninfer-rtx3060-27b/tree/v0.1.0). Open the [v0.1.0 GitHub Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/v0.1.0) for the release notes and versioned source. You can also clone the repository and run `git checkout v0.1.0`. The `main` branch will continue to receive updates. Changes by release are listed in CHANGELOG.
+The 0.1.0 source is published separately by model. Each release includes an asset containing only that model's source directory: [Swift 1.5 Q2S source release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.0) and [Bonsai2 12G source release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.0). Each source tree has its own `VERSION` file set to `0.1.0`. Development continues on `main`; release changes are listed in CHANGELOG.
 
 ## Quick Start
 

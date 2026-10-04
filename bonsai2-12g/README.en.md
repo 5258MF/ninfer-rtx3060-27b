@@ -4,7 +4,7 @@
 
 This directory publishes the complete 12 GB engine source (formerly `ninfer-tree`), build script, and one-click launcher. It includes the sm_86, KVMem, rk8v4, and VRAM-budget changes, along with the three agent-compatibility fixes synchronized on 2026-10-04.
 
-The current source version is **0.1.0** (see [`VERSION`](VERSION)), corresponding to the Git tag [`v0.1.0`](https://github.com/5258MF/ninfer-rtx3060-27b/tree/v0.1.0). The Baidu and Quark packages are available from the [project downloads](../README.en.md#downloads).
+The current source version is **0.1.0** (see [`VERSION`](VERSION)). Bonsai2 12G has a [dedicated 0.1.0 source release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.0) with an asset containing only this build's source. The Baidu and Quark one-click packages are on the [project downloads page](../README.en.md#downloads).
 
 ## Directory
 

@@ -6,7 +6,7 @@
 
 ## 下载与开始
 
-当前版本为 **0.1.0**。下载 `ninfer-3060-12g-bonsai2-oneclick-0.1.0.zip`，百度、夸克链接和提取码见[项目首页](README.md#下载)。完整源码也标为 0.1.0，固定源码快照见 [`v0.1.0`](https://github.com/5258MF/ninfer-rtx3060-27b/tree/v0.1.0)，差异见[更新记录](CHANGELOG.md#010---2026-10-04)。
+当前版本为 **0.1.0**。下载 `ninfer-3060-12g-bonsai2-oneclick-0.1.0.zip`，百度、夸克链接和提取码见[项目首页](README.md#下载)。Bonsai2 源码单独发布在 [Bonsai2 12G 0.1.0 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.0)，附件只包含 Bonsai2 12G 源码；更新记录见[CHANGELOG](CHANGELOG.md#010---2026-10-04)。
 
 需要 RTX 30 系显卡，参数按 3060 12GB 调整。Windows 10 / 11，内存建议 32 GB，磁盘预留约 10 GB。模型不在包内，首次运行自动下载。
 
