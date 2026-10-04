@@ -47,7 +47,7 @@ $EmbeddedExpected = [ordered]@{
         Role            = "FFmpeg avutil runtime DLL"
     }
     "launcher/launch.ps1"           = @{
-        Sha256          = "63830d0dd1ed4c7fdd59e86b58420ca399a3e6a02c1c5595bc3dac031536f8e2"
+        Sha256          = "eb596ffa589ecbc9f1b40aa3d480d80797ebcc2e76e0bb83616cc26c065fed21"
         MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2026-10-03T14:00:00", [System.DateTimeKind]::Utc)
         Role            = "One-click interactive launcher script"
     }
@@ -56,13 +56,8 @@ $EmbeddedExpected = [ordered]@{
         MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2026-09-29T00:00:00", [System.DateTimeKind]::Utc)
         Role            = "Connectivity and speed test script"
     }
-    "launcher/set-power-limit.ps1"  = @{
-        Sha256          = "9e7be6270a67c3db0a972326f61db085df1ba8ad74df579299d30a348a767cd3"
-        MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2026-10-03T14:00:00", [System.DateTimeKind]::Utc)
-        Role            = "GPU power limit and cooling helper script"
-    }
     "verify-arch-engine.ps1"        = @{
-        Sha256          = "d9fdc327a52b92dc5dc3ab7f67159f68b6bc142030428b068880ee9fcf59f6d2"
+        Sha256          = "f0d7fccf447590bde84424aa8839ff6d4c0eccfe92f463ed2e8cd54618bb05d9"
         MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2026-10-03T14:00:00", [System.DateTimeKind]::Utc)
         Role            = "End-to-end hardware & needle verification harness"
     }
@@ -135,8 +130,7 @@ $ExpectedChineseRootFiles = @(
     @{ Name = ([string][char]0x542F + [char]0x52A8 + ".bat"); Desc = "Start batch (U+542F U+52A8 .bat)" },
     @{ Name = ([string][char]0x6D4B + [char]0x8BD5 + ".bat"); Desc = "Test batch (U+6D4B U+8BD5 .bat)" },
     @{ Name = ([string][char]0x8BBE + [char]0x7F6E + ".ini"); Desc = "Config INI (U+8BBE U+7F6E .ini)" },
-    @{ Name = ([string][char]0x4F7F + [char]0x7528 + [char]0x8BF4 + [char]0x660E + ".txt"); Desc = "User guide TXT (U+4F7F U+7528 U+8BF4 U+660E .txt)" },
-    @{ Name = ([string][char]0x8BBE + [char]0x7F6E + [char]0x663E + [char]0x5361 + [char]0x529F + [char]0x8017 + ".bat"); Desc = "GPU power limit batch (U+8BBE U+7F6E U+663E U+5361 U+529F U+8017 .bat)" }
+    @{ Name = ([string][char]0x4F7F + [char]0x7528 + [char]0x8BF4 + [char]0x660E + ".txt"); Desc = "User guide TXT (U+4F7F U+7528 U+8BF4 U+660E .txt)" }
 )
 $OptionalChineseRootFiles = @(
     ([string][char]0x63A5 + [char]0x5165 + [char]0x4FE1 + [char]0x606F + ".txt")

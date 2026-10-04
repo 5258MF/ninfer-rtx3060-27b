@@ -5,10 +5,11 @@
 
 [CmdletBinding()]
 param(
-    [string]$KitRoot = $PSScriptRoot
+    [string]$KitRoot = ""
 )
 
 $ErrorActionPreference = "Stop"
+if (-not $KitRoot) { $KitRoot = Split-Path -Parent $MyInvocation.MyCommand.Path }
 
 $EmbeddedExpected = [ordered]@{
     "engine/ninfer-serve.exe"   = @{
@@ -47,7 +48,7 @@ $EmbeddedExpected = [ordered]@{
         Role            = "VC runtime 140_1 exception handling DLL"
     }
     "launcher/launch.ps1"       = @{
-        Sha256          = "eeabf29a2afd528ae7c414ac86d451210cc4683eb319117e5760fadfb2e5e2da"
+        Sha256          = "8ceb1e871272e38cdb34734ae7f7ca33ce8b22e44d86f2b84daa1fff67947648"
         MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2026-10-03T13:00:00", [System.DateTimeKind]::Utc)
         Role            = "One-click interactive launcher script"
     }
@@ -67,7 +68,7 @@ $EmbeddedExpected = [ordered]@{
         Role            = "MTP Q4 tensor payload"
     }
     "verify-arch-engine.ps1"    = @{
-        Sha256          = "0bb2ed529e9ac061fbf60cda9f0210a55bca56a76a8a90320e98a81ed2719d64"
+        Sha256          = "ee0e094b994570fe9b491ad042ecf04d9fe1036ef512bbd04968baae8f6529fd"
         MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2026-10-03T13:00:00", [System.DateTimeKind]::Utc)
         Role            = "End-to-end hardware & needle verification harness"
     }

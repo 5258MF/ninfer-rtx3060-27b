@@ -2,6 +2,8 @@
 
 **Language:** [简体中文](README.md) | English
 
+2026-10-04: main includes launcher and verification fixes; the 0.1.0 Release remains the original snapshot. Client limits follow capacity retries, startup is detected from listening logs, and verification returns 0/1/2 for pass/fail/inconclusive. Updated kits await upload; existing cloud links still point to older packages. See the [changelog](../CHANGELOG.md).
+
 This directory contains the complete Swift 1.5 engine source, Windows build script, launcher, and model conversion tools. The upstream baseline is Ryan-gsq commit `b06908b`. KVMem, runtime SM-count detection, and startup fixes are integrated.
 
 The current source version is **0.1.0** (see [`VERSION`](VERSION)). Swift 1.5 Q2S has a [dedicated 0.1.0 source release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.0) with an asset containing only this build's source. The Baidu and Quark one-click packages are on the [project downloads page](../README.en.md#downloads).

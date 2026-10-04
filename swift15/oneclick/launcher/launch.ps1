@@ -583,7 +583,7 @@ function Write-Info($c) {
     "  图片输入     : $(if ($vis) { '支持（input 里加 image）' } else { '不支持（设置.ini 里 VISION=0）' })",
     '  工具调用     : 支持（function calling / tools）',
     '  思考内容     : 放在 reasoning_content 字段（DeepSeek 格式）；请求里加 "enable_thinking": false 可以关思考',
-    '  思考档位     : 只有 off / low / medium / xhigh 四档（reasoning_effort），其他档位模型不接受',
+    '  思考档位     : 只有 off / low / medium / xhigh 四档（reasoning_effort），none/minimal/high 等别名会映射到这些档位',
     '  同时请求数   : 1（一次只处理一个请求，多开对话会排队）',
     '',
     '==== DeepSeek Harness（dsh）可以直接用的配置 ====',
@@ -738,10 +738,12 @@ while ($true) {
   Write-Host ''
   $logW.WriteLine('# ' + (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + ' env sink=' + $env:NINFER_KVMEM_SINK_PAGES + ' reserve=' + $env:NINFER_KVMEM_GEN_RESERVE_PAGES + ' longreuse=' + $env:NINFER_KVMEM_LONG_REUSE + ' ' + $Exe + ' ' + ($argsNow -join ' '))
   $script:short = $null
+  $attempt = @{ Ready = $false }
   $script:curveMismatch = $false
   $sw = [Diagnostics.Stopwatch]::StartNew()
   & $Exe @($argsNow) 2>&1 | ForEach-Object {
     $line = "$_"; Write-Host $line; $logW.WriteLine($line)
+    if ($line -match '\blistening on https?://') { $attempt.Ready = $true }
     if ($line -match 'reservation requires (\d+) bytes, but only (\d+) bytes are available') { $script:short = @([double]$matches[1], [double]$matches[2]) }
     if ($line.Contains('Main KV page count is outside the target capacity curve')) { $script:curveMismatch = $true }
   }
@@ -750,7 +752,7 @@ while ($true) {
   Write-Host ''
   Write-Host "  [引擎已退出] 返回码=$rc  运行了 $secs 秒"
   if ($rc -eq 0) { break }
-  if ($script:curveMismatch -and -not $alignRetry) {
+  if (-not $attempt.Ready -and $script:curveMismatch -and -not $alignRetry) {
     # 旧引擎按请求分段分配 KV，但某些显卡会把实际分段调大；关闭对齐后两边一致。
     $alignRetry = $true
     $env:NINFER_PREFILL_ALIGN = '0'
@@ -758,7 +760,7 @@ while ($true) {
     Write-Host '  检测到读入分段与 KV 页数不一致，按指定分段重新启动一次 ...' -ForegroundColor Yellow
     continue
   }
-  if ($script:short -and ($fit -lt 2)) {
+  if (-not $attempt.Ready -and $script:short -and ($fit -lt 2)) {
     # 显存不够：引擎报了真实可用量，按它重算窗口（如果输出选"自动"且旧输出放不下，也跟着重算输出预留）
     $availMiB = $script:short[1] / 1MB
     $next = Pages-From $cfg.KV $availMiB
@@ -770,9 +772,12 @@ while ($true) {
     }
     if ($next -lt $PageMin) { Write-Host "  显存不够（可用 $([int]$availMiB) MiB），连最小窗口 $PageMin 页都放不下。把单次输出调小（按 C 重新选），或关掉占显存的程序（游戏、浏览器视频等）再启动。" -ForegroundColor Red; break }
     Write-Host ("  显存比预计少（引擎可用 {0} MiB），窗口 {1} 页 → {2} 页，自动重试 ..." -f [int]$availMiB, $pages, $next) -ForegroundColor Yellow
-    $pages = $next; continue
+    $pages = $next
+    if ([int]$run.THINK -gt [int]$run.OUT - 256) { $run.THINK = "$([Math]::Max(0, [int]$run.OUT - 256))" }
+    Write-Info $run
+    continue
   }
-  if ($secs -lt 120) {
+  if (-not $attempt.Ready) {
     Write-Host '  启动阶段就失败了。常见原因：' -ForegroundColor Yellow
     Write-Host '    - out of memory / cudaMalloc：显存不够 → 关掉占显存的程序，或把单次输出调小'
     Write-Host '    - bad allocation / cudaMallocHost：内存不够 → 关掉占内存的程序，或把总上下文调小（内存预留跟着变小）'
@@ -783,3 +788,4 @@ while ($true) {
   Write-Host '  运行中意外退出，15 秒后自动重启 ...'; Start-Sleep 15
 }
 $logW.Close()
+exit $rc

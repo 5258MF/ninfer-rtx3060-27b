@@ -137,7 +137,7 @@
     按启动前的空闲显存预算分配窗口：检索窗口上限 36K，若还有显存余量则全部给输出窗口（int8 最高 40K，rk8v4 最高 64K）；
     输出窗口不得低于 8K，当剩余显存不足以给输出留够 8K 时，自动缩减检索窗口（最低到 16K）以保证输出至少为 8K。
     用户仍可在向导或 设置.ini 中手动调整输出窗口（至少 8K）和检索窗口（16K–36K）。
-  - 如果引擎报告可用容量低于启动预算，自动缩小检索窗口，最多调整三次；输出上限保持不变。
+  - 如果引擎报告可用容量低于启动预算，自动重新分配窗口，最多调整三次；必要时联动降低输出上限。
     普通报错、主机内存锁页失败不做缩窗重试，需要按实际错误处理。
   - 四种模式统一分段读入 512 token。检索评分最多取 512 行，尽量沿换行边界取尾部；
     固定开头、本轮新内容等已保留部分从重复评分中排除，历史 KV 使用批量拷贝。
@@ -148,7 +148,25 @@
   - 2026-10-03 晚间同步更新（与 Swift 1.5 六项改进对齐）：
     1) 引擎启动时结合 NVML 读取真实物理空闲显存（取 cudaMemGetInfo 与 nvml 的较小值），避免 Windows WDDM 虚报显存导致桌面卡顿；
     2) 开启 NINFER_TERNARY_KVMEM=1 时默认启用内容相关性挑块评分（kvmem_score: SELECT）；
-    3) HTTP 服务端启用长连接保活（Keep-Alive 120s、读写超时 300s、Windows TCP Keep-Alive 10s/3s），防止长思考与大上下文预填充断连；
-    4) 默认开启思考后自动降温（--post-thinking-temperature 0.2，思考保持 1.0，</think> 后自动切到 0.2 稳定工具调用和代码输出）与内部不变量异常自动恢复（--recover-invariant-failures）；
+    3) HTTP 服务端启用长连接保活（Keep-Alive 120s、读写超时 300s、Windows TCP Keep-Alive 10s/3s），减少连接中断；客户端等待超时仍需单独设置；
+    4) 默认开启思考后自动降温（--post-thinking-temperature 0.2，思考保持 1.0，</think> 后自动切到 0.2 稳定工具调用和代码输出）与对支持的部分内部状态错误尝试恢复（有次数上限）（--recover-invariant-failures）；
     5) 新增「设置显卡功耗.bat」（或启动菜单按 P）一键设置 135W 功耗墙并注册开机自动生效，长跑温度稳在 80°C 左右不降频；
     6) 新增 SHA256SUMS.txt、verify-kit-manifest.ps1 与 verify-arch-engine.ps1 自检脚本，启动前自动检查 engine 文件夹 DLL 完整性。
+
+2026-10-04：启动与验收共性修复
+  - 使用 listening 日志判断引擎已开始服务，不再按运行不足 120 秒猜测启动失败。
+    启动期的容量错误才触发缩窗；运行中退出使用有上限的重启。
+  - 缩窗后同步本次实际输出上限到客户端接入信息（文字及 YAML）；
+    本机启动器在允许同步时也更新 dsh。保存的个人配置不写入临时缩窗结果。
+    输出预算减少时，思考预算一并限制到有效输出范围。
+  - 启动失败返回非零状态。
+  - 引擎验收返回码：0 为本次检查通过，1 为失败，2 为无法确认。
+    FAIL 和 INCONCLUSIVE 不再被当作成功；负对照必须回答 NONE。
+  - 验收新增缩短历史、实际输出封顶、真实工具结果回传、Messages / Responses 和看图。
+    默认使用小窗口与 512 token 输出上限，不代表已经测满 256K 或生成满 32K。
+    多工具 required/any 按 Auto 处理，不保证调用；strict 不提供严格 Schema 约束。
+  - 如模型不在默认 model 目录，验收时传 -ModelPath 指定已转换文件：
+      powershell -NoProfile -ExecutionPolicy Bypass -File verify-kit-manifest.ps1
+      powershell -NoProfile -ExecutionPolicy Bypass -File verify-arch-engine.ps1 -ModelPath <模型文件>
+    默认请求等待为 1800 秒；客户端仍需自行设置足够的等待时间。
+  - 此轮修改启动与验收脚本，不改变模型量化、引擎二进制或容量配比。

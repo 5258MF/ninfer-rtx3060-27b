@@ -4,6 +4,20 @@
 
 按版本和日期记录已发生的改动。源码更新与网盘包更新分别标明，避免把源码中的修复误认为已经进入旧下载包。
 
+## 未发布：2026-10-04 启动与验收共性修复
+
+**状态：Swift 1.5 Q2S 与 Bonsai2 12G 修复已同步 main，本机懒人包已重新验收；新网盘包待用户上传。0.1.0 标签与 Release 附件保留原快照。**
+
+- 根据 listening 日志判断启动完成，替代 120 秒运行时长阈值；仅启动期容量错误触发缩窗，运行中退出采用有上限的重启。
+- 缩窗后按实际输出上限更新客户端接入信息文字与 YAML；本机启动器在允许同步时同步 dsh，保存配置不写入临时缩窗结果。必要时联动限制思考预算。
+- 启动失败返回非零退出码；验收的 FAIL 和 INCONCLUSIVE 计入最终结果，退出码分别为 1 和 2，只有执行的检查通过才返回 0。
+- Swift 包自检直接运行时显式从脚本路径确定默认目录，避免空 Path 参数导致自检无法执行。
+- 负对照要求 NONE；新增缩短历史、真实生成至 512 token 上限、工具结果回传及最终回答、Messages/Responses、图片输入。保留接口边界：多工具 required/any 按 Auto；strict 不保证 Schema。
+- Windows PowerShell 5.1 模拟回归 48 项通过；RTX 3060 12GB 上两套引擎小窗口验收均 exit 0（含 12,326 token 负对照、12,244 token 藏针）。没有重新测满 256K/32K、性能或困惑度。
+- 引擎 C++ 与二进制不变，本轮没有新的容量或速度收益；保留已有本地鉴权配置方式。
+
+English: launcher recovery now uses readiness, client limits follow retries, and verification distinguishes pass/fail/inconclusive. Real tool-result, output-cap, API and vision checks passed on an RTX 3060 12GB. Existing 0.1.0 releases and cloud links remain historical snapshots.
+
 ## 0.1.0 - 2026-10-04
 
 **源码与懒人包均已发布。** 本次给 Swift 1.5 Q2S 和 Bonsai2 12G 统一建立软件版本号 0.1.0；8G 方案继续使用此前的发布包。

@@ -2,6 +2,8 @@
 
 **简体中文 | [English](README.en.md)**
 
+2026-10-04：main 已增加启动与验收脚本修复；0.1.0 Release 保留原始快照。缩窗后同步客户端限制，按 listening 判断启动完成，验收以 0/1/2 区分通过、失败和未确认。修复后的懒人包等待重新上传，旧网盘链接仍对应旧包。详情见[更新记录](../CHANGELOG.md)。
+
 本目录公开 12GB 方案的完整引擎源码（原 ninfer-tree）、构建脚本和懒人包启动器，包含此前的 sm_86、KVMem、rk8v4、显存预算等改动，以及 2026-10-04 的三项智能体兼容修复。
 
 当前源码版本为 **0.1.0**，见 [`VERSION`](VERSION)。Bonsai2 12G 已有[独立的 0.1.0 源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.0)，附件只包含本方案源码。百度、夸克懒人包见[项目首页](../README.md#下载)。

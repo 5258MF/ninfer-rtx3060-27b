@@ -160,3 +160,21 @@
     https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist
     DLL 加载错误与引擎输出的 small_t_i8 / NINFER_SLIM_3060 校准错误需要分别处理。
   - 旧模型无需重新下载或转换；升级后正常运行 启动.bat 即可。
+
+2026-10-04：启动与验收共性修复
+  - 使用 listening 日志判断引擎已开始服务，不再按运行不足 120 秒猜测启动失败。
+    启动期的容量错误才触发缩窗；运行中退出使用有上限的重启。
+  - 缩窗后同步本次实际输出上限到客户端接入信息（文字及 YAML）；
+    本机启动器在允许同步时也更新 dsh。保存的个人配置不写入临时缩窗结果。
+    输出预算减少时，思考预算一并限制到有效输出范围。
+  - 启动失败返回非零状态。
+  - 引擎验收返回码：0 为本次检查通过，1 为失败，2 为无法确认。
+    FAIL 和 INCONCLUSIVE 不再被当作成功；负对照必须回答 NONE。
+  - 验收新增缩短历史、实际输出封顶、真实工具结果回传、Messages / Responses 和看图。
+    默认使用小窗口与 512 token 输出上限，不代表已经测满 256K 或生成满 32K。
+    多工具 required/any 按 Auto 处理，不保证调用；strict 不提供严格 Schema 约束。
+  - 如模型不在默认 model 目录，验收时传 -ModelPath 指定已转换文件：
+      powershell -NoProfile -ExecutionPolicy Bypass -File verify-kit-manifest.ps1
+      powershell -NoProfile -ExecutionPolicy Bypass -File verify-arch-engine.ps1 -ModelPath <模型文件>
+    默认请求等待为 1800 秒；客户端仍需自行设置足够的等待时间。
+  - 此轮修改启动与验收脚本，不改变模型量化、引擎二进制或容量配比。

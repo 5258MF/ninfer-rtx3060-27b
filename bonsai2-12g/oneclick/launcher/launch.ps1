@@ -605,6 +605,19 @@ Say "  参数  ：$shown"
 Say '  出现 "listening" 之后就能用了。可以运行 测试.bat 检查。关掉这个窗口就停止引擎。' 'Cyan'
 Say ''
 
+function Update-InfoLimits([int]$context, [int]$output) {
+    $path = Join-Path $Root '接入信息.txt'
+    if (-not (Test-Path -LiteralPath $path)) { return }
+    try {
+        $text = Get-Content -LiteralPath $path -Raw -Encoding UTF8
+        $text = $text -replace '(?m)^(\s*上下文窗口\s*:\s*)\d+', ('${1}' + $context)
+        $text = $text -replace '(?m)^(\s*最大输出\s*:\s*)\d+', ('${1}' + $output)
+        $text = $text -replace '(?m)^(\s*contextWindow:\s*)\d+', ('${1}' + $context)
+        $text = $text -replace '(?m)^(\s*maxTokens:\s*)\d+', ('${1}' + $output)
+        [IO.File]::WriteAllText($path, $text, (New-Object Text.UTF8Encoding $true))
+    } catch { Warn "更新接入信息失败：$($_.Exception.Message)" }
+}
+
 # ---------- 6b. 客户端（harness）接入信息：显示在窗口里，并写到 接入信息.txt ----------
 $vis = (CfgInt 'VISION' 1) -ne 0
 $locHost = $(if ($bindHost -eq '0.0.0.0' -or $bindHost -eq '::') { '127.0.0.1' } else { $bindHost })
@@ -631,7 +644,7 @@ $info += @(
   "  图片输入     : $(if ($vis) { '支持（input 里加 image）' } else { '不支持（设置.ini 里 VISION=0）' })",
   '  工具调用     : 支持（function calling / tools）',
   '  思考内容     : 放在 reasoning_content 字段（DeepSeek 格式）；请求里加 "enable_thinking": false 可以关思考',
-  '  思考档位     : 只有 off / low / medium / xhigh 四档（reasoning_effort），其他档位模型不接受',
+  '  思考档位     : 只有 off / low / medium / xhigh 四档（reasoning_effort），none/minimal/high 等别名会映射到这些档位',
   '  同时请求数   : 1（一次只处理一个请求，多开对话会排队）',
   '',
   '==== DeepSeek Harness（dsh）可以直接用的配置 ====',
@@ -686,18 +699,20 @@ if ($dry) {
 }
 $ErrorActionPreference = 'Continue'
 $env:PATH = (Split-Path -Parent $exe) + ';' + $env:PATH
-$retry = CfgInt 'RETRY' 2
-$fit = 0; $rc = 0
+$retry = [Math]::Max(0, [Math]::Min(3, (CfgInt 'RETRY' 2)))
+$fit = 0; $rc = 1
 for ($try = 1; $try -le (1 + $retry); $try++) {
     $short = $null
+    $attempt = @{ Ready = $false }
     $clock = [Diagnostics.Stopwatch]::StartNew()
     & $exe $model @argv 2>&1 | ForEach-Object {
         $line = "$_"; Write-Host $line
+        if ($line -match '\blistening on https?://') { $attempt.Ready = $true }
         if ($line -match 'reservation requires (\d+) bytes, but only (\d+) bytes are available') { $script:short = @([double]$Matches[1], [double]$Matches[2]) }
     }
     $rc = $LASTEXITCODE
     if ($rc -eq 0) { break }
-    if ($Mode -in @('kvmem','kvrk') -and $short -and $fit -lt 3) {
+    if (-not $attempt.Ready -and $Mode -in @('kvmem','kvrk') -and $short -and $fit -lt 3) {
         $defMiB = ($short[0] - $short[1]) / 1MB
         $cut = [int][Math]::Ceiling(($defMiB + $KeepMiB + $StashMiB) / $TokMiB[$kv] / 1024) * 1024
         $newCap = $cap - [Math]::Max(1024, $cut)
@@ -719,14 +734,17 @@ for ($try = 1; $try -le (1 + $retry); $try++) {
         $win = $nextWin; $ans = $nextAns; $mt = $nextAns; $cap = $win + $ans
         $env:NINFER_TERNARY_KVMEM_SCORE_BUDGET = "$win"
         $env:NINFER_TERNARY_KVMEM_GEN_RESERVE = "$ans"
+        if ($think -ge $mt) { $think = [Math]::Max(0, $mt - 1) }
         for ($i = 0; $i -lt $argv.Count - 1; $i++) {
             if ($argv[$i] -eq '--kv-capacity') { $argv[$i + 1] = "$cap" }
             if ($argv[$i] -eq '--default-max-tokens') { $argv[$i + 1] = "$mt" }
+            if ($argv[$i] -eq '--default-thinking-budget') { $argv[$i + 1] = "$think" }
         }
+        Update-InfoLimits $ctx $mt
         $try--; continue
     }
     Say "[引擎退出] 代码 $rc，第 $try 次，模式 $Mode" 'Yellow'
-    if ($clock.Elapsed.TotalSeconds -lt 120) { Say '启动失败，请按上面的具体错误调整配置。' 'Yellow'; break }
+    if (-not $attempt.Ready) { Say '启动失败，请按上面的具体错误调整配置。' 'Yellow'; break }
     if ($try -le $retry) { Say '15 秒后自动重启……'; Start-Sleep -Seconds 15 }
 }
 exit $rc
