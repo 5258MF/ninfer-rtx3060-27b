@@ -4,7 +4,7 @@
 
 当前源码：**Swift 1.5 Q2S 0.1.2，Bonsai2 8G / 12G 0.1.3**。Bonsai2 新增 CPU 检索索引与分块打分；三套方案统一按实际系统提示、检索目标和输出余量分配窗口。网盘链接仍指向原有包，新包待重新上传。详情见[更新记录](CHANGELOG.md)。
 
-为 Windows 提供 Swift 1.5 和 Bonsai2 的本地推理方案，支持对话、图片输入、工具调用和 KVMem 长上下文。懒人包解压后双击启动，模型在第一次运行时下载。
+为 Windows 提供 Swift 1.5 和 Bonsai2 的本地推理方案，支持对话和图片输入，也支持工具调用与 KVMem 长上下文。懒人包解压后双击启动，模型在第一次运行时下载。
 
 ## 选择版本
 
@@ -324,7 +324,7 @@ Swift 1.5 的模型格式（GGUF 量化块，IQ2_S / IQ3_XXS 等十几种）只�
 
 ## 源码与编译
 
-Swift 1.5 的完整引擎源码在 [`swift15/engine/`](swift15/engine/)，包含 CMake 工程、实现、应用、测试和第三方源码。启动器和设置在 [`swift15/oneclick/`](swift15/oneclick/)，构建脚本在 [`swift15/scripts/`](swift15/scripts/)。目录索引见 [swift15/README.md](swift15/README.md)。
+Swift 1.5 的完整引擎源码在 [`swift15/engine/`](swift15/engine/)，包含 CMake 工程和实现代码，应用、测试及第三方源码也在目录中。启动器和设置在 [`swift15/oneclick/`](swift15/oneclick/)，构建脚本在 [`swift15/scripts/`](swift15/scripts/)。目录索引见 [swift15/README.md](swift15/README.md)。
 
 Bonsai2 8G 与 12G 共用的引擎源码、构建脚本和两套启动器已公开在 [`bonsai2/`](bonsai2/README.md)。两种显存方案使用不同模型文件和启动配置；引擎改动共用。从源码编译见 [12G README](README-12GB.md#源码与编译) 和 [8G README](README-8GB.md)。
 
