@@ -159,6 +159,8 @@ Harness 在第一次请求前即可配置：`contextWindow` 填总上下文，`m
 
 模型来源：[魔搭社区 Swift-1.5-Qwen3.8-27B-GSQ-RCO-NInfer](https://www.modelscope.cn/models/fyb423/Swift-1.5-Qwen3.8-27B-GSQ-RCO-NInfer)。
 
+合并后的网盘模型库（Qwen 3.8 27B）：[百度网盘](https://pan.baidu.com/s/1Dyyb-SOULerfXGzDJqLlyQ)（提取码：`jqtg`） · [夸克网盘](https://pan.quark.cn/s/9fd59ead2458)（提取码：`YDvh`）。
+
 - 原始下载文件：`swift15_iq2s_mtp.ninfer`，10,257,632,000 字节。
 - 启动器使用包内 `patch` 转换成 `swift15_iq2_s_mtpq4.ninfer`，10,155,600,640 字节。
 - 只修改 MTP 草稿头的 7 个张量，其余模型对象保持原样；下载和转换后都进行 SHA256 校验。

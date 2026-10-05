@@ -159,6 +159,8 @@ In 0.1.0, large client output limits are capped by the server configuration. KVM
 
 Model source: [ModelScope Swift-1.5-Qwen3.8-27B-GSQ-RCO-NInfer](https://www.modelscope.cn/models/fyb423/Swift-1.5-Qwen3.8-27B-GSQ-RCO-NInfer).
 
+Consolidated cloud model library (Qwen 3.8 27B): [Baidu Netdisk](https://pan.baidu.com/s/1Dyyb-SOULerfXGzDJqLlyQ) (code: `jqtg`) · [Quark](https://pan.quark.cn/s/9fd59ead2458) (code: `YDvh`).
+
 - Original download: `swift15_iq2s_mtp.ninfer`, 10,257,632,000 bytes.
 - The launcher applies the package patch to create `swift15_iq2_s_mtpq4.ninfer`, 10,155,600,640 bytes.
 - Only seven tensors in the MTP draft head are changed; all other model objects remain unchanged. SHA256 is checked after download and conversion.
