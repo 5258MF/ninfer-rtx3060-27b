@@ -10,7 +10,7 @@ The current source version is **0.1.2** (see [`VERSION`](VERSION)). Swift 1.5 Q2
 
 The latest Q2S source and launcher were synchronized on 2026-10-04. They include VRAM budgeting, content scoring, connection keepalive, inference controls, verification tools, and a multi-turn vision KV page-borrowing timing fix.
 
-Three agent-compatibility changes were also synchronized that day: safe cache handling for mid-history branching and compaction, caps on output and reasoning budgets, and tool-parameter adaptation. Their implementation boundaries are listed in the [changelog](../CHANGELOG.md#2026-10-04三项智能体兼容修改与-bonsai2-12g-源码公开) (Chinese). The complete Bonsai2 12G source is in [bonsai2-12g](../bonsai2-12g/README.en.md).
+Three agent-compatibility changes were also synchronized that day: safe cache handling for mid-history branching and compaction, caps on output and reasoning budgets, and tool-parameter adaptation. Their implementation boundaries are listed in the [changelog](../CHANGELOG.md#2026-10-04三项智能体兼容修改与-bonsai2-12g-源码公开) (Chinese). The shared Bonsai2 8G / 12G source is in [bonsai2](../bonsai2/README.en.md).
 
 ## Directory
 

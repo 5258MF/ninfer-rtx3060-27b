@@ -6,7 +6,7 @@ Run the Swift-Bonsai-2 27B ternary model on Windows with an RTX 3060 12 GB. The 
 
 ## Download and Start
 
-Current source release: **0.1.3**, available from the [Bonsai2 12G source Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.3). Cloud packages remain **0.1.0**: download `ninfer-3060-12g-bonsai2-oneclick-0.1.0.zip` using the links on the [project home](README.en.md#downloads). Fixed kits await upload. See [CHANGELOG](CHANGELOG.md#012---2026-10-04).
+Current source release: **0.1.3**, available from the [Bonsai2 shared 8G / 12G source Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.3). Cloud packages remain **0.1.0**: download `ninfer-3060-12g-bonsai2-oneclick-0.1.0.zip` using the links on the [project home](README.en.md#downloads). Fixed kits await upload. See [CHANGELOG](CHANGELOG.md#012---2026-10-04).
 
 An RTX 30 series GPU is required; settings are tuned for the RTX 3060 12 GB. Use Windows 10/11, 32 GB RAM recommended, and about 10 GB of free disk space. The model is not included and downloads on first launch.
 
@@ -250,19 +250,19 @@ Later KVMem iterations added:
 
 ## Source and Build
 
-The full source is in [`bonsai2-12g/engine/`](bonsai2-12g/engine/). The launcher, public defaults, tests, and power tools are in [`oneclick/`](bonsai2-12g/oneclick/). Build entry point: [`build-sm86.bat`](bonsai2-12g/scripts/build-sm86.bat). See the [source index](bonsai2-12g/README.en.md).
+The shared engine source is in [`bonsai2/engine/`](bonsai2/engine/). The 12G launcher, public defaults, tests, and power tools are in [`oneclick/`](bonsai2/oneclick/). Build entry point: [`build-sm86.bat`](bonsai2/scripts/build-sm86.bat). See the [source index](bonsai2/README.en.md).
 
-Windows builds require CUDA 13.1 or later (the recorded build used 13.3), MSVC C++ tools, CMake 3.28 or later, and Ninja. Image input also requires FFmpeg development files: put `include` and `lib` under `bonsai2-12g/engine/ffmpeg/`. The FFmpeg directory and runtime DLLs must be supplied by the builder and are not included in source control.
+Windows builds require CUDA 13.1 or later (the recorded build used 13.3), MSVC C++ tools, CMake 3.28 or later, and Ninja. Image input also requires FFmpeg development files: put `include` and `lib` under `bonsai2/engine/ffmpeg/`. The FFmpeg directory and runtime DLLs must be supplied by the builder and are not included in source control.
 
 From the repository root:
 
 ```bat
 set "NINFER_CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.3"
 set "NINFER_VCVARS64=C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
-bonsai2-12g\scripts\build-sm86.bat
+bonsai2\scripts\build-sm86.bat
 ```
 
-The script locates source relative to the repository and writes to `bonsai2-12g/build/`. By default it builds the sm_86 `apps/ninfer-serve.exe` and `apps/ninfer-perplexity.exe`. Set toolchain paths for your installation. CMake and Ninja must be on PATH, or set `NINFER_TOOLS_PATH` to their directories (semicolon-separated). Use ASCII-only paths for source and build folders. Copy the executable and runtime DLLs into the package's `engine` directory. Existing model files remain usable.
+The script locates source relative to the repository and writes to `bonsai2/build/`. By default it builds the sm_86 `apps/ninfer-serve.exe` and `apps/ninfer-perplexity.exe`. Set toolchain paths for your installation. CMake and Ninja must be on PATH, or set `NINFER_TOOLS_PATH` to their directories (semicolon-separated). Use ASCII-only paths for source and build folders. Copy the executable and runtime DLLs into the package's `engine` directory. Existing model files remain usable.
 
 For an existing build, run `build-sm86.bat build`. `configure` only generates build files. To build text-only service, set `NINFER_DISABLE_MEDIA=ON`; image/video decoding will be unavailable. Tests and benchmarks are disabled by default. Configure with `NINFER_BUILD_TESTING=ON` and `NINFER_BUILD_BENCHMARKS=ON` to build those targets. Keep the three historical legacy KV assertion failures in mind; see above.
 
@@ -287,6 +287,6 @@ See [startup troubleshooting](CHANGELOG.md#启动错误与处理) (Chinese) for 
 - **rk8v4:** implementation from ninfer-all.
 - Public tuning notes from the 3090 branch and other RTX 3060 users were also useful.
 
-See [engine/LICENSE](bonsai2-12g/engine/LICENSE) and [NOTICE](bonsai2-12g/engine/NOTICE) for engine terms and upstream notices. Third-party folders retain their own licenses; model and code licenses apply separately.
+See [engine/LICENSE](bonsai2/engine/LICENSE) and [NOTICE](bonsai2/engine/NOTICE) for engine terms and upstream notices. Third-party folders retain their own licenses; model and code licenses apply separately.
 
 For 8 GB, see [Bonsai2 8G](README-8GB.en.md). For Swift 1.5, return to the [project home](README.en.md).

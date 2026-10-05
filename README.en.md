@@ -30,7 +30,7 @@ The one-click packages do not include model files. Extract the full archive and 
 
 **Release status:** The Swift 1.5 Q2S and Bonsai2 12G 0.1.0 packages are uploaded to both Baidu and Quark. They include the three agent-compatibility changes synchronized on 2026-10-04. The Swift Quark link was corrected using the latest link supplied by the user; use the versioned archive name and code shown above. The 8G package remains on its previous release. Build identification, fixes, and startup troubleshooting are in [CHANGELOG.md](CHANGELOG.md).
 
-Source releases are published separately by model. Each release includes an asset containing only that model's source directory: [Swift 1.5 Q2S source release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.2) and [Bonsai2 12G source release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.3). Swift's `VERSION` is `0.1.2`; Bonsai's is `0.1.3`. Development continues on `main`; release changes are listed in CHANGELOG.
+Source releases are published separately by model. Each release includes an asset containing only that model's source directory: [Swift 1.5 Q2S source release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.2) and [Bonsai2 shared 8G / 12G source release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.3). Swift's `VERSION` is `0.1.2`; Bonsai's is `0.1.3`. Development continues on `main`; release changes are listed in CHANGELOG.
 
 ## Quick Start
 
@@ -324,7 +324,7 @@ The last three items correspond to source changes synchronized on 2026-10-04. Se
 
 The full Swift 1.5 engine source is in [`swift15/engine/`](swift15/engine/), including CMake files, implementation, apps, tests, and third-party source. The launcher and settings are in [`swift15/oneclick/`](swift15/oneclick/), with build scripts in [`swift15/scripts/`](swift15/scripts/). See the [Swift source index](swift15/README.en.md).
 
-The full Bonsai2 12G source, build script, and launcher are in [`bonsai2-12g/`](bonsai2-12g/README.en.md). See the [12G build guide](README-12GB.en.md#source-and-build). The two engines target different model formats. The dedicated source changes for the 8G build have not been published as a separate source tree.
+The Bonsai2 8G and 12G builds share the engine source and build script in [`bonsai2/`](bonsai2/README.en.md), with separate launchers and settings for each memory target. See the [12G build guide](README-12GB.en.md#source-and-build) and [8G guide](README-8GB.en.md).
 
 ### Build from Source
 
@@ -431,6 +431,6 @@ Source-code and model licenses are separate.
 - **KVMem:** qzshch/ninfer-kvmem (Apache-2.0), its adaptation to the new engine, and the kvmem-llama.cpp project and paper.
 - Tuning notes published by the 3090 branch and other RTX 3060 users were also useful references.
 
-For Bonsai-2 27B engine terms, see [engine/LICENSE](bonsai2-12g/engine/LICENSE) and [NOTICE](bonsai2-12g/engine/NOTICE). Third-party components retain their own licenses. Model and code licenses apply separately.
+For Bonsai-2 27B engine terms, see [engine/LICENSE](bonsai2/engine/LICENSE) and [NOTICE](bonsai2/engine/NOTICE). Third-party components retain their own licenses. Model and code licenses apply separately.
 
 For 8 GB GPUs, see [Bonsai2 8G](README-8GB.en.md). For Swift 1.5, return to the [project home](README.en.md).

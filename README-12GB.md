@@ -6,7 +6,7 @@
 
 ## 下载与开始
 
-当前源码版本为 **0.1.3**，见 [Bonsai2 12G 源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.3)。网盘仍是 **0.1.0**：`ninfer-3060-12g-bonsai2-oneclick-0.1.0.zip`，链接和提取码见[项目首页](README.md#下载)；新修复包待重新上传。更新记录见[CHANGELOG](CHANGELOG.md#012---2026-10-04)。
+当前源码版本为 **0.1.3**，见 [Bonsai2 8G / 12G 共用源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.3)。网盘仍是 **0.1.0**：`ninfer-3060-12g-bonsai2-oneclick-0.1.0.zip`，链接和提取码见[项目首页](README.md#下载)；新修复包待重新上传。更新记录见[CHANGELOG](CHANGELOG.md#012---2026-10-04)。
 
 需要 RTX 30 系显卡，参数按 3060 12GB 调整。Windows 10 / 11，内存建议 32 GB，磁盘预留约 10 GB。模型不在包内，首次运行自动下载。
 
@@ -266,19 +266,19 @@ Harness 在第一次请求前即可配置：`contextWindow` 填总上下文，`m
 
 ## 源码与编译
 
-完整源码在 [`bonsai2-12g/engine/`](bonsai2-12g/engine/)，启动器、公开默认设置、测试与功耗工具在 [`oneclick/`](bonsai2-12g/oneclick/)，构建入口为 [`build-sm86.bat`](bonsai2-12g/scripts/build-sm86.bat)。目录索引见 [bonsai2-12g/README.md](bonsai2-12g/README.md)。
+完整源码在 [`bonsai2/engine/`](bonsai2/engine/)，12G 启动器、公开默认设置、测试与功耗工具在 [`oneclick/`](bonsai2/oneclick/)，构建入口为 [`build-sm86.bat`](bonsai2/scripts/build-sm86.bat)。目录索引见 [bonsai2/README.md](bonsai2/README.md)。
 
-Windows 构建需要 CUDA 13.1 以上（现有构建使用 13.3）、MSVC C++ 工具链、CMake 3.28 以上和 Ninja。看图构建还需 FFmpeg 开发包，将 `include` 和 `lib` 放入 `bonsai2-12g/engine/ffmpeg/`；该目录和运行时 DLL 由使用者准备，不随源码提交。
+Windows 构建需要 CUDA 13.1 以上（现有构建使用 13.3）、MSVC C++ 工具链、CMake 3.28 以上和 Ninja。看图构建还需 FFmpeg 开发包，将 `include` 和 `lib` 放入 `bonsai2/engine/ffmpeg/`；该目录和运行时 DLL 由使用者准备，不随源码提交。
 
 在仓库根目录运行：
 
 ```bat
 set "NINFER_CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.3"
 set "NINFER_VCVARS64=C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
-bonsai2-12g\scripts\build-sm86.bat
+bonsai2\scripts\build-sm86.bat
 ```
 
-脚本按仓库相对路径定位源码，输出到 `bonsai2-12g/build/`，默认构建 sm_86 的 `apps/ninfer-serve.exe` 和 `apps/ninfer-perplexity.exe`。按安装位置设置工具链路径；CMake 和 Ninja 需在 PATH 中，也可用 `NINFER_TOOLS_PATH` 指定它们的目录（多个目录用分号分隔）。源码和构建目录使用纯英文路径。完成后将程序及相应运行时 DLL 放入懒人包的 `engine` 目录，已有模型继续使用。
+脚本按仓库相对路径定位源码，输出到 `bonsai2/build/`，默认构建 sm_86 的 `apps/ninfer-serve.exe` 和 `apps/ninfer-perplexity.exe`。按安装位置设置工具链路径；CMake 和 Ninja 需在 PATH 中，也可用 `NINFER_TOOLS_PATH` 指定它们的目录（多个目录用分号分隔）。源码和构建目录使用纯英文路径。完成后将程序及相应运行时 DLL 放入懒人包的 `engine` 目录，已有模型继续使用。
 
 已有构建只需运行 `build-sm86.bat build`；`configure` 仅生成构建。若只编译文字服务，可设置 `NINFER_DISABLE_MEDIA=ON`；这样不提供图片/视频解码。测试和基准默认关闭，可以通过 `NINFER_BUILD_TESTING=ON`、`NINFER_BUILD_BENCHMARKS=ON` 配置，再构建相应目标。完整旧 KV 单测的三项历史断言失败仍需按上方说明解读。
 
@@ -303,6 +303,6 @@ Swift 1.5 的两项启动修复有各自适用范围，见[修复记录](CHANGEL
 - **rk8v4**：ninfer-all 项目的实现。
 - 3090 分支和其他 3060 用户公开的调优记录，也提供了很多参考。
 
-引擎代码许可见 [`engine/LICENSE`](bonsai2-12g/engine/LICENSE)，上游声明见 [`NOTICE`](bonsai2-12g/engine/NOTICE)；第三方目录保留各自许可，模型许可与代码许可分别适用。
+引擎代码许可见 [`engine/LICENSE`](bonsai2/engine/LICENSE)，上游声明见 [`NOTICE`](bonsai2/engine/NOTICE)；第三方目录保留各自许可，模型许可与代码许可分别适用。
 
 8GB 显卡见[8G 版](README-8GB.md)。Swift 1.5 方案见[项目首页](README.md)。

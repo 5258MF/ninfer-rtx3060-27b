@@ -30,7 +30,7 @@ Swift 1.5 默认总上下文为 200K，最多可配置 256K；KVMem 会从历史
 
 **发布状态：Swift 1.5 Q2S 与 Bonsai2 12G 的 0.1.0 包均已上传百度和夸克，包含 2026-10-04 同步的三项智能体兼容修改。** Swift 夸克链接已按用户最新提供的信息更正，请使用本表中的版本化文件名、链接和提取码。8G 版沿用之前的发布包。版本识别信息、修复记录和相关报错处理见 [CHANGELOG.md](CHANGELOG.md)。
 
-源码按模型分别发布，每个 Release 都提供只包含对应源码目录的附件：[Swift 1.5 Q2S 源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.2) 和 [Bonsai2 12G 源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.3)。Swift 的 `VERSION` 为 `0.1.2`，Bonsai2 为 `0.1.3`；后续开发继续在 `main` 更新，发布内容见 CHANGELOG。
+源码按模型分别发布，每个 Release 都提供只包含对应源码目录的附件：[Swift 1.5 Q2S 源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.2) 和 [Bonsai2 8G / 12G 共用源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.3)。Swift 的 `VERSION` 为 `0.1.2`，Bonsai2 为 `0.1.3`；后续开发继续在 `main` 更新，发布内容见 CHANGELOG。
 
 ## 快速开始
 
@@ -324,7 +324,7 @@ Swift 1.5 的模型格式（GGUF 量化块，IQ2_S / IQ3_XXS 等十几种）只�
 
 Swift 1.5 的完整引擎源码在 [`swift15/engine/`](swift15/engine/)，包含 CMake 工程、实现、应用、测试和第三方源码。启动器和设置在 [`swift15/oneclick/`](swift15/oneclick/)，构建脚本在 [`swift15/scripts/`](swift15/scripts/)。目录索引见 [swift15/README.md](swift15/README.md)。
 
-Bonsai2 12G 的完整源码、构建脚本和启动器已公开在 [`bonsai2-12g/`](bonsai2-12g/README.md)，从源码编译见 [12G README](README-12GB.md#源码与编译)。两套引擎分别对应不同模型格式。8G 方案的专用改造源码尚未整理公开。
+Bonsai2 8G 与 12G 共用的引擎源码、构建脚本和两套启动器已公开在 [`bonsai2/`](bonsai2/README.md)。两种显存方案使用不同模型文件和启动配置；引擎改动共用。从源码编译见 [12G README](README-12GB.md#源码与编译) 和 [8G README](README-8GB.md)。
 
 ### 从源码编译
 

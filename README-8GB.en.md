@@ -231,6 +231,6 @@ The Swift 1.5 startup fixes have their own scope; see [startup troubleshooting](
 - **rk8v4 / rk4v4:** implementation from ninfer-all.
 - Public tuning notes from the 3090 branch and other RTX 3060 users were also useful.
 
-See [engine/LICENSE](bonsai2-12g/engine/LICENSE) and [NOTICE](bonsai2-12g/engine/NOTICE) for the engine terms and upstream notices. Third-party directories retain their own licenses; model and code licenses apply separately.
+See [engine/LICENSE](bonsai2/engine/LICENSE) and [NOTICE](bonsai2/engine/NOTICE) for the engine terms and upstream notices. Third-party directories retain their own licenses; model and code licenses apply separately.
 
 For 12 GB GPUs, see [Bonsai2 12G](README-12GB.en.md). For Swift 1.5, return to the [project home](README.en.md).

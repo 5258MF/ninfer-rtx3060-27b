@@ -5,6 +5,10 @@
 按版本和日期记录已发生的改动。源码更新与网盘包更新分别标明，避免把源码中的修复误认为已经进入旧下载包。
 
 
+## 2026-10-05：Bonsai2 共用源码目录更名
+
+Bonsai2 8G 与 12G 共用同一份引擎源码；仓库目录由 `bonsai2-12g/` 改为 `bonsai2/`，目录内 `oneclick-8g/` 和 `oneclick/` 分别保留 8G、12G 启动器。此次只调整命名和文档链接，不改变引擎代码或懒人包参数。已发布的 `bonsai2-12g-v0.1.3` 标签保留原名，作为历史版本标识。
+
 ## 0.1.3 / Swift 0.1.2 - 2026-10-05
 
 **状态：Bonsai2 8G／12G 源码版本 0.1.3，Swift 1.5 Q2S 0.1.2。三份懒人包已按本版打包并通过校验，待上传网盘；现有网盘链接仍指向旧包。**
@@ -61,7 +65,7 @@ English: launcher recovery now uses readiness, client limits follow retries, and
 **源码与懒人包均已发布。** 本次给 Swift 1.5 Q2S 和 Bonsai2 12G 统一建立软件版本号 0.1.0；8G 方案继续使用此前的发布包。
 
 - Swift 1.5 Q2S 与 Bonsai2 12G 分别发布了[独立源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.0) / [Bonsai2 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.0)，各自的下载附件只含对应源码目录。主仓库整合快照标签 [`v0.1.0`](https://github.com/5258MF/ninfer-rtx3060-27b/tree/v0.1.0) 继续保留；源码基线为 [209c75b](https://github.com/5258MF/ninfer-rtx3060-27b/commit/209c75b206e2c12e18fce340526e3261979ec549)。
-- 仓库根目录、`swift15/`、`bonsai2-12g/` 各自提供 `VERSION`，值为 `0.1.0`。后续发布使用新版本文件和 Git 标签保留快照，`main` 继续开发。
+- 仓库根目录、`swift15/`、当时名为 `bonsai2-12g/`（现为 `bonsai2/`）各自提供 `VERSION`，值为 `0.1.0`。后续发布使用新版本文件和 Git 标签保留快照，`main` 继续开发。
 - 两款包的百度、夸克新链接和提取码已更新到[下载表](README.md#下载)。2026-10-04，用户确认此前 Swift 夸克分享链接错误；现已按最新提供的版本化文件名、链接和提取码更正，旧地址不再作为下载入口。
 - 包含下面记录的显存预算、长对话/看图缓存、三项智能体兼容修改和 Bonsai2 完整源码公开；已知接口限制继续适用。
 
@@ -79,7 +83,7 @@ English: launcher recovery now uses readiness, client limits follow retries, and
 | 方案 | 完整源码 | 启动器 | 编译入口 |
 |---|---|---|---|
 | Swift 1.5 Q2S | [`swift15/engine/`](swift15/engine/) | [`swift15/oneclick/`](swift15/oneclick/) | [`build-sm86.bat`](swift15/scripts/build-sm86.bat) |
-| Bonsai2 12G | [`bonsai2-12g/engine/`](bonsai2-12g/engine/) | [`bonsai2-12g/oneclick/`](bonsai2-12g/oneclick/) | [`build-sm86.bat`](bonsai2-12g/scripts/build-sm86.bat) |
+| Bonsai2 8G / 12G 共用引擎 | [`bonsai2/engine/`](bonsai2/engine/) | [`oneclick-8g/`](bonsai2/oneclick-8g/) / [`oneclick/`](bonsai2/oneclick/) | [`build-sm86.bat`](bonsai2/scripts/build-sm86.bat) |
 
 Bonsai2 首次公开的是完整 CMake 工程、实现、应用、测试、工具和第三方源码，包含此前 sm_86、SM 自适应、KVMem、rk8v4、显存预算、连接保活与长生成/多轮缓存修复。保留上游 LICENSE、NOTICE 和第三方许可；本机虚拟环境、评测运行记录、下载的语料、历史回退副本、私人配置、模型、DLL 与 EXE 不进入源码提交。
 
