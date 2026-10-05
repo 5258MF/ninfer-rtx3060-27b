@@ -2,7 +2,7 @@
 
 **简体中文 | [English](README.en.md)**
 
-当前源码：**Swift 1.5 Q2S 0.1.2，Bonsai2 8G / 12G 0.1.3**。Bonsai2 新增 CPU 检索索引与分块打分；三套方案统一按实际系统提示、检索目标和输出余量分配窗口。三款懒人包共用下方同一组百度网盘和夸克网盘链接。详情见[更新记录](CHANGELOG.md)。
+当前源码：**Swift 1.5 IQ2S / IQ3XXS 共用引擎 0.1.3，Bonsai2 8G / 12G 共用源码 0.1.3**。当前 Swift 懒人包仍是 IQ2S 0.1.2；IQ3XXS 懒人包后续发布。三款现有懒人包共用下方同一组百度网盘和夸克网盘链接。详情见[更新记录](CHANGELOG.md)。
 
 为 Windows 提供 Swift 1.5 和 Bonsai2 的本地推理方案，支持对话和图片输入，也支持工具调用与 KVMem 长上下文。懒人包解压后双击启动，模型在第一次运行时下载。
 
@@ -10,7 +10,7 @@
 
 | 版本 | 显卡与显存 | 模型 | 入口 |
 |---|---|---|---|
-| **Swift 1.5（默认推荐）** | RTX 30 系，12 GB 以上；RTX 40 系可运行但未实测 | Swift-1.5 27B IQ2_S，约 9.55 GiB | [使用指南](#swift-15-使用说明) |
+| **Swift 1.5（默认推荐）** | RTX 30 系，12 GB 以上；RTX 40 系可运行但未实测 | 当前 IQ2_S 懒人包约 9.55 GiB；共用引擎源码支持 IQ2_S / IQ3_XXS | [使用指南](#swift-15-使用说明) |
 | **Bonsai2 12G** | 按 RTX 3060 12GB 调整，面向 RTX 30 系 | Swift-Bonsai-2 三元模型，约 7.7 GiB | [12G 版说明](README-12GB.md) |
 | **Bonsai2 8G** | 面向 RTX 30 系 8GB；测试在 12GB 卡限制显存完成 | Swift-Bonsai-2 ptq1，约 6.6 GiB | [8G 版说明](README-8GB.md) |
 
@@ -26,7 +26,7 @@ Swift 1.5 默认总上下文为 200K，最多可配置 256K；KVMem 会从历史
 | Bonsai2 12G · 0.1.3 | `ninfer-3060-12g-bonsai2-oneclick-0.1.3.zip` | [百度网盘](https://pan.baidu.com/s/1Dyyb-SOULerfXGzDJqLlyQ) | `jqtg` | [夸克网盘](https://pan.quark.cn/s/9fd59ead2458) | `YDvh` |
 | Bonsai2 8G · 0.1.3 | `ninfer-3060-8g-bonsai2-oneclick-0.1.3.zip` | [百度网盘](https://pan.baidu.com/s/1Dyyb-SOULerfXGzDJqLlyQ) | `jqtg` | [夸克网盘](https://pan.quark.cn/s/9fd59ead2458) | `YDvh` |
 
-**发布状态：三款懒人包已统一放在同一组百度、夸克网盘分享链接中。** 按下表的文件名选择 Swift 1.5 Q2S 0.1.2、Bonsai2 12G 0.1.3 或 Bonsai2 8G 0.1.3；三款包共用相同链接和各自对应的提取码。版本识别信息、修复记录和相关报错处理见 [CHANGELOG.md](CHANGELOG.md)。
+**发布状态：目前三款懒人包已统一放在同一组百度、夸克网盘分享链接中。** 按文件名选择 Swift 1.5 Q2S 0.1.2、Bonsai2 12G 0.1.3 或 Bonsai2 8G 0.1.3。IQ3XXS 共用同一 Swift 引擎源码，但对应懒人包尚未发布。版本识别信息、修复记录和相关报错处理见 [CHANGELOG.md](CHANGELOG.md)。
 
 ### 已转换的无审查 NInfer 模型
 
@@ -37,7 +37,7 @@ Swift 1.5 默认总上下文为 200K，最多可配置 256K；KVMem 会从历史
 
 Abliterated 版本会削弱模型的拒答或安全过滤能力。使用前请阅读各自模型卡中的来源、许可和使用警告；Swift 版本的模型卡建议用于研究和本地受控推理，不建议用于面向公众或未成年人的服务。
 
-源码按模型分别发布，每个 Release 都提供只包含对应源码目录的附件：[Swift 1.5 Q2S 源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.2) 和 [Bonsai2 8G / 12G 共用源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.3)。Swift 的 `VERSION` 为 `0.1.2`，Bonsai2 为 `0.1.3`；后续开发继续在 `main` 更新，发布内容见 CHANGELOG。
+源码按引擎系列分别发布，每个 Release 附件只包含对应源码目录：[Swift 1.5 IQ2S / IQ3XXS 共用源码 0.1.3](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.3) 和 [Bonsai2 8G / 12G 共用源码 0.1.3](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.3)。两个源码目录的 VERSION 均为 0.1.3；现有 Swift IQ2S 懒人包仍是 0.1.2。后续开发继续在 main 更新，发布内容见 CHANGELOG。
 
 ## 快速开始
 
@@ -331,7 +331,7 @@ Swift 1.5 的模型格式（GGUF 量化块，IQ2_S / IQ3_XXS 等十几种）只�
 
 ## 源码与编译
 
-Swift 1.5 的完整引擎源码在 [`swift15/engine/`](swift15/engine/)，包含 CMake 工程和实现代码，应用、测试及第三方源码也在目录中。启动器和设置在 [`swift15/oneclick/`](swift15/oneclick/)，构建脚本在 [`swift15/scripts/`](swift15/scripts/)。目录索引见 [swift15/README.md](swift15/README.md)。
+Swift 1.5 IQ2S 与 IQ3XXS 共用的完整引擎源码在 [`swift15/engine/`](swift15/engine/)，包含 CMake 工程和实现代码，应用、测试及第三方源码也在目录中。当前 IQ2S 懒人包的启动器和设置在 [`swift15/oneclick-iq2s/`](swift15/oneclick-iq2s/)，构建脚本在 [`swift15/scripts/`](swift15/scripts/)。目录索引见 [swift15/README.md](swift15/README.md)。
 
 Bonsai2 8G 与 12G 共用的引擎源码、构建脚本和两套启动器已公开在 [`bonsai2/`](bonsai2/README.md)。两种显存方案使用不同模型文件和启动配置；引擎改动共用。从源码编译见 [12G README](README-12GB.md#源码与编译) 和 [8G README](README-8GB.md)。
 
@@ -344,7 +344,7 @@ git clone https://github.com/5258MF/ninfer-rtx3060-27b.git
 cd ninfer-rtx3060-27b
 ```
 
-也可以在 GitHub 上点击 Code → Download ZIP。引擎源码位于 `swift15/engine/`，上游基线是 Ryan-gsq 分支 **b06908b**，此前的改动均已合入。
+也可以在 GitHub 上点击 Code → Download ZIP。IQ2S / IQ3XXS 共用的引擎源码位于 `swift15/engine/`，上游基线是 Ryan-gsq 分支 **b06908b**，此前的改动均已合入。
 
 #### 2. 环境（Windows）
 
@@ -380,7 +380,7 @@ ninfer-serve swift15_iq2_s_mtpq4.ninfer --model-id qwen3.8-27b
   [--lm-head-draft] [--vision --vision-residency overlay --vision-max-merged 4096]
 ```
 
-环境变量：`NINFER_KVMEM_SINK_PAGES`（开头保留页数）、`NINFER_KVMEM_GEN_RESERVE_PAGES`（输出预留页数）、`NINFER_KVMEM_LONG_REUSE=1`。Windows 上开 KVMem 时 Host KV 自动用可分页内存（`NINFER_HOST_KV_PAGEABLE=0/1` 可以强制）。1 页 = 64 token。这些值由[启动器源码](swift15/oneclick/launcher/launch.ps1)计算。
+环境变量：`NINFER_KVMEM_SINK_PAGES`（开头保留页数）、`NINFER_KVMEM_GEN_RESERVE_PAGES`（输出预留页数）、`NINFER_KVMEM_LONG_REUSE=1`。Windows 上开 KVMem 时 Host KV 自动用可分页内存（`NINFER_HOST_KV_PAGEABLE=0/1` 可以强制）。1 页 = 64 token。这些值由[启动器源码](swift15/oneclick-iq2s/launcher/launch.ps1)计算。
 
 ### 模型补丁与转换工具
 

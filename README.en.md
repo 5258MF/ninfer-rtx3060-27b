@@ -2,7 +2,7 @@
 
 **Language:** [简体中文](README.md) | English
 
-Current sources: **Swift 1.5 Q2S 0.1.2; Bonsai2 8G / 12G 0.1.3**. Bonsai2 adds CPU retrieval and blocked scoring, with request-based prefix, retrieval and output allocation. All three one-click packages use the same Baidu and Quark folder links below. See the [changelog](CHANGELOG.md).
+Current sources: **Swift 1.5 shared IQ2S / IQ3XXS engine 0.1.3; Bonsai2 shared 8G / 12G source 0.1.3**. The available Swift one-click package remains IQ2S 0.1.2; the IQ3XXS package will be published later. All three current one-click packages use the same Baidu and Quark folder links below. See the [changelog](CHANGELOG.md).
 
 Run Swift 1.5 and Bonsai2 locally on Windows, with chat, image input, tool calling, and long-context KVMem. The one-click package starts after extraction; the model is downloaded on first launch.
 
@@ -10,7 +10,7 @@ Run Swift 1.5 and Bonsai2 locally on Windows, with chat, image input, tool calli
 
 | Build | GPU and VRAM | Model | Guide |
 |---|---|---|---|
-| **Swift 1.5 (recommended)** | RTX 30 series with 12 GB or more; RTX 40 series may work but has not been tested | Swift 1.5 27B IQ2_S, about 9.55 GiB | [Usage guide](#swift-15-setup-and-usage) |
+| **Swift 1.5 (recommended)** | RTX 30 series with 12 GB or more; RTX 40 series may work but has not been tested | Current IQ2_S package, about 9.55 GiB; shared source supports IQ2_S / IQ3_XXS | [Usage guide](#swift-15-setup-and-usage) |
 | **Bonsai2 12G** | Tuned for RTX 3060 12 GB and intended for RTX 30 series | Swift-Bonsai-2 ternary model, about 7.7 GiB | [12G guide](README-12GB.en.md) |
 | **Bonsai2 8G** | For RTX 30 series cards with 8 GB; tested with VRAM limited on a 12 GB card | Swift-Bonsai-2 ptq1, about 6.6 GiB | [8G guide](README-8GB.en.md) |
 
@@ -26,7 +26,7 @@ The one-click packages do not include model files. Extract the full archive and 
 | Bonsai2 12G · 0.1.3 | `ninfer-3060-12g-bonsai2-oneclick-0.1.3.zip` | [Baidu](https://pan.baidu.com/s/1Dyyb-SOULerfXGzDJqLlyQ) | `jqtg` | [Quark](https://pan.quark.cn/s/9fd59ead2458) | `YDvh` |
 | Bonsai2 8G · 0.1.3 | `ninfer-3060-8g-bonsai2-oneclick-0.1.3.zip` | [Baidu](https://pan.baidu.com/s/1Dyyb-SOULerfXGzDJqLlyQ) | `jqtg` | [Quark](https://pan.quark.cn/s/9fd59ead2458) | `YDvh` |
 
-**Release status:** All three one-click packages are in the same Baidu and Quark shared folders. Choose Swift 1.5 Q2S 0.1.2, Bonsai2 12G 0.1.3, or Bonsai2 8G 0.1.3 by archive name; all three use the same links and their corresponding access codes shown in the table. Build identification, fixes, and startup troubleshooting are in [CHANGELOG.md](CHANGELOG.md).
+**Release status:** The three available one-click packages are in the same Baidu and Quark shared folders. Choose Swift 1.5 Q2S 0.1.2, Bonsai2 12G 0.1.3, or Bonsai2 8G 0.1.3 by archive name. The IQ3XXS engine source is shared with IQ2S, but its one-click package is not available yet. Build identification, fixes, and startup troubleshooting are in [CHANGELOG.md](CHANGELOG.md).
 
 ### Converted Abliterated NInfer Models
 
@@ -37,7 +37,7 @@ These Huihui Qwen3.8 27B Abliterated models have been converted to NInfer format
 
 Abliterated variants reduce refusal or safety filtering. Read each model card for provenance, licensing, and usage warnings before use. The Swift model card recommends research and controlled local inference, not public-facing services or use by minors.
 
-Source releases are published separately by model. Each release includes an asset containing only that model's source directory: [Swift 1.5 Q2S source release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.2) and [Bonsai2 shared 8G / 12G source release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.3). Swift's `VERSION` is `0.1.2`; Bonsai's is `0.1.3`. Development continues on `main`; release changes are listed in CHANGELOG.
+Source releases are published by engine family. Each asset contains only its source directory: [Swift 1.5 shared IQ2S / IQ3XXS source 0.1.3](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.3) and [Bonsai2 shared 8G / 12G source 0.1.3](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.3). Both source VERSION files are 0.1.3; the current Swift IQ2S package remains 0.1.2. Development continues on main; release changes are listed in CHANGELOG.
 
 ## Quick Start
 
@@ -331,7 +331,7 @@ The last three items correspond to source changes synchronized on 2026-10-04. Se
 
 ## Source and Build
 
-The full Swift 1.5 engine source is in [`swift15/engine/`](swift15/engine/), including CMake files, implementation, apps, tests, and third-party source. The launcher and settings are in [`swift15/oneclick/`](swift15/oneclick/), with build scripts in [`swift15/scripts/`](swift15/scripts/). See the [Swift source index](swift15/README.en.md).
+The IQ2S and IQ3XXS builds share the full Swift 1.5 engine source in [`swift15/engine/`](swift15/engine/), including CMake files, implementation, apps, tests, and third-party source. The current IQ2S launcher and settings are in [`swift15/oneclick-iq2s/`](swift15/oneclick-iq2s/), with build scripts in [`swift15/scripts/`](swift15/scripts/). See the [Swift source index](swift15/README.en.md).
 
 The Bonsai2 8G and 12G builds share the engine source and build script in [`bonsai2/`](bonsai2/README.en.md), with separate launchers and settings for each memory target. See the [12G build guide](README-12GB.en.md#source-and-build) and [8G guide](README-8GB.en.md).
 
@@ -344,7 +344,7 @@ git clone https://github.com/5258MF/ninfer-rtx3060-27b.git
 cd ninfer-rtx3060-27b
 ```
 
-Or select Code → Download ZIP on GitHub. Engine source: `swift15/engine/`. Upstream baseline: Ryan-gsq branch commit **b06908b**; earlier changes are already integrated.
+Or select Code → Download ZIP on GitHub. Shared IQ2S / IQ3XXS engine source: `swift15/engine/`. Upstream baseline: Ryan-gsq branch commit **b06908b**; earlier changes are already integrated.
 
 #### 2. Windows Requirements
 
@@ -380,7 +380,7 @@ ninfer-serve swift15_iq2_s_mtpq4.ninfer --model-id qwen3.8-27b
   [--lm-head-draft] [--vision --vision-residency overlay --vision-max-merged 4096]
 ```
 
-Environment variables: `NINFER_KVMEM_SINK_PAGES` (fixed-prefix pages), `NINFER_KVMEM_GEN_RESERVE_PAGES` (output reservation pages), and `NINFER_KVMEM_LONG_REUSE=1`. On Windows, KVMem automatically uses pageable Host KV; `NINFER_HOST_KV_PAGEABLE=0/1` can override this. One page equals 64 tokens. The [launcher source](swift15/oneclick/launcher/launch.ps1) calculates these values.
+Environment variables: `NINFER_KVMEM_SINK_PAGES` (fixed-prefix pages), `NINFER_KVMEM_GEN_RESERVE_PAGES` (output reservation pages), and `NINFER_KVMEM_LONG_REUSE=1`. On Windows, KVMem automatically uses pageable Host KV; `NINFER_HOST_KV_PAGEABLE=0/1` can override this. One page equals 64 tokens. The [launcher source](swift15/oneclick-iq2s/launcher/launch.ps1) calculates these values.
 
 ### Model Patch and Conversion Tools
 

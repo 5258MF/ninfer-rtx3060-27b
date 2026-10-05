@@ -1,33 +1,33 @@
-# Swift 1.5 Source and Launcher
+# Swift 1.5 Shared IQ2S / IQ3XXS Engine Source
 
 **Language:** [简体中文](README.md) | English
 
-The current source and one-click package are **0.1.2**, published as a model-specific source release with the launcher and verification fixes. The package shares the same Baidu and Quark links on the [project home](../README.en.md#downloads) as both Bonsai2 packages. See the [changelog](../CHANGELOG.md).
+The current engine source is **0.1.3** and is shared by IQ2_S and IQ3_XXS. The available Swift one-click package remains **IQ2S 0.1.2**; an IQ3XXS package has not been released yet and will get its own download entry later. Swift and Bonsai2 packages use the same Baidu and Quark links on the [project home](../README.en.md#downloads). See the [changelog](../CHANGELOG.md).
 
-This directory contains the complete Swift 1.5 engine source, Windows build script, launcher, and model conversion tools. The upstream baseline is Ryan-gsq commit `b06908b`. KVMem, runtime SM-count detection, and startup fixes are integrated.
+This directory has one Swift 1.5 engine source tree for both quantization formats. Their NInfer format mappings and GPU kernels are part of the same CMake project, so the engine source does not need to be duplicated. The current oneclick-iq2s/ launcher and settings are still for the IQ2S package.
 
-The current source version is **0.1.2** (see [`VERSION`](VERSION)). Swift 1.5 Q2S has a [dedicated 0.1.2 source release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.2) with an asset containing only this build's source. The Baidu and Quark one-click packages are on the [project downloads page](../README.en.md#downloads).
+Source version **0.1.3** is recorded in VERSION and published as the [Swift 1.5 shared IQ2S / IQ3XXS source release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.3). Its asset contains only the swift15/ directory. The previous [0.1.2 release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.2) remains as a historical version. The current IQ2S package is on the [project downloads page](../README.en.md#downloads).
 
-The latest Q2S source and launcher were synchronized on 2026-10-04. They include VRAM budgeting, content scoring, connection keepalive, inference controls, verification tools, and a multi-turn vision KV page-borrowing timing fix.
+The 2026-10-05 source update adds CPU vision encoding with optional OpenBLAS acceleration, automatic thread calibration and caching, and a reference CPU fallback when OpenBLAS is unavailable. The same engine path serves IQ2S and IQ3XXS. The handoff records passing IQ2S/IQ3XXS image checks and CPU-backend unit tests; this does not qualify every image, CPU, or long-context configuration.
 
-Three agent-compatibility changes were also synchronized that day: safe cache handling for mid-history branching and compaction, caps on output and reasoning budgets, and tool-parameter adaptation. Their implementation boundaries are listed in the [changelog](../CHANGELOG.md#2026-10-04三项智能体兼容修改与-bonsai2-12g-源码公开) (Chinese). The shared Bonsai2 8G / 12G source is in [bonsai2](../bonsai2/README.en.md).
+On 2026-10-04, the Swift engine also received VRAM budgeting, content scoring, connection keepalive, inference controls, and a multi-turn vision KV page-borrowing timing fix. Three agent-compatibility changes followed: safe cache handling for mid-history branching and compaction, output and reasoning-budget caps, and tool-parameter adaptation. See the [changelog](../CHANGELOG.md#2026-10-04三项智能体兼容修改与-bonsai2-12g-源码公开) (Chinese). The shared Bonsai2 8G / 12G source is in [bonsai2/](../bonsai2/README.en.md).
 
 ## Directory
 
 | Path | Contents |
 |---|---|
-| [`engine/`](engine/) | Complete engine: CMake project, implementation, applications, tests, and third-party source |
-| [`scripts/build-sm86.bat`](scripts/build-sm86.bat) | Windows build script for sm_86 |
-| [`oneclick/`](oneclick/) | Launcher, test scripts, settings, and user guide |
-| [`oneclick/verify-kit-manifest.ps1`](oneclick/verify-kit-manifest.ps1) | Integrity checks for release files and Chinese filenames |
-| [`oneclick/verify-arch-engine.ps1`](oneclick/verify-arch-engine.ps1) | Engine checks for short prompts, over-window retrieval controls, and multi-turn reuse |
-| [`engine/tools/mtpq4.py`](engine/tools/mtpq4.py) | MTP draft-head quantization utility |
-| [`engine/tools/mkpatch.py`](engine/tools/mkpatch.py) | Builds model-conversion `ops.txt` / `lit.bin` patches |
-| [`hotfix/swift15-hotfix-kv-capacity.zip`](hotfix/swift15-hotfix-kv-capacity.zip) | Launcher patch for an older package's capacity error; see the changelog for scope |
+| [engine/](engine/) | Complete CMake project, implementation, applications, tests, and third-party source |
+| [scripts/build-sm86.bat](scripts/build-sm86.bat) | Windows build script for sm_86 |
+| [oneclick-iq2s/](oneclick-iq2s/) | Current IQ2S launcher, tests, settings, and user guide |
+| [oneclick-iq2s/verify-kit-manifest.ps1](oneclick-iq2s/verify-kit-manifest.ps1) | Integrity checks for release files and Chinese filenames |
+| [oneclick-iq2s/verify-arch-engine.ps1](oneclick-iq2s/verify-arch-engine.ps1) | Engine API, output-cap, tool round-trip, and vision checks |
+| [engine/tools/mtpq4.py](engine/tools/mtpq4.py) | MTP draft-head quantization utility |
+| [engine/tools/mkpatch.py](engine/tools/mkpatch.py) | Builds model-conversion ops.txt / lit.bin patches |
+| [hotfix/swift15-hotfix-kv-capacity.zip](hotfix/swift15-hotfix-kv-capacity.zip) | Launcher patch for an older package capacity error; see the changelog |
 
 ## Getting Started
 
-- Download the package: [project downloads](../README.en.md#downloads).
+- The currently available package is IQ2S 0.1.2: [project downloads](../README.en.md#downloads).
 - Configure and run it: [usage guide](../README.en.md#swift-15-setup-and-usage).
 - Build from source: [build guide](../README.en.md#source-and-build).
 - Learn about the internals: [implementation](../README.en.md#implementation).

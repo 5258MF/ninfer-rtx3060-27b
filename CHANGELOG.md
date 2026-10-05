@@ -9,6 +9,17 @@
 
 Bonsai2 8G 与 12G 共用同一份引擎源码；仓库目录由 `bonsai2-12g/` 改为 `bonsai2/`，目录内 `oneclick-8g/` 和 `oneclick/` 分别保留 8G、12G 启动器。此次只调整命名和文档链接，不改变引擎代码或懒人包参数。已发布的 `bonsai2-12g-v0.1.3` 标签保留原名，作为历史版本标识。
 
+## 0.1.3 - 2026-10-05：Swift 1.5 IQ2S / IQ3XXS 共用源码
+
+**状态：Swift 1.5 共用源码版本为 0.1.3；当前 IQ2S 懒人包仍为 0.1.2，IQ3XXS 懒人包尚未发布。**
+
+- Swift 1.5 的 IQ2_S 与 IQ3_XXS 使用同一份 swift15/engine/ 源码。引擎已有两种量化格式的 NInfer 映射和对应 GPU 内核；不需要复制源码目录。当前 swift15/oneclick-iq2s/ 仍是 IQ2S 启动配置。 对齐 Bonsai2 的目录方式后，现有启动器目录从 swift15/oneclick/ 更名为 swift15/oneclick-iq2s/；后续可并列添加 IQ3XXS 启动器目录。
+- 0.1.3 将 CPU 视觉编码适配合入这套共用引擎：可选 OpenBLAS、自动线程选择与缓存；OpenBLAS 不可用时回退到参考 CPU 实现。该路径对两种量化格式共用。
+- B 机记录：Swift IQ2S / IQ3XXS 看图功能测试、CPU 后端 7 项单测及相关 Windows 构建通过。没有据此声称所有图片、CPU 或长上下文配置均完成验收。
+- [Swift 1.5 IQ2S / IQ3XXS 共用源码 Release 0.1.3](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.3) 附件只含 swift15/ 源码目录。IQ3XXS 懒人包待后续单独制作；现有网盘下载表不变。
+
+English: Swift IQ2_S and IQ3_XXS share the swift15/engine/ source and quantization kernels. The existing launcher source is now named oneclick-iq2s/; no IQ3XXS package is included yet. Source 0.1.3 adds CPU vision encoding with optional OpenBLAS, cached thread selection, and a CPU fallback. The current IQ2S package remains 0.1.2.
+
 ## 0.1.3 / Swift 0.1.2 - 2026-10-05
 
 **状态：Bonsai2 8G／12G 懒人包为 0.1.3，Swift 1.5 Q2S 为 0.1.2。三款懒人包现共用同一组百度、夸克网盘分享链接，文件名和提取码见项目首页下载表。**
@@ -86,7 +97,7 @@ English: launcher recovery now uses readiness, client limits follow retries, and
 
 | 方案 | 完整源码 | 启动器 | 编译入口 |
 |---|---|---|---|
-| Swift 1.5 Q2S | [`swift15/engine/`](swift15/engine/) | [`swift15/oneclick/`](swift15/oneclick/) | [`build-sm86.bat`](swift15/scripts/build-sm86.bat) |
+| Swift 1.5 Q2S | [`swift15/engine/`](swift15/engine/) | [`swift15/oneclick-iq2s/`](swift15/oneclick-iq2s/) | [`build-sm86.bat`](swift15/scripts/build-sm86.bat) |
 | Bonsai2 8G / 12G 共用引擎 | [`bonsai2/engine/`](bonsai2/engine/) | [`oneclick-8g/`](bonsai2/oneclick-8g/) / [`oneclick/`](bonsai2/oneclick/) | [`build-sm86.bat`](bonsai2/scripts/build-sm86.bat) |
 
 Bonsai2 首次公开的是完整 CMake 工程、实现、应用、测试、工具和第三方源码，包含此前 sm_86、SM 自适应、KVMem、rk8v4、显存预算、连接保活与长生成/多轮缓存修复。保留上游 LICENSE、NOTICE 和第三方许可；本机虚拟环境、评测运行记录、下载的语料、历史回退副本、私人配置、模型、DLL 与 EXE 不进入源码提交。
