@@ -6,7 +6,7 @@ Run the Swift-Bonsai-2 27B ternary model on Windows with an RTX 3060 12 GB. The 
 
 ## Download and Start
 
-The current source and one-click package are **0.1.3**. The source is available from the [Bonsai2 shared 8G / 12G source Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.3). The package is `ninfer-3060-12g-bonsai2-oneclick-0.1.3.zip`; it shares the Baidu and Quark links on the [project home](README.en.md#downloads) with the other two packages. See [CHANGELOG](CHANGELOG.md#012---2026-10-04).
+The current Bonsai2 shared source is **0.1.4**; the 12G one-click package remains **0.1.3**. The source is available from the [Bonsai2 shared 8G / 12G source Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.4). The package is `ninfer-3060-12g-bonsai2-oneclick-0.1.3.zip`; it shares the Baidu and Quark links on the [project home](README.en.md#downloads) with the other two packages. See [CHANGELOG](CHANGELOG.md#012---2026-10-04).
 
 An RTX 30 series GPU is required; settings are tuned for the RTX 3060 12 GB. Use Windows 10/11, 32 GB RAM recommended, and about 10 GB of free disk space. The model is not included and downloads on first launch.
 
@@ -250,7 +250,7 @@ Later KVMem iterations added:
 
 ## Source and Build
 
-The shared engine source is in [`bonsai2/engine/`](bonsai2/engine/). The 12G launcher, public defaults, tests, and power tools are in [`oneclick/`](bonsai2/oneclick/). Build entry point: [`build-sm86.bat`](bonsai2/scripts/build-sm86.bat). See the [source index](bonsai2/README.en.md).
+The shared engine source is in [`bonsai2/engine/`](bonsai2/engine/). The 12G launcher, public defaults, tests, and power tools are in [`oneclick-12g/`](bonsai2/oneclick-12g/). Build entry point: [`build-sm86.bat`](bonsai2/scripts/build-sm86.bat). See the [source index](bonsai2/README.en.md).
 
 Windows builds require CUDA 13.1 or later (the recorded build used 13.3), MSVC C++ tools, CMake 3.28 or later, and Ninja. Image input also requires FFmpeg development files: put `include` and `lib` under `bonsai2/engine/ffmpeg/`. The FFmpeg directory and runtime DLLs must be supplied by the builder and are not included in source control.
 

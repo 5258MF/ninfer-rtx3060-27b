@@ -2,11 +2,11 @@
 
 **简体中文 | [English](README.en.md)**
 
-当前源码版本为 **0.1.3**，已按模型分别发布源码 Release，包含 CPU 检索索引、分块打分与按请求分配窗口。8G 和 12G 懒人包均为 **0.1.3**，共用[项目首页](../README.md#下载)中的同一组百度、夸克链接。详情见[更新记录](../CHANGELOG.md)。
+当前共用源码版本为 **0.1.4**，包含 CPU 检索索引、分块打分与按请求分配窗口。8G 和 12G 懒人包仍为 **0.1.3**，共用[项目首页](../README.md#下载)中的同一组百度、夸克链接。详情见[更新记录](../CHANGELOG.md)。
 
 本目录公开 Bonsai2 8GB 与 12GB 共用的完整引擎源码（原 ninfer-tree）和构建脚本，并分别提供两种显存方案的懒人包启动器。两套方案使用不同的模型文件与启动配置；引擎实现和构建入口共用，通用修复也适用于两者。这里包含 sm_86、KVMem 与 rk8v4 相关改动，也涵盖显存预算和 2026-10-04 的三项智能体兼容修复。
 
-当前源码版本为 **0.1.3**，见 [`VERSION`](VERSION)。Bonsai2 8G / 12G 共用源码已发布为[0.1.3 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.3)，附件只包含 Bonsai2 共用源码目录。百度、夸克懒人包见[项目首页](../README.md#下载)。
+当前共用源码版本为 **0.1.4**，见 [`VERSION`](VERSION)。Bonsai2 8G / 12G 共用源码已发布为[0.1.4 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.4)，附件只包含 Bonsai2 共用源码目录。百度、夸克懒人包见[项目首页](../README.md#下载)。
 
 ## 目录
 
@@ -15,7 +15,7 @@
 | [`engine/`](engine/) | 完整 CMake 工程与实现代码；应用与测试、工具及第三方源码也都包含在内 |
 | [`scripts/build-sm86.bat`](scripts/build-sm86.bat) | Windows / sm_86 构建脚本，源码和输出路径相对仓库定位 |
 | [`oneclick-8g/`](oneclick-8g/) | 8G 启动器、公开配置、验收与清单；和 12G 共用 `engine/` |
-| [`oneclick/`](oneclick/) | 12G 启动器、公开默认配置和验收脚本；目录还包含测试与功耗设置 |
+| [`oneclick-12g/`](oneclick-12g/) | 12G 启动器、公开默认配置和验收脚本；目录还包含测试与功耗设置 |
 | [`engine/LICENSE`](engine/LICENSE) | 引擎代码许可；第三方目录保留各自许可 |
 | [`engine/NOTICE`](engine/NOTICE) | 上游声明 |
 

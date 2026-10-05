@@ -9,6 +9,12 @@
 
 Bonsai2 8G 与 12G 共用同一份引擎源码；仓库目录由 `bonsai2-12g/` 改为 `bonsai2/`，目录内 `oneclick-8g/` 和 `oneclick/` 分别保留 8G、12G 启动器。此次只调整命名和文档链接，不改变引擎代码或懒人包参数。已发布的 `bonsai2-12g-v0.1.3` 标签保留原名，作为历史版本标识。
 
+## 2026-10-05：Bonsai2 12G 启动器目录明确命名
+
+Bonsai2 8G / 12G 继续共用一个引擎源码目录。12G 启动器源码由 bonsai2/oneclick/ 更名为 bonsai2/oneclick-12g/，与 oneclick-8g/ 对称；只整理源码目录名和文档链接，不修改启动器参数或网盘懒人包。Bonsai2 共用源码版本升为 0.1.4，新的源码 Release 附件只包含 bonsai2/。8G、12G 懒人包仍为 0.1.3。
+
+English: The 12G launcher source now lives in bonsai2/oneclick-12g/, alongside oneclick-8g/. This is a source-tree and documentation rename only; the 0.1.3 packages are unchanged. Shared Bonsai2 source version 0.1.4 is released separately.
+
 ## 0.1.3 - 2026-10-05：Swift 1.5 IQ2S / IQ3XXS 共用源码
 
 **状态：Swift 1.5 共用源码版本为 0.1.3；当前 IQ2S 懒人包仍为 0.1.2，IQ3XXS 懒人包尚未发布。**
@@ -98,7 +104,7 @@ English: launcher recovery now uses readiness, client limits follow retries, and
 | 方案 | 完整源码 | 启动器 | 编译入口 |
 |---|---|---|---|
 | Swift 1.5 Q2S | [`swift15/engine/`](swift15/engine/) | [`swift15/oneclick-iq2s/`](swift15/oneclick-iq2s/) | [`build-sm86.bat`](swift15/scripts/build-sm86.bat) |
-| Bonsai2 8G / 12G 共用引擎 | [`bonsai2/engine/`](bonsai2/engine/) | [`oneclick-8g/`](bonsai2/oneclick-8g/) / [`oneclick/`](bonsai2/oneclick/) | [`build-sm86.bat`](bonsai2/scripts/build-sm86.bat) |
+| Bonsai2 8G / 12G 共用引擎 | [`bonsai2/engine/`](bonsai2/engine/) | [`oneclick-8g/`](bonsai2/oneclick-8g/) / [`oneclick-12g/`](bonsai2/oneclick-12g/) | [`build-sm86.bat`](bonsai2/scripts/build-sm86.bat) |
 
 Bonsai2 首次公开的是完整 CMake 工程、实现、应用、测试、工具和第三方源码，包含此前 sm_86、SM 自适应、KVMem、rk8v4、显存预算、连接保活与长生成/多轮缓存修复。保留上游 LICENSE、NOTICE 和第三方许可；本机虚拟环境、评测运行记录、下载的语料、历史回退副本、私人配置、模型、DLL 与 EXE 不进入源码提交。
 
