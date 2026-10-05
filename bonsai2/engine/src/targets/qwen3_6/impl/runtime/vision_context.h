@@ -17,6 +17,8 @@
 #include <optional>
 #include <span>
 #include <vector>
+#include <memory>
+namespace ninfer_cpu_port { struct CpuVisionWeights; }
 
 namespace ninfer::targets::qwen3_6::detail::NINFER_QWEN36_RUNTIME_NS::schedule {
 
@@ -81,6 +83,7 @@ private:
         const Tensor* fc2_bias    = nullptr;
     };
 
+    std::shared_ptr<ninfer_cpu_port::CpuVisionWeights> cpu_weights_;
     DeviceContext& ctx_;
     const Weight* patch_embed_      = nullptr;
     const Tensor* patch_embed_bias_ = nullptr;

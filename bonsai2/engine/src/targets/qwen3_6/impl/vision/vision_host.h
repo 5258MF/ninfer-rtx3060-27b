@@ -14,6 +14,9 @@
 #include <cstdint>
 #include <limits>
 #include <vector>
+#include <memory>
+#include <cstdlib>
+namespace ninfer_cpu_port { struct CpuVisionWeights; }
 
 namespace ninfer::targets::qwen3_6 {
 
@@ -29,6 +32,7 @@ struct VisionHostStore {
     static constexpr std::size_t chunk_merger_a = 1 + VisionBackboneConfig::layers;
     static constexpr std::size_t chunk_merger_b = 2 + VisionBackboneConfig::layers;
 
+    std::shared_ptr<ninfer_cpu_port::CpuVisionWeights> cpu_weights;
     bool enabled = false;
     std::vector<std::byte> blob;
     std::vector<std::size_t> offset_of; // ObjectHandle::index -> blob offset (npos if absent)
@@ -48,6 +52,10 @@ struct VisionHostStore {
 
 [[nodiscard]] VisionHostStore& vision_host_store();
 [[nodiscard]] bool vision_host_requested();
+inline bool vision_cpu_requested(){
+    const char* v=std::getenv("NINFER_VISION_CPU");
+    return vision_host_requested() && !(v && v[0]=='0' && v[1]=='\0');
+}
 
 // Copies every vision payload out of the artifact mapping into the host blob, grouped by chunk.
 void vision_host_collect(const artifact::Binder& binder, const VisionBackbonePlan& backbone,

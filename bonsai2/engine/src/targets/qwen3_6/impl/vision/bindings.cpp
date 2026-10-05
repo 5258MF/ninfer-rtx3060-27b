@@ -216,6 +216,7 @@ void vision_host_collect(const artifact::Binder& binder, const VisionBackbonePla
         }
     }
     VisionHostStore& s = vision_host_store();
+    s.cpu_weights.reset();
     s.blob.assign(total, std::byte{0});
     s.offset_of.assign(max_index + 1, VisionHostStore::npos);
     s.chunks.clear();
@@ -253,6 +254,10 @@ VisionCommonWeights materialize_vision_common_host(const VisionBackbonePlan& bac
 void vision_host_prepare_device() {
     VisionHostStore& s = vision_host_store();
     if (!s.enabled || s.slot != nullptr) { return; }
+    if(vision_cpu_requested()){
+        std::fprintf(stderr,"[vision-host] CPU encoder; GPU weight slot=0; weights in pageable host RAM\n");
+        return;
+    }
     std::size_t largest = 0;
     for (const auto& c : s.chunks) { largest = std::max(largest, c.end - c.begin); }
     const cudaError_t pin = cudaHostRegister(s.blob.data(), s.blob.size(), cudaHostRegisterDefault);

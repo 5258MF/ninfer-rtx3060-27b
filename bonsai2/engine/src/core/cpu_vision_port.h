@@ -1,17 +1,46 @@
-#include "models/qwen3_5/execution/vision_cpu.h"
-
-#include <algorithm>
+#pragma once
 #include "core/cpu_auto_backend.h"
+#include <atomic>
 #include <bit>
-#include <chrono>
 #include <cmath>
 #include <condition_variable>
 #include <functional>
 #include <mutex>
+#include <span>
 #include <stdexcept>
 #include <utility>
+namespace ninfer_cpu_port {
+struct CpuVisionWeights {
+    std::int32_t hidden        = 0;
+    std::int32_t heads         = 0;
+    std::int32_t intermediate  = 0;
+    std::int32_t patch_width   = 0;
+    std::int32_t merge_unit    = 0; // spatial_merge_size squared
+    std::int32_t output_hidden = 0; // the text hidden size the merger projects to
+    std::int32_t position_rows = 0;
 
-namespace ninfer::models::qwen3_5::execution {
+    struct Layer {
+        std::vector<float> norm1_weight, norm1_bias;
+        std::vector<float> qkv, qkv_bias;
+        std::vector<float> output, output_bias;
+        std::vector<float> norm2_weight, norm2_bias;
+        std::vector<float> fc1, fc1_bias;
+        std::vector<float> fc2, fc2_bias;
+    };
+
+    std::vector<float> patch_embedding, patch_embedding_bias;
+    std::vector<float> position_embedding; // [position_rows, hidden]
+    std::vector<Layer> layers;
+    std::vector<float> merger_norm_weight, merger_norm_bias;
+    std::vector<float> merger_fc1, merger_fc1_bias;
+    std::vector<float> merger_fc2, merger_fc2_bias;
+
+    [[nodiscard]] std::int32_t head_dim() const noexcept { return heads != 0 ? hidden / heads : 0; }
+
+    [[nodiscard]] std::int32_t merger_width() const noexcept { return hidden * merge_unit; }
+
+};
+
 namespace {
 
 constexpr float kNormEpsilon = 1.0e-6F;
@@ -412,9 +441,10 @@ std::mutex& encode_turn() {
 
 } // namespace
 
+template<class Control>
 std::vector<std::uint16_t> encode_vision_on_cpu(const CpuVisionWeights& weights,
                                                 std::span<const std::uint16_t> patches,
-                                                const VisionItemControl& control, unsigned threads,
+                                                const Control& control, unsigned threads,
                                                 const std::atomic<bool>* cancelled) {
     const auto count   = static_cast<std::int32_t>(control.patch_count);
     const auto merged  = static_cast<std::int32_t>(control.merged_count);
@@ -520,51 +550,5 @@ std::vector<std::uint16_t> encode_vision_on_cpu(const CpuVisionWeights& weights,
     return out;
 }
 
-CpuVisionSession::CpuVisionSession(std::shared_ptr<const CpuVisionWeights> weights)
-    : weights_(std::move(weights)) {
-    if (!weights_) { throw std::invalid_argument("CPU Vision session has no weights"); }
-}
 
-CpuVisionSession::~CpuVisionSession() {
-    if (worker_.joinable()) {
-        cancelled_.store(true, std::memory_order_release);
-        worker_.join();
-    }
 }
-
-void CpuVisionSession::submit_item(std::shared_ptr<const PreparedMediaPayload> payload,
-                                   const VisionItemControl& control) {
-    if (worker_.joinable()) { throw std::logic_error("CPU Vision item is already in flight"); }
-    if (!payload) { throw std::invalid_argument("CPU Vision item has no patches"); }
-    finished_.store(false, std::memory_order_relaxed);
-    error_ = nullptr;
-    slot_ ^= 1U;
-    worker_ = std::thread([this, payload = std::move(payload), control, slot = slot_] {
-        try {
-            const std::lock_guard turn(encode_turn());
-            const auto started = std::chrono::steady_clock::now();
-            results_[slot] =
-                encode_vision_on_cpu(*weights_, payload->span(), control, 0, &cancelled_);
-            worker_seconds_ =
-                std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
-        } catch (...) { error_ = std::current_exception(); }
-        finished_.store(true, std::memory_order_release);
-    });
-}
-
-std::span<const std::byte> CpuVisionSession::complete_item() {
-    if (!worker_.joinable()) { throw std::logic_error("no CPU Vision item is in flight"); }
-    worker_.join();
-    if (error_) { std::rethrow_exception(std::exchange(error_, nullptr)); }
-    encode_seconds_ += worker_seconds_;
-    return std::as_bytes(std::span<const std::uint16_t>(results_[slot_]));
-}
-
-std::span<const std::byte>
-CpuVisionSession::encode_item(std::shared_ptr<const PreparedMediaPayload> payload,
-                              const VisionItemControl& control) {
-    submit_item(std::move(payload), control);
-    return complete_item();
-}
-
-} // namespace ninfer::models::qwen3_5::execution

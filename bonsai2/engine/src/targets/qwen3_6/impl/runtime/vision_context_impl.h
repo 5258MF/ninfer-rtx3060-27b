@@ -2,6 +2,7 @@
 #include "targets/qwen3_6/impl/runtime/vision_context.h"
 #include "targets/qwen3_6/impl/vision/vision_host.h"
 
+#include "targets/qwen3_6/impl/vision/vision_cpu_adapter.h"
 #include "core/device.h"
 #include "core/layout.h"
 #include "core/nvtx.h"
@@ -180,6 +181,7 @@ VisionContext::VisionContext(DeviceContext& ctx, const LoadedModelData& weights)
         throw std::invalid_argument("Vision execution was requested without materialized weights");
     }
     const auto& vision = *weights.vision;
+    if(qwen3_6::vision_cpu_requested())cpu_weights_=qwen3_6::cpu_vision_weights(vision);
     patch_embed_       = &vision.common.patch_embedding;
     patch_embed_bias_  = &vision.common.patch_embedding_bias;
     position_embed_    = &vision.common.position_embedding;
@@ -212,6 +214,7 @@ std::size_t VisionContext::workspace_bytes(const qwen3_6::VisionItemControl& ite
 }
 
 std::size_t VisionContext::workspace_bytes(std::size_t patches, std::size_t merged_tokens) {
+    if(qwen3_6::vision_cpu_requested())return 0;
     return build_workspace_layout(patches, merged_tokens).bytes;
 }
 
@@ -226,6 +229,14 @@ VisionWorkspacePlan VisionContext::plan_workspace(std::uint32_t max_merged_token
     VisionWorkspacePlan out;
     out.max_merged_tokens      = max_merged_tokens;
     out.general_capacity_bytes = general_capacity_bytes;
+    if(qwen3_6::vision_cpu_requested()){
+        out.encode_peak_bytes=0;
+        out.handoff_offset_bytes=align_up(general_capacity_bytes,kWorkspaceAlignment,"CPU visual handoff");
+        out.handoff_capacity_bytes=output_handoff_bytes(max_merged_tokens);
+        out.capacity_bytes=checked_add(out.handoff_offset_bytes,out.handoff_capacity_bytes,"CPU visual handoff");
+        std::fprintf(stderr,"CPU Vision | GPU encode workspace=0; GPU feature handoff=%zu bytes\n",out.handoff_capacity_bytes);
+        return out;
+    }
     out.encode_peak_bytes =
         build_workspace_layout(checked_mul(max_merged_tokens, VisionScheduleConfig::merge_unit,
                                            "capacity patch count"),
@@ -275,6 +286,15 @@ void VisionContext::encode(const VisionItemView& item, Tensor& output, DeviceSpa
         output.ne[1] != static_cast<std::int32_t>(tokens64) || output.ne[2] != 1 ||
         output.ne[3] != 1 || !output.is_contiguous() || output.data == nullptr) {
         throw std::invalid_argument("Vision output must be contiguous BF16 [H,V]");
+    }
+    if(cpu_weights_){
+        const auto features=ninfer_cpu_port::encode_vision_on_cpu(*cpu_weights_,item.patches,control,0,nullptr);
+        if(features.size()*sizeof(std::uint16_t)!=output.bytes())throw std::runtime_error("CPU visual handoff shape mismatch");
+        const auto planned=bind_output(backing,plan,tokens64);
+        if(output.data!=planned.data||output.bytes()!=planned.bytes())throw std::runtime_error("CPU visual handoff binding mismatch");
+        CUDA_CHECK(cudaMemcpyAsync(output.data,features.data(),output.bytes(),cudaMemcpyHostToDevice,ctx_.stream));
+        CUDA_CHECK(cudaStreamSynchronize(ctx_.stream)); // host features stay alive until stream-ordered handoff completes
+        return;
     }
     const Tensor planned_output = bind_output(backing, plan, tokens64);
     if (output.data != planned_output.data || output.bytes() != planned_output.bytes()) {
