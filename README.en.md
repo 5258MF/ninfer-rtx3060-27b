@@ -28,6 +28,15 @@ The one-click packages do not include model files. Extract the full archive and 
 
 **Release status:** All three one-click packages are in the same Baidu and Quark shared folders. Choose Swift 1.5 Q2S 0.1.2, Bonsai2 12G 0.1.3, or Bonsai2 8G 0.1.3 by archive name; all three use the same links and their corresponding access codes shown in the table. Build identification, fixes, and startup troubleshooting are in [CHANGELOG.md](CHANGELOG.md).
 
+### Converted Abliterated NInfer Models
+
+These Huihui Qwen3.8 27B Abliterated models have been converted to NInfer format and are available on Hugging Face:
+
+- [Ternary Bonsai-2 NInfer](https://huggingface.co/fyb1214/Huihui-Qwen3.8-27B-Abliterated-Ternary-Bonsai-2-NInfer)
+- [Swift 1.5 GSQ-RCO NInfer](https://huggingface.co/fyb1214/Huihui-Qwen3.8-27B-Abliterated-Swift-1.5-GSQ-RCO-NInfer)
+
+Abliterated variants reduce refusal or safety filtering. Read each model card for provenance, licensing, and usage warnings before use. The Swift model card recommends research and controlled local inference, not public-facing services or use by minors.
+
 Source releases are published separately by model. Each release includes an asset containing only that model's source directory: [Swift 1.5 Q2S source release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.2) and [Bonsai2 shared 8G / 12G source release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.3). Swift's `VERSION` is `0.1.2`; Bonsai's is `0.1.3`. Development continues on `main`; release changes are listed in CHANGELOG.
 
 ## Quick Start

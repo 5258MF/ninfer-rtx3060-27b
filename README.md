@@ -28,6 +28,15 @@ Swift 1.5 默认总上下文为 200K，最多可配置 256K；KVMem 会从历史
 
 **发布状态：三款懒人包已统一放在同一组百度、夸克网盘分享链接中。** 按下表的文件名选择 Swift 1.5 Q2S 0.1.2、Bonsai2 12G 0.1.3 或 Bonsai2 8G 0.1.3；三款包共用相同链接和各自对应的提取码。版本识别信息、修复记录和相关报错处理见 [CHANGELOG.md](CHANGELOG.md)。
 
+### 已转换的无审查 NInfer 模型
+
+以下 Huihui Qwen3.8 27B Abliterated 模型已转换为 NInfer 格式，可从 Hugging Face 下载：
+
+- [Ternary Bonsai-2 NInfer](https://huggingface.co/fyb1214/Huihui-Qwen3.8-27B-Abliterated-Ternary-Bonsai-2-NInfer)
+- [Swift 1.5 GSQ-RCO NInfer](https://huggingface.co/fyb1214/Huihui-Qwen3.8-27B-Abliterated-Swift-1.5-GSQ-RCO-NInfer)
+
+Abliterated 版本会削弱模型的拒答或安全过滤能力。使用前请阅读各自模型卡中的来源、许可和使用警告；Swift 版本的模型卡建议用于研究和本地受控推理，不建议用于面向公众或未成年人的服务。
+
 源码按模型分别发布，每个 Release 都提供只包含对应源码目录的附件：[Swift 1.5 Q2S 源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.2) 和 [Bonsai2 8G / 12G 共用源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.3)。Swift 的 `VERSION` 为 `0.1.2`，Bonsai2 为 `0.1.3`；后续开发继续在 `main` 更新，发布内容见 CHANGELOG。
 
 ## 快速开始
