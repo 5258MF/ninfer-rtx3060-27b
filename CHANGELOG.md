@@ -13,6 +13,8 @@ Bonsai2 8G 与 12G 共用同一份引擎源码；仓库目录由 `bonsai2-12g/` 
 
 **状态：Bonsai2 8G／12G 懒人包为 0.1.3，Swift 1.5 Q2S 为 0.1.2。三款懒人包现共用同一组百度、夸克网盘分享链接，文件名和提取码见项目首页下载表。**
 
+- 已移除整仓快照的 `v0.1.0` Release 页面；Git 标签仍保留为历史快照，模型源码请使用各自独立的 Release。
+
 - Qwen 3.8 27B 模型库已合并到同一网盘文件夹；README 中已更新最新百度、夸克链接和提取码。
 
 - 三套方案按本次完整渲染的系统、developer 和工具定义计算固定开头；Bonsai 对齐 64 token，Swift 对齐 128 token。256K 检索目标 32K–36K、优先 36K；128K 为 16K–18K、优先 18K，检索不包含固定开头。
@@ -46,7 +48,7 @@ English: Bonsai2 moves its FP32 index and BF16 query stash to host RAM and uses 
 
 ## 0.1.1 - 2026-10-04
 
-**状态：0.1.1 源码已按模型分别发布 Release；本机新懒人包已验证，网盘待用户重新上传。0.1.0 标签、Release 和现有网盘链接保留原快照。**
+**状态：0.1.1 源码已按模型分别发布 Release；本机新懒人包已验证，网盘待用户重新上传。0.1.0 标签、各模型独立源码 Release 和现有网盘链接保留原快照。**
 
 - 根目录、Swift 1.5 和 Bonsai2 12G 的 VERSION 均升级为 0.1.1。
 - [Swift 1.5 Q2S 0.1.1 源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.1) 与 [Bonsai2 12G 0.1.1 源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.1) 分别提供对应模型的完整源码附件；不创建新的合并源码 Release。
