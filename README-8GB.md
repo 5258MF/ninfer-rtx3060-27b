@@ -8,7 +8,7 @@
 
 ## 下载与开始
 
-下载 `ninfer-3060-8g-oneclick.zip`，网盘链接和提取码见[项目首页](README.md#下载)。
+下载 `ninfer-3060-8g-bonsai2-oneclick-0.1.3.zip`，共用网盘链接和提取码见[项目首页](README.md#下载)。
 
 需要 Windows 10 / 11、支持 CUDA 13 的 NVIDIA 驱动，内存建议 32 GB，第一次转换需约 15 GB 空闲磁盘。完整解压后双击 `启动.bat`，第一次会下载并转换模型；出现 `listening` 后运行 `测试.bat`。
 

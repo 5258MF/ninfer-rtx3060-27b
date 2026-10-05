@@ -2,7 +2,7 @@
 
 **Language:** [简体中文](README.md) | English
 
-The current source version is **0.1.2**, published as separate model-specific source releases with the launcher and verification fixes. Cloud downloads still contain the previously uploaded **0.1.0** packages; fixed kits await upload. Existing download links have not been relabeled as 0.1.2. See the [changelog](../CHANGELOG.md).
+The current source and one-click package are **0.1.2**, published as a model-specific source release with the launcher and verification fixes. The package shares the same Baidu and Quark links on the [project home](../README.en.md#downloads) as both Bonsai2 packages. See the [changelog](../CHANGELOG.md).
 
 This directory contains the complete Swift 1.5 engine source, Windows build script, launcher, and model conversion tools. The upstream baseline is Ryan-gsq commit `b06908b`. KVMem, runtime SM-count detection, and startup fixes are integrated.
 

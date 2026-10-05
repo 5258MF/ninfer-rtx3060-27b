@@ -2,7 +2,7 @@
 
 **Language:** [简体中文](README.md) | English
 
-Current sources: **Swift 1.5 Q2S 0.1.2; Bonsai2 8G / 12G 0.1.3**. Bonsai2 adds CPU retrieval and blocked scoring, with request-based prefix, retrieval and output allocation. Cloud links still point to previous packages; new kits await upload. See the [changelog](CHANGELOG.md).
+Current sources: **Swift 1.5 Q2S 0.1.2; Bonsai2 8G / 12G 0.1.3**. Bonsai2 adds CPU retrieval and blocked scoring, with request-based prefix, retrieval and output allocation. All three one-click packages use the same Baidu and Quark folder links below. See the [changelog](CHANGELOG.md).
 
 Run Swift 1.5 and Bonsai2 locally on Windows, with chat, image input, tool calling, and long-context KVMem. The one-click package starts after extraction; the model is downloaded on first launch.
 
@@ -20,15 +20,13 @@ Swift 1.5 defaults to a 200K total context and can be configured up to 256K. KVM
 
 The one-click packages do not include model files. Extract the full archive and keep directories such as `engine`, `launcher`, and `patch`.
 
-| Build | Archive | Cloud drive | Code |
-|---|---|---|---|
-| Swift 1.5 Q2S · 0.1.0 | `ninfer-3060-swift15-q2s-mtp-oneclick-0.1.0.zip` | [Baidu](https://pan.baidu.com/s/1-t29Y9MZIHWliToRQI6i7g) | `t7f6` |
-| Swift 1.5 Q2S · 0.1.0 | `ninfer-3060-swift15-q2s-mtp-oneclick-0.1.0.zip` | [Quark](https://pan.quark.cn/s/8f383d9bb626) | `pnps` |
-| Bonsai2 12G · 0.1.0 | `ninfer-3060-12g-bonsai2-oneclick-0.1.0.zip` | [Baidu](https://pan.baidu.com/s/1-S14MappSh7uttKqIw1M_A) | `c62v` |
-| Bonsai2 12G · 0.1.0 | Same as above | [Quark](https://pan.quark.cn/s/b526dae6d411) | `aHfN` |
-| Bonsai2 8G · legacy | `ninfer-3060-8g-oneclick.zip` | [Baidu](https://pan.baidu.com/s/1_ZIDNnMaaOGRk-YnHb0jUA) | `gkyy` |
+| Build | Archive | Baidu Netdisk | Code | Quark | Code |
+|---|---|---|---|---|---|
+| Swift 1.5 Q2S · 0.1.2 | `ninfer-3060-swift15-q2s-mtp-oneclick-0.1.2.zip` | [Baidu](https://pan.baidu.com/s/1Dyyb-SOULerfXGzDJqLlyQ) | `jqtg` | [Quark](https://pan.quark.cn/s/9fd59ead2458) | `YDvh` |
+| Bonsai2 12G · 0.1.3 | `ninfer-3060-12g-bonsai2-oneclick-0.1.3.zip` | [Baidu](https://pan.baidu.com/s/1Dyyb-SOULerfXGzDJqLlyQ) | `jqtg` | [Quark](https://pan.quark.cn/s/9fd59ead2458) | `YDvh` |
+| Bonsai2 8G · 0.1.3 | `ninfer-3060-8g-bonsai2-oneclick-0.1.3.zip` | [Baidu](https://pan.baidu.com/s/1Dyyb-SOULerfXGzDJqLlyQ) | `jqtg` | [Quark](https://pan.quark.cn/s/9fd59ead2458) | `YDvh` |
 
-**Release status:** The Swift 1.5 Q2S and Bonsai2 12G 0.1.0 packages are uploaded to both Baidu and Quark. They include the three agent-compatibility changes synchronized on 2026-10-04. The Swift Quark link was corrected using the latest link supplied by the user; use the versioned archive name and code shown above. The 8G package remains on its previous release. Build identification, fixes, and startup troubleshooting are in [CHANGELOG.md](CHANGELOG.md).
+**Release status:** All three one-click packages are in the same Baidu and Quark shared folders. Choose Swift 1.5 Q2S 0.1.2, Bonsai2 12G 0.1.3, or Bonsai2 8G 0.1.3 by archive name; all three use the same links and their corresponding access codes shown in the table. Build identification, fixes, and startup troubleshooting are in [CHANGELOG.md](CHANGELOG.md).
 
 Source releases are published separately by model. Each release includes an asset containing only that model's source directory: [Swift 1.5 Q2S source release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.2) and [Bonsai2 shared 8G / 12G source release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.3). Swift's `VERSION` is `0.1.2`; Bonsai's is `0.1.3`. Development continues on `main`; release changes are listed in CHANGELOG.
 
@@ -132,7 +130,7 @@ You can also edit `设置.ini` in a text editor:
 
 The window and automatic output vary with free VRAM. Use the values in the generated `接入信息.txt` after startup.
 
-Inference controls are included in the 0.1.0 package. `RECOVER_INVARIANT` only handles internal errors for which recovery is implemented; it cannot recover from every error.
+Inference controls are included in the current one-click packages. `RECOVER_INVARIANT` only handles internal errors for which recovery is implemented; it cannot recover from every error.
 
 ### Connect a Client
 
@@ -186,7 +184,7 @@ Hashes and instructions for creating the patch are in [Source and Build](#model-
 
 `使用说明.txt` is available for offline use. See [test results and known limits](#test-results-and-known-limits) for speed and long-context recall scope.
 
-The verification tools are included with the 0.1.0 source and package. After extracting the complete package, run:
+The verification tools are included in the current source and one-click packages. After extracting the complete package, run:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\verify-kit-manifest.ps1

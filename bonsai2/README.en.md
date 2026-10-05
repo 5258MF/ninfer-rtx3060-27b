@@ -2,7 +2,7 @@
 
 **Language:** [简体中文](README.md) | English
 
-The current source version is **0.1.3**, published as separate model-specific source releases with CPU retrieval, blocked scoring, and window allocation improvements. Cloud downloads still contain the previously uploaded **0.1.0** packages; fixed kits await upload. Existing download links have not been relabeled as 0.1.3. See the [changelog](../CHANGELOG.md).
+The current source version is **0.1.3**, published as separate model-specific source releases with CPU retrieval, blocked scoring, and window allocation improvements. The 8G and 12G one-click packages are both **0.1.3** and share the same Baidu and Quark links on the [project home](../README.en.md#downloads). See the [changelog](../CHANGELOG.md).
 
 This directory contains the engine source (formerly `ninfer-tree`) and build script shared by the Bonsai2 8 GB and 12 GB builds, plus separate one-click launchers for each memory target. The builds use different model files and launch settings; the engine implementation, common fixes, and build entry point are shared. It includes the sm_86, KVMem, rk8v4, and VRAM-budget changes, along with the three agent-compatibility fixes synchronized on 2026-10-04.
 

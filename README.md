@@ -2,7 +2,7 @@
 
 **简体中文 | [English](README.en.md)**
 
-当前源码：**Swift 1.5 Q2S 0.1.2，Bonsai2 8G / 12G 0.1.3**。Bonsai2 新增 CPU 检索索引与分块打分；三套方案统一按实际系统提示、检索目标和输出余量分配窗口。网盘链接仍指向原有包，新包待重新上传。详情见[更新记录](CHANGELOG.md)。
+当前源码：**Swift 1.5 Q2S 0.1.2，Bonsai2 8G / 12G 0.1.3**。Bonsai2 新增 CPU 检索索引与分块打分；三套方案统一按实际系统提示、检索目标和输出余量分配窗口。三款懒人包共用下方同一组百度网盘和夸克网盘链接。详情见[更新记录](CHANGELOG.md)。
 
 为 Windows 提供 Swift 1.5 和 Bonsai2 的本地推理方案，支持对话和图片输入，也支持工具调用与 KVMem 长上下文。懒人包解压后双击启动，模型在第一次运行时下载。
 
@@ -20,15 +20,13 @@ Swift 1.5 默认总上下文为 200K，最多可配置 256K；KVMem 会从历史
 
 懒人包不包含模型。请完整解压，保留 `engine`、`launcher` 和 `patch` 等目录。
 
-| 版本 | 文件名 | 网盘 | 提取码 |
-|---|---|---|---|
-| Swift 1.5 Q2S · 0.1.0 | `ninfer-3060-swift15-q2s-mtp-oneclick-0.1.0.zip` | [百度网盘](https://pan.baidu.com/s/1-t29Y9MZIHWliToRQI6i7g) | `t7f6` |
-| Swift 1.5 Q2S · 0.1.0 | `ninfer-3060-swift15-q2s-mtp-oneclick-0.1.0.zip` | [夸克网盘](https://pan.quark.cn/s/8f383d9bb626) | `pnps` |
-| Bonsai2 12G · 0.1.0 | `ninfer-3060-12g-bonsai2-oneclick-0.1.0.zip` | [百度网盘](https://pan.baidu.com/s/1-S14MappSh7uttKqIw1M_A) | `c62v` |
-| Bonsai2 12G · 0.1.0 | 同上 | [夸克网盘](https://pan.quark.cn/s/b526dae6d411) | `aHfN` |
-| Bonsai2 8G · 旧版 | `ninfer-3060-8g-oneclick.zip` | [百度网盘](https://pan.baidu.com/s/1_ZIDNnMaaOGRk-YnHb0jUA) | `gkyy` |
+| 版本 | 文件名 | 百度网盘 | 提取码 | 夸克网盘 | 提取码 |
+|---|---|---|---|---|---|
+| Swift 1.5 Q2S · 0.1.2 | `ninfer-3060-swift15-q2s-mtp-oneclick-0.1.2.zip` | [百度网盘](https://pan.baidu.com/s/1Dyyb-SOULerfXGzDJqLlyQ) | `jqtg` | [夸克网盘](https://pan.quark.cn/s/9fd59ead2458) | `YDvh` |
+| Bonsai2 12G · 0.1.3 | `ninfer-3060-12g-bonsai2-oneclick-0.1.3.zip` | [百度网盘](https://pan.baidu.com/s/1Dyyb-SOULerfXGzDJqLlyQ) | `jqtg` | [夸克网盘](https://pan.quark.cn/s/9fd59ead2458) | `YDvh` |
+| Bonsai2 8G · 0.1.3 | `ninfer-3060-8g-bonsai2-oneclick-0.1.3.zip` | [百度网盘](https://pan.baidu.com/s/1Dyyb-SOULerfXGzDJqLlyQ) | `jqtg` | [夸克网盘](https://pan.quark.cn/s/9fd59ead2458) | `YDvh` |
 
-**发布状态：Swift 1.5 Q2S 与 Bonsai2 12G 的 0.1.0 包均已上传百度和夸克，包含 2026-10-04 同步的三项智能体兼容修改。** Swift 夸克链接已按用户最新提供的信息更正，请使用本表中的版本化文件名、链接和提取码。8G 版沿用之前的发布包。版本识别信息、修复记录和相关报错处理见 [CHANGELOG.md](CHANGELOG.md)。
+**发布状态：三款懒人包已统一放在同一组百度、夸克网盘分享链接中。** 按下表的文件名选择 Swift 1.5 Q2S 0.1.2、Bonsai2 12G 0.1.3 或 Bonsai2 8G 0.1.3；三款包共用相同链接和各自对应的提取码。版本识别信息、修复记录和相关报错处理见 [CHANGELOG.md](CHANGELOG.md)。
 
 源码按模型分别发布，每个 Release 都提供只包含对应源码目录的附件：[Swift 1.5 Q2S 源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.2) 和 [Bonsai2 8G / 12G 共用源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.3)。Swift 的 `VERSION` 为 `0.1.2`，Bonsai2 为 `0.1.3`；后续开发继续在 `main` 更新，发布内容见 CHANGELOG。
 
@@ -132,7 +130,7 @@ Harness 在第一次请求前即可配置：`contextWindow` 填总上下文，`m
 
 窗口与自动输出会随空闲显存变化。开头与输出自动分配；启动后以生成的 `接入信息.txt` 为准。
 
-推理控制设置已包含在 0.1.0 包中。`RECOVER_INVARIANT` 只处理引擎支持恢复的内部错误，不能保证所有错误都能恢复。
+推理控制设置已包含在当前懒人包中。`RECOVER_INVARIANT` 只处理引擎支持恢复的内部错误，不能保证所有错误都能恢复。
 
 ### 连接客户端
 
@@ -186,7 +184,7 @@ Harness 在第一次请求前即可配置：`contextWindow` 填总上下文，`m
 
 包里的 `使用说明.txt` 可离线查阅；速度与长文召回范围见[测试结果与已知限制](#测试结果与已知限制)。
 
-上述校验和验收工具已随 0.1.0 源码及懒人包提供。完整包解压后可运行：
+上述校验和验收工具已包含在当前源码和懒人包中。完整包解压后可运行：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\verify-kit-manifest.ps1
