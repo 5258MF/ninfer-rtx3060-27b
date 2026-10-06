@@ -210,7 +210,7 @@ powershell -ExecutionPolicy Bypass -File .\verify-arch-engine.ps1
 
 同一台机器、同一个测试工具（引擎自带的 `ninfer-perplexity`，语料 `perplexity-1m`，上下文 4096）：
 
-| 领域 | 12G 版 Swift-Bonsai-2 | **Swift 1.5 IQ2_S** |
+| 领域 | Swift-Bonsai-2 | **Swift 1.5 IQ2_S** |
 |---|---|---|
 | 中文维基 | 7.894 | **5.443** |
 | 英文长文 PG-19 | 8.656 | **7.439** |
