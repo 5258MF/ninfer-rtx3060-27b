@@ -22,7 +22,7 @@ $UtcEngine = [datetime]::SpecifyKind([datetime]"2026-10-03T00:00:00", [System.Da
 
 $EmbeddedExpected = [ordered]@{
     "launcher/runtime-options.ps1" = @{ Sha256 = "eff90bdebf0a2344bb1a5b64820464527106e6b327873d81bb37f4d6da0f1f7c"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "CPU vision and CUDA Graph controls" }
-    "engine/ninfer-serve.exe"       = @{ Sha256 = "8240fef86cfe2730ead6bd2a92dcd99714806c0b8fd19a8597f25b8fa0c194c4"; MinLastWriteUtc = $UtcEngine; Role = "rk8v4 engine (normal / KVMem modes), identical to the 12G kit binary" }
+    "engine/ninfer-serve.exe"       = @{ Sha256 = "43cdbfc15ab2ab0714a9bc2d6832b77e4c5704c15c5d42ac2c68926fab443d60"; MinLastWriteUtc = $UtcEngine; Role = "rk8v4 engine (normal / KVMem modes), identical to the 12G kit binary" }
     "engine/ninfer-serve-rk4.exe"   = @{ Sha256 = "1e3e5a57bc989d0ae24328676139b547fc79618a1ca7184027e1db018f196e7a"; MinLastWriteUtc = $UtcKit; Role = "rk4v4 engine (rk4 / kvrk4 modes)" }
     "engine/cudart64_13.dll"        = @{ Sha256 = "b00ca6f53699120da815bf3e06e2e4285fae2f201235b883dcbb50eec51e2a2a"; MinLastWriteUtc = $UtcDll; Role = "CUDA 13 runtime DLL" }
     "engine/msvcp140.dll"           = @{ Sha256 = "7c26614e1d733892c2deac7e245ce115504b1d80592dd0a01b08e3e5a55f89ca"; MinLastWriteUtc = $UtcDll; Role = "MSVC C++ runtime DLL" }

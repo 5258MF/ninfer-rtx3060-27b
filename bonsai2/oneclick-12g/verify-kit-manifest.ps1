@@ -13,7 +13,7 @@ if (-not $KitRoot) { $KitRoot = $PSScriptRoot }
 $EmbeddedExpected = [ordered]@{
     "launcher/runtime-options.ps1" = @{ Sha256 = "eff90bdebf0a2344bb1a5b64820464527106e6b327873d81bb37f4d6da0f1f7c"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "CPU vision and CUDA Graph controls" }
     "engine/ninfer-serve.exe"       = @{
-        Sha256          = "8240fef86cfe2730ead6bd2a92dcd99714806c0b8fd19a8597f25b8fa0c194c4"
+        Sha256          = "43cdbfc15ab2ab0714a9bc2d6832b77e4c5704c15c5d42ac2c68926fab443d60"
         MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2026-10-03T14:00:00", [System.DateTimeKind]::Utc)
         Role            = "Main 12G Bonsai-2 sm86 inference server binary"
     }
@@ -58,7 +58,7 @@ $EmbeddedExpected = [ordered]@{
         Role            = "Connectivity and speed test script"
     }
     "verify-arch-engine.ps1"        = @{
-        Sha256          = "f0d7fccf447590bde84424aa8839ff6d4c0eccfe92f463ed2e8cd54618bb05d9"
+        Sha256          = "2ff3f94704e301d5f51e0dcbe655ea8216fd00fa93d7237c04fef0a9e23fe711"
         MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2026-10-03T14:00:00", [System.DateTimeKind]::Utc)
         Role            = "End-to-end hardware & needle verification harness"
     }

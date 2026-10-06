@@ -14,7 +14,7 @@ if (-not $KitRoot) { $KitRoot = Split-Path -Parent $MyInvocation.MyCommand.Path 
 $EmbeddedExpected = [ordered]@{
     "launcher/runtime-options.ps1" = @{ Sha256 = "eff90bdebf0a2344bb1a5b64820464527106e6b327873d81bb37f4d6da0f1f7c"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "CPU vision and CUDA Graph controls" }
     "engine/ninfer-serve.exe"   = @{
-        Sha256          = "e83e4c18b6d92b37d3986c7c4c83b7d87b943776c70393ebcf8fc81429117a87"
+        Sha256          = "fe444757618e651c826f2edbeb5c7dccafb678983a4e57b63281cc32732e3f3b"
         MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2026-10-03T13:00:00", [System.DateTimeKind]::Utc)
         Role            = "Swift 1.5 sm86 engine binary (NVML physical VRAM budget + KVMem Eq.10 content scorer ON + Windows TCP keepalive)"
     }
