@@ -6,7 +6,7 @@ Run the Swift-Bonsai-2 27B ternary model on Windows with an RTX 3060 12 GB. The 
 
 ## Download and Start
 
-The current Bonsai2 shared source is **0.1.5**; the 12G one-click package remains **0.1.3**. The source is available from the [Bonsai2 shared 8G / 12G source Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-v0.1.5). The package is `ninfer-3060-12g-bonsai2-oneclick-0.1.3.zip`; it shares the Baidu and Quark links on the [project home](README.en.md#downloads) with the other two packages. See [CHANGELOG](CHANGELOG.md#012---2026-10-04).
+Current Bonsai2 main source is **0.1.6**, with no new Release yet. The historical [0.1.4 source release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.4) remains available; the 12G cloud package is still **0.1.3**. See the [shared downloads](README.en.md#downloads).
 
 An RTX 30 series GPU is required; settings are tuned for the RTX 3060 12 GB. Use Windows 10/11, 32 GB RAM recommended, and about 10 GB of free disk space. The model is not included and downloads on first launch.
 
@@ -31,6 +31,8 @@ In 0.1.0, large client output limits are capped by the server settings. With KVM
 KVMem places the FP32 index and BF16 query stash in pinned host RAM and scores blocks on the CPU using AVX2/FMA. Index precision and the configurable 256K total context are preserved. At 256K, approximately 256.25 MiB of index and 144 MiB of query storage move out of VRAM, with corresponding host RAM usage.
 
 ### KVMem allocation from the actual instruction prefix
+
+**Current main source (2026-10-06):** Automatic KVMem mode sets only the resident budget and a finite API request ceiling that follows it. It does not preallocate fixed SYS, a fixed 36K/half split or a 32K output cap. The engine preserves the actual system/developer/tool prefix and assigns retrieval/output per request. Here `--default-max-tokens` also caps explicit requests; it is not merely a fallback for omitted fields. A legacy SYS/sink setting or bootstrap seed is not the actual prefix allocation. Client compaction policies remain client-owned; no DSH test launchers are bundled.
 
 At startup, free VRAM determines total resident capacity C. Each request then tokenizes the complete rendered system/developer instructions and tool definitions as prefix S. Retrieval excludes S; output gets the remaining capacity.
 
@@ -117,16 +119,25 @@ The following speed and quality records cover optimizations through 2026-10-01. 
 
 ### Speed
 
-| Metric | Initial deployment | Updated build | Gain |
-|---|---:|---:|---:|
-| Real chat generation (average across Chinese, English, code, reasoning) | 40.6 tokens/s | **52.8 tokens/s** | **about +30%** |
-| Long-prompt processing (2048-token chunks) | 694 tokens/s | **965 tokens/s** | **+40%** |
-| Short prompt processing (32 tokens) | 218 tokens/s | **385–393 tokens/s** | about +80% |
-| Generation without speculative decoding | 19.6 tokens/s | **30.6–30.9 tokens/s** | about +57% |
+2026-10-05, RTX 3060 12GB / Windows; full output head, MTP draft3, CPU vision, prefill chunk512. Text/code inputs are 56/49 tokens, with 256 generated tokens; one warmup and three measured requests per case. Decode rates are medians in tokens/s, not end-to-end throughput.
 
-- The four content types measured 46.2 (Chinese), 50.8 (English), 67.0 (code), and 63.1 (reasoning) tokens/s.
-- Copying code or data can exceed **80–100 tokens/s** when draft hits are over 90%; this is not used in the table, which reflects normal conversation.
-- Measurements used the same machine and executable, alternating optimizations on and off for three rounds and allowing the GPU to cool between rounds.
+| Configuration | Graph | Tested resident KV | Text decode | Code decode |
+|---|---|---:|---:|---:|
+| Bonsai2 12G · int8 | off | 98K | 45.83 | 45.11 |
+| Bonsai2 12G · int8 | on | 98K | 47.19 | 46.57 |
+| Bonsai2 12G · rk8v4 | off | 131K | 45.09 | 45.95 |
+| Bonsai2 12G · rk8v4 | on | 131K | 46.67 | 47.74 |
+
+Zero-cache prefill: exact 2K/8K/16K inputs, at most 8 output tokens; one warmup and three measured requests per input length. Rates below are prefill medians, with streaming TTFT shown separately. Prompt timing and usage counts agreed; cached tokens were zero.
+
+| Configuration | Graph | 2K prefill | 8K prefill | 16K prefill | 16K TTFT (s) |
+|---|---|---:|---:|---:|---:|
+| Bonsai2 12G · int8 | off | 818.60 | 813.05 | 743.93 | 22.04 |
+| Bonsai2 12G · int8 | on | 805.78 | 791.72 | 733.67 | 22.34 |
+| Bonsai2 12G · rk8v4 | off | 803.26 | 790.37 | 734.31 | 22.32 |
+| Bonsai2 12G · rk8v4 | on | 805.24 | 790.50 | 735.12 | 22.30 |
+
+Ten configurations produced 90 measured prefill samples plus 30 warmups. Different models used different windows; Graph pairs for the same model/KV used the same window. Small differences are not a general speedup guarantee. All prefill inputs fit within resident KV; these rates do not cover long-history KV paging. The 37K IQ3 / 48K Bonsai8 test windows are historical: current launchers use IQ3 33K / Bonsai8 up to 36K. IQ3 first exceeded the old 300MiB safety rule (223.68MiB remaining), then completed a retry; both facts are retained. [Metrics and methods](benchmarks/20261005/README.md).
 
 ### Long Context
 

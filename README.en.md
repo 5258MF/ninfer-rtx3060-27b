@@ -2,7 +2,7 @@
 
 **Language:** [简体中文](README.md) | English
 
-Current sources: **Swift 1.5 shared IQ2S / IQ3XXS engine 0.1.4; Bonsai2 shared 8G / 12G source 0.1.5**. The available Swift one-click package remains IQ2S 0.1.2; the IQ3XXS package will be published later. All three current one-click packages use the same Baidu and Quark folder links below. See the [changelog](CHANGELOG.md).
+Current sources: **Swift 1.5 shared IQ2S / IQ3XXS engine 0.1.5; Bonsai2 shared 8G / 12G source 0.1.6**. The available Swift one-click package remains IQ2S 0.1.2; the IQ3XXS package will be published later. All three current one-click packages use the same Baidu and Quark folder links below. See the [changelog](CHANGELOG.md). This main revision has not been released yet.
 
 Run Swift 1.5 and Bonsai2 locally on Windows, with chat, image input, tool calling, and long-context KVMem. The one-click package starts after extraction; the model is downloaded on first launch.
 
@@ -37,7 +37,7 @@ These Huihui Qwen3.8 27B Abliterated models have been converted to NInfer format
 
 Abliterated variants reduce refusal or safety filtering. Read each model card for provenance, licensing, and usage warnings before use. The Swift model card recommends research and controlled local inference, not public-facing services or use by minors.
 
-Source releases are published by engine family. Each asset contains only its source directory: [Swift 1.5 shared IQ2S / IQ3XXS source 0.1.4](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.4) and [Bonsai2 shared 8G / 12G source 0.1.5](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-v0.1.5). Swift source VERSION is 0.1.4 and Bonsai2 is 0.1.5; one-click package versions are unchanged. Development continues on main; release changes are listed in CHANGELOG.
+Current main: Swift shared source 0.1.5 and Bonsai2 shared source 0.1.6; no Release yet. Historical source downloads: [Swift 0.1.3](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.3) and [Bonsai2 0.1.4](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.4), with one engine family per asset. Cloud-package versions are unchanged.
 
 ## Quick Start
 
@@ -86,6 +86,8 @@ Run only one engine at a time. In the menu, Enter starts, C reconfigures, R rere
 ### KVMem and the Four Configurations
 
 ### KVMem allocation from the actual instruction prefix
+
+**Current main source (2026-10-06):** Automatic KVMem mode sets only the resident budget and a finite API request ceiling that follows it. It does not preallocate fixed SYS, a fixed 36K/half split or a 32K output cap. The engine preserves the actual system/developer/tool prefix and assigns retrieval/output per request. Here `--default-max-tokens` also caps explicit requests; it is not merely a fallback for omitted fields. A legacy SYS/sink setting or bootstrap seed is not the actual prefix allocation. Client compaction policies remain client-owned; no DSH test launchers are bundled.
 
 At startup, free VRAM determines total resident capacity C. Each request then tokenizes the complete rendered system/developer instructions and tool definitions as prefix S. Retrieval excludes S; output gets the remaining capacity.
 
@@ -208,30 +210,41 @@ These measurements and validation results are historical and are listed by build
 
 ### Quality (Perplexity; Lower Is Better)
 
-Same machine and tool (`ninfer-perplexity` from the engine), corpus `perplexity-1m`, context 4096:
+IQ3XXS was scored on 2026-10-05 with the independent `ninfer-perplexity` scoring entry: `ninfer-ppl-1m-v1` quick mode, four streams, 4096 context / 2048 stride, rk4v4, GDN FP16 and host embeddings. Each artifact scored 261,167 tokens across 124 windows. PPL prefill/score tiles are 1024 tokens, distinct from chat prefill512. Bonsai2 and IQ2S columns below are historical references; the Bonsai2 raw report was recovered, but the IQ2S raw report was not found in this archive. Settings differ, so this table does not isolate weight-quantization effects.
 
-| Domain | Bonsai2 12G Swift-Bonsai-2 | **Swift 1.5 IQ2_S** |
-|---|---:|---:|
-| Chinese Wikipedia | 7.894 | **5.443** |
-| English long-form PG-19 | 8.656 | **7.439** |
-| English WikiText | 7.827 | **6.321** |
-| Code | 1.860 | **1.716** |
-| **Overall** | 5.628 | **4.587** (18.5% lower) |
+| Domain | Swift-Bonsai-2 (historical int8) | IQ2S (historical) | IQ3XXS (rk4v4) |
+|---|---:|---:|---:|
+| Chinese reference | 7.89415 | 5.443 | 5.29369 |
+| PG-19 | 8.65629 | 7.439 | 7.26160 |
+| WikiText | 7.82674 | 6.321 | 6.21847 |
+| NInfer code | 1.85972 | 1.716 | 1.69572 |
+| Overall | 5.62843 | 4.587 | **4.49564** |
+
+The IQ3XXS MTP Q6 and Q4 artifacts both scored **4.495637819904494**; all 124 windows matched at report precision. CausalScoring evaluates the main model and does not run the MTP draft or vision tower, so this does not establish unchanged draft quality, acceptance rate or multimodal behavior. [Q4 report](benchmarks/20261005/ppl/report-01.json), [Q6 report](benchmarks/20261005/ppl/report-02.json), [all 19 recovered reports](benchmarks/20261005/ppl/catalog.json). Early custom-corpus scores are pipeline/sweep records, not additional comparable quality certifications.
 
 ### Speed (RTX 3060 12 GB)
 
-| Metric | Result |
-|---|---:|
-| Generation (`refbench`, engine benchmark with MTP speculative decoding) | **about 43–45 tokens/s** |
-| Generation with lite MTP output head | **about 47 tokens/s** (+10.5%) |
-| Prompt processing (4K / 24K context) | 514 / 453 tokens/s |
-| First prompt at 190K tokens | about 9 minutes |
-| First prompt at 250K tokens | about 12 minutes (about 365 tokens/s) |
-| Continue a long conversation after 190K tokens | about **1.3–1.4 seconds** to first output per turn |
+2026-10-05, RTX 3060 12GB / Windows; full output head, MTP draft3, CPU vision, prefill chunk512. Text/code inputs are 56/49 tokens, with 256 generated tokens; one warmup and three measured requests per case. Decode rates are medians in tokens/s, not end-to-end throughput.
 
-- Compared with the 12G build using the same tool (`refbench`, 32K, rk8v4 for both), short-response generation was about 8% slower, long-context generation about 20% slower, and prompt processing about 35% slower because 2-bit weights require more computation. The default later changed to rk4v4, which improved generation by 14–22%. The tradeoff was much better quality and longer context.
-- The “about 53 tokens/s” figure in the Bonsai2 12G guide comes from a different tool (`ninfer_bench`) and cannot be compared directly.
-- Speed tests alternated enabled and disabled settings over multiple rounds to reduce GPU thermal-throttling effects.
+| Configuration | Graph | Tested resident KV | Text decode | Code decode |
+|---|---|---:|---:|---:|
+| Swift IQ2S · rk4v4 | off | 73K | 42.21 | 44.93 |
+| Swift IQ2S · rk4v4 | on | 73K | 43.24 | 46.12 |
+| Swift IQ2S · rk8v4 | off | 49K | 42.19 | 47.13 |
+| Swift IQ2S · rk8v4 | on | 49K | 43.27 | 48.33 |
+| Swift IQ3XXS · rk4v4 | off | 37K | 44.34 | 46.03 |
+
+Zero-cache prefill: exact 2K/8K/16K inputs, at most 8 output tokens; one warmup and three measured requests per input length. Rates below are prefill medians, with streaming TTFT shown separately. Prompt timing and usage counts agreed; cached tokens were zero.
+
+| Configuration | Graph | 2K prefill | 8K prefill | 16K prefill | 16K TTFT (s) |
+|---|---|---:|---:|---:|---:|
+| Swift IQ2S · rk4v4 | off | 483.66 | 498.10 | 489.02 | 33.55 |
+| Swift IQ2S · rk4v4 | on | 483.40 | 497.85 | 489.36 | 33.52 |
+| Swift IQ2S · rk8v4 | off | 484.26 | 498.14 | 490.38 | 33.44 |
+| Swift IQ2S · rk8v4 | on | 483.59 | 498.52 | 490.65 | 33.44 |
+| Swift IQ3XXS · rk4v4 | off | 500.47 | 515.41 | 505.69 | 32.44 |
+
+Ten configurations produced 90 measured prefill samples plus 30 warmups. Different models used different windows; Graph pairs for the same model/KV used the same window. Small differences are not a general speedup guarantee. All prefill inputs fit within resident KV; these rates do not cover long-history KV paging. The 37K IQ3 / 48K Bonsai8 test windows are historical: current launchers use IQ3 33K / Bonsai8 up to 36K. IQ3 first exceeded the old 300MiB safety rule (223.68MiB remaining), then completed a retry; both facts are retained. [Metrics and methods](benchmarks/20261005/README.md).
 
 ### Long Context
 

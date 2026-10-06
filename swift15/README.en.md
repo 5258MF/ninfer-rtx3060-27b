@@ -6,7 +6,7 @@ The current engine source is **0.1.4** and is shared by IQ2_S and IQ3_XXS. The a
 
 This directory has one Swift 1.5 engine source tree for both quantization formats. Their NInfer format mappings and GPU kernels are part of the same CMake project, so the engine source does not need to be duplicated. The IQ2S launcher is in `oneclick-iq2s/`; `oneclick-iq3xxs/` contains the IQ3XXS development profile. Both share `engine/`. The IQ3XXS profile is not a published portable package.
 
-Source version **0.1.4** is recorded in VERSION and published as the [Swift 1.5 shared IQ2S / IQ3XXS source release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.4). Its asset contains only the swift15/ directory. The previous [0.1.2 release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.2) remains as a historical version. The current IQ2S package is on the [project downloads page](../README.en.md#downloads).
+Current main source is **0.1.5** (`VERSION`). This revision has no Release yet; the problem releases were withdrawn. Historical source downloads: [Swift 0.1.3](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.3), [Bonsai2 0.1.4](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.4).
 
 The 2026-10-05 source update adds CPU vision encoding with optional OpenBLAS acceleration, automatic thread calibration and caching, and a reference CPU fallback when OpenBLAS is unavailable. The same engine path serves IQ2S and IQ3XXS. The handoff records passing IQ2S/IQ3XXS image checks and CPU-backend unit tests; this does not qualify every image, CPU, or long-context configuration.
 

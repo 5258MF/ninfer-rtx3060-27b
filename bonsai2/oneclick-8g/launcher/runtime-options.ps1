@@ -16,7 +16,7 @@ function Show-NinferRuntimeOptions([System.Collections.IDictionary]$Config) {
     Initialize-NinferRuntimeOptions $Config
     Write-Host ('  │ CUDA Graph: ' + $(if ($Config['CUDA_GRAPH'] -eq '0') { '关闭' } else { '开启' }))
     Write-Host ('  │ 视觉后端  : CPU 编码 / 内存权重；线程=' + $Config['CPU_THREADS'] + '；缺库仅回退CPU')
-    Write-Host '  │ 容量提示  : Graph 开关会影响显存与速度；实际窗口以启动日志为准'
+    Write-Host '  │ 容量提示  : Graph 开关影响显存和速度；实际窗口以启动日志为准'
 }
 function Edit-NinferRuntimeOptions([System.Collections.IDictionary]$Config, [switch]$AskVision) {
     Initialize-NinferRuntimeOptions $Config

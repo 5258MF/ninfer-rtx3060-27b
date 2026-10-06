@@ -1,0 +1,118 @@
+{
+  "artifact": {
+    "model_id": "qwen3.8-27b",
+    "path": "D:\\models\\bonsai2-27b\\model\\bonsai2_27b_ternary_v2.ninfer",
+    "target": "qwen3_8_27b",
+    "weights_id": "groupwise-int"
+  },
+  "corpus": {
+    "id": "custom-wiki40k.txt",
+    "mode": "custom",
+    "source": "D:\\models\\build-sm86\\wiki40k.txt",
+    "stream_count": 1
+  },
+  "domains": [
+    {
+      "domain": "custom",
+      "mean_nll": 2.0922330472086803,
+      "perplexity": 8.102989334271955,
+      "scored_tokens": 9258,
+      "total_nll": 19369.89355105796
+    }
+  ],
+  "execution": {
+    "context_tokens": 4096,
+    "device": 0,
+    "kv_dtype": "int8-g64",
+    "prefill_chunk_tokens": 1024,
+    "purpose": "causal_scoring",
+    "score_tile_tokens": 1024,
+    "stride_tokens": 2048
+  },
+  "metric": {
+    "log_base": "natural",
+    "name": "fixed-window truncated-context causal perplexity"
+  },
+  "overall": {
+    "mean_nll": 2.0922330472086803,
+    "perplexity": 8.102989334271955,
+    "scored_tokens": 9258,
+    "total_nll": 19369.89355105796
+  },
+  "schema_version": 1,
+  "streams": [
+    {
+      "domain": "custom",
+      "id": "wiki40k.txt",
+      "input_tokens": 9259,
+      "mean_nll": 2.0922330472086803,
+      "path": "D:\\models\\build-sm86\\wiki40k.txt",
+      "perplexity": 8.102989334271955,
+      "scored_tokens": 9258,
+      "seconds": 28.1928428,
+      "total_nll": 19369.89355105796,
+      "unscored_tokens": 1,
+      "windows": [
+        {
+          "first_target": 1,
+          "index": 0,
+          "input_begin": 0,
+          "input_end": 4096,
+          "mean_nll": 2.0536524956135485,
+          "perplexity": 7.796325208879182,
+          "scored_tokens": 4095,
+          "seconds": 8.232418,
+          "target_begin": 1,
+          "target_end": 4096,
+          "total_nll": 8409.706969537481
+        },
+        {
+          "first_target": 2048,
+          "index": 1,
+          "input_begin": 2048,
+          "input_end": 6144,
+          "mean_nll": 2.3347896962567383,
+          "perplexity": 10.327287833688446,
+          "scored_tokens": 2048,
+          "seconds": 6.6642838,
+          "target_begin": 4096,
+          "target_end": 6144,
+          "total_nll": 4781.6492979338
+        },
+        {
+          "first_target": 2048,
+          "index": 2,
+          "input_begin": 4096,
+          "input_end": 8192,
+          "mean_nll": 2.1877225317771902,
+          "perplexity": 8.914886606040662,
+          "scored_tokens": 2048,
+          "seconds": 6.6824624,
+          "target_begin": 6144,
+          "target_end": 8192,
+          "total_nll": 4480.455745079686
+        },
+        {
+          "first_target": 3029,
+          "index": 3,
+          "input_begin": 5163,
+          "input_end": 9259,
+          "mean_nll": 1.5914541129400137,
+          "perplexity": 4.910884719964006,
+          "scored_tokens": 1067,
+          "seconds": 6.6135577,
+          "target_begin": 8192,
+          "target_end": 9259,
+          "total_nll": 1698.0815385069945
+        }
+      ]
+    }
+  ],
+  "timing": {
+    "load_seconds": 3.5853732,
+    "read_and_tokenize_seconds": 0.0081704,
+    "score_seconds": 28.1929092,
+    "scored_tokens_per_second": 328.3804425546832,
+    "total_seconds": 31.8939096
+  }
+}

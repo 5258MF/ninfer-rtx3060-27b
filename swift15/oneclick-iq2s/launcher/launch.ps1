@@ -1,7 +1,7 @@
 ﻿# ninfer Swift 1.5 懒人包 启动器（由 启动.bat 调用）
 #   模型：Swift-1.5 Qwen3.8-27B IQ2_S（魔搭 fyb423/Swift-1.5-Qwen3.8-27B-GSQ-RCO-NInfer），MTP 草稿头用补丁转成 Q4
 #   引擎：engine\ninfer-serve.exe（Ryan-gsq fork b06908b + KVMem 移植 + 3060 精简 + rk4v4；SM 数运行时自动识别）
-#   模式固定 KVMem：完整对话记录放内存（Host KV），显存只放一个窗口 = 输出预留 + 开头固定保留 + 检索/最近内容
+#   模式固定 KVMem：完整对话记录放内存（Host KV），显存只放一个驻留窗口；实际完整前缀、检索和输出由引擎逐请求动态分配
 #   启动.bat            先显示当前配置：回车=启动，C=一步步重新选，R=重新读空闲显存，Q=退出
 #   启动.bat last       直接用上次配置启动，不提问
 #   启动.bat dryrun     只显示最终命令，不启动、不下载、不改任何文件
@@ -10,6 +10,7 @@
 $ErrorActionPreference = 'Stop'
 $launchArguments = @($args)
 . (Join-Path $PSScriptRoot 'runtime-options.ps1')
+
 $argv    = @($launchArguments | ForEach-Object { "$_".ToLower() })
 $DryRun  = $argv -contains 'dryrun'
 $Here    = Split-Path $PSScriptRoot -Parent
@@ -27,6 +28,8 @@ $Orig = @{ Name = 'Swift-1.5 Qwen3.8-27B IQ2_S'; File = 'swift15_iq2s_mtp.ninfer
 $PatchFiles = @{ 'ops.txt' = [long]5427; 'lit.bin' = [long]203691823 }
 if ($env:ONECLICK_TEST_URL) { $Orig.Url = $env:ONECLICK_TEST_URL; $Orig.Size = [long]$env:ONECLICK_TEST_SIZE; $Orig.Sha = $env:ONECLICK_TEST_SHA; $Orig.File = $env:ONECLICK_TEST_FILE }
 $Model   = Join-Path $Here ('model\' + $Q4.File)
+# Existing verified local model; never download a duplicate when this file is present.
+if ($env:NINFER_SWIFT15_MODEL) { $Model = $env:NINFER_SWIFT15_MODEL }
 $SrcFile = Join-Path $Here ('model\' + $Orig.File)
 
 # ---------------- 固定数据（RTX 3060 12G 上实测标定） ----------------
@@ -42,10 +45,11 @@ $KvInfo = [ordered]@{
   rk4v4 = @{ PageMiB = 1.17;  PageMax = 1152; CtxMax = 262144; Name = 'rk4v4（K、V 都 4 位）' }
   rk8v4 = @{ PageMiB = 1.694; PageMax = 800; CtxMax = 131072; Name = 'rk8v4（K 8 位 + V 4 位）' }
 }
-$RestMin  = 134      # 一页完整开头、两检索块和 8K 输出的启动下限
+$RestMin  = 64      # 开头 + 检索/最近 最少 64 页（4K），否则不启动
+$OutCap = 262144 # logical API bound only, not a fixed physical partition
 $OutMin   = 8192    # 自动输出至少 8K
-$SmallCtx = 131072  # 精简头或 rk8v4 的现有支持范围；分配按总上下文同比缩放
-$Defaults = [ordered]@{ KV = 'rk4v4'; HEAD = 'full'; VISION = '1'; CUDA_GRAPH = '1'; VISION_DEVICE = 'cpu'; CPU_THREADS = 'auto'; CTX = '204800'; OUT = 'auto'; SYS = 'auto'; THINK = '0'
+$SmallCtx = 131072  # 精简头或 rk8v4 的逻辑上下文上限128K；不用于输出分区
+$Defaults = [ordered]@{ CUDA_GRAPH='1'; VISION_DEVICE='cpu'; CPU_THREADS='auto';  KV = 'rk4v4'; HEAD = 'full'; VISION = '1'; CTX = '204800'; OUT = 'auto'; SYS = '8192'; THINK = '0'
                         POST_THINKING = '1'; POST_THINKING_TEMP = ''; POST_THINKING_TOP_P = ''; POST_THINKING_TOP_K = ''; POST_THINKING_SAMPLER = ''
                         ADAPTIVE_MTP = '0'; RECOVER_INVARIANT = '1'
                         PORT = '8084'; HOST = '127.0.0.1'; API_KEY = ''; MODEL_ID = 'qwen3.8-27b' }
@@ -69,10 +73,9 @@ function K([int]$pages) { return ('{0}K' -f ($pages * 64 / 1024)) }
 function Fail([string]$m) { Write-Host "  [错误] $m" -ForegroundColor Red; exit 1 }
 function GiB([long]$b) { return ('{0:N1}' -f ($b / 1GB)) }
 function Free-MiB {
-  if ($env:ONECLICK_FREE_MIB) { return [double]$env:ONECLICK_FREE_MIB }
   try {
-    $q = & nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits 2>$null | Select-Object -First 1
-    return [double]$q.Trim()
+    $q = & nvidia-smi --query-gpu=memory.total,memory.used --format=csv,noheader,nounits 2>$null | Select-Object -First 1
+    $a = $q -split ','; return ([double]$a[0].Trim() - [double]$a[1].Trim())
   } catch { return -1 }
 }
 function Pages-From([string]$kv, [double]$availMiB) {
@@ -81,24 +84,17 @@ function Pages-From([string]$kv, [double]$availMiB) {
   $p = $p - ($p % 8)
   return [Math]::Max(0, [Math]::Min($i.PageMax, $p))
 }
-function Est-Pages([string]$kv) { if ($script:Free -ge 0) { return (Pages-From $kv ($script:Free - $LoadMiB)) } else { return 448 } }
-function Is-Half($c) { return -not ($c.KV -eq 'rk4v4' -and $c.HEAD -ne 'lite') }   # 判断组合支持的总上下文范围
+function Est-Pages([string]$kv) { if ($script:Free -gt 0) { return (Pages-From $kv ($script:Free - $LoadMiB)) } else { return 448 } }
+function Is-Half($c) { return -not ($c.KV -eq 'rk4v4' -and $c.HEAD -ne 'lite') }   # 仅选择逻辑上下文上限；不参与驻留分区
 function Ctx-Rec($c) { return [Math]::Min(204800, (Ctx-Max $c)) }   # 10-03 晚：rk4v4 + 完整头推荐 200K，最高可设 256K
 function Ctx-Max($c) { if (Is-Half $c) { return [Math]::Min($KvInfo[$c.KV].CtxMax, $SmallCtx) } else { return $KvInfo[$c.KV].CtxMax } }
-function Harness-Out([int]$cap, [int]$ctx, [int]$unit = 64) {
-    $target = [int][Math]::Floor($ctx * 9.0 / 64 / $unit) * $unit
-    $available = [Math]::Max(0, [int][Math]::Floor(($cap - $unit - 8192) / $unit) * $unit)
-    return [Math]::Max(8192, $cap - $unit - [Math]::Min($target, $available))
-}
-function Out-Of($c, [int]$pages) { return (Harness-Out ($pages * 64) ([int]$c.CTX) 128) }
-function Auto-Desc($c) { return '开头按请求准确计数；256K 检索 32K–36K，128K 检索 16K–18K；剩余容量给输出，至少 8K' }
-function Gen-Pages($c, [int]$pages) { return 0 }
-function Split-Window($c, [int]$pages) {
-  $history = $pages - [int]((Out-Of $c $pages) / 64)
-  return @(2, [Math]::Max(0, $history - 2))
-}
+function Auto-Out([int]$pages, [int]$sys, [int]$ctx, [bool]$half = $false) { return [Math]::Min($pages * 64,$ctx) }
+function Out-Of($c, [int]$pages) { if ("$($c.OUT)" -eq 'auto') { return (Auto-Out $pages ([int]$c.SYS) ([int]$c.CTX) (Is-Half $c)) } else { return [int]$c.OUT } }
+function Auto-Desc($c) { return 'API请求上界跟随驻留；实际前缀/检索/输出由引擎逐请求分配' }
+function Gen-Pages($c, [int]$pages) { return 0 } # bootstrap only; no fixed generation partition
+function Split-Window($c, [int]$pages) { return @(2, [Math]::Max(0,$pages - 2)) } # legal bootstrap; overwritten per request
 function Load-For([string]$mtp, [string]$head) { return ($LoadByMtp[$mtp] + $HeadMiB[$head]) }
-
+function Out-Max([int]$pages) { return ($pages * 64) }
 function Host-MiB($c) {
   # 内存里的完整对话记录（Host KV）：按"最长对话 × 2"预留（能同时留住 2 个满长对话的接续点），6–10 GB
   # 10-02 实测：引擎本身还要约 14 GB 提交内存（显存在系统里的记账等），Host KV 10 GB 时整机提交 46.9/47.7 GB 太满，所以从 ×2.5 降到 ×2
@@ -122,7 +118,6 @@ function Load-Config {
   if ($c.RECOVER_INVARIANT -ne '0') { $c.RECOVER_INVARIANT = '1' }
   if (-not $HeadMiB.Contains($c.HEAD)) { $c.HEAD = 'full' }
   $c.MTP = 'q4'
-  $c.OUT = 'auto'; $c.SYS = 'auto'
   if ("$($c.OUT)".ToLower() -eq 'auto') { $c.OUT = 'auto' }
   foreach ($k in 'CTX', 'OUT', 'SYS', 'THINK', 'PORT') { if ($c[$k] -eq 'auto') { continue }; $n = 0; if (-not [int]::TryParse("$($c[$k])", [ref]$n)) { $c[$k] = $Defaults[$k] } }
   if (-not $c.HOST) { $c.HOST = '127.0.0.1' }
@@ -141,16 +136,17 @@ function Save-Config($c) {
     "KV=$($c.KV)",
     '; MTP 输出头：full（完整，推荐，显存窗口最大）/ lite（精简 --lm-head-draft，解码快约 10%，多占 346 MiB 显存，总上下文最多 128K）',
     "HEAD=$($c.HEAD)",
-    '; 看图：1 开 / 0 关（CPU 视觉编码；语言模型、KV 与最终图片特征仍占显存）',
+    '; 看图：1 开 / 0 关（CPU 视觉编码、自动线程；语言模型及图片特征仍需显存）',
     "VISION=$($c.VISION)",
+    '; CUDA_GRAPH: 1开启 / 0关闭；VISION_DEVICE只允许cpu；CPU_THREADS:auto或正整数',
     "CUDA_GRAPH=$($c.CUDA_GRAPH)",
     "VISION_DEVICE=$($c.VISION_DEVICE)",
     "CPU_THREADS=$($c.CPU_THREADS)",
     '; 总上下文（token）：rk4v4 + 完整头 推荐 204800、最多 262144；其他组合最多 131072',
     "CTX=$($c.CTX)",
-    '; 输出：auto，启动前生成 Harness 申请上限；实际输出由每次请求的剩余容量决定',
+    '; OUT=auto：API请求上界跟随驻留，完整前缀/检索/实际输出由引擎动态分配；数值为显式API上限',
     "OUT=$($c.OUT)",
-    '; 开头保留：auto，按系统、developer 指令及工具定义准确计数',
+    '; SYS为旧版兼容字段，自动分配忽略它，始终保护实际完整前缀',
     "SYS=$($c.SYS)",
     '; 思考上限：0 = 不限（推荐）',
     "THINK=$($c.THINK)",
@@ -183,32 +179,48 @@ function Save-Config($c) {
 
 # ---------------- 检查配置 ----------------
 function Check-Config($c, [int]$pages) {
-  $r = @{ Err = @(); Warn = @() }
-  $ctx = [int]$c.CTX; $cm = Ctx-Max $c
-  if ($ctx -lt 49152 -or $ctx -gt $cm) { $r.Err += "总上下文要在 49152 到 $cm 之间" }
-  if ($pages * 64 -lt 8576) { $r.Err += '显存容量不足：请释放显存后重试；不能缩掉系统提示或最低 8K 输出。' }
-  $th = [int]$c.THINK; $out = Out-Of $c $pages
-  if ($th -ne 0 -and ($th -lt 1024 -or $th -gt $out - 256)) { $r.Err += "思考上限要在 1024 到 $($out - 256) 之间，或 0（不限）" }
+  $r = @{ Err=@(); Warn=@() }; $ctx=[int]$c.CTX; $out=Out-Of $c $pages
+  if ($ctx -lt 49152 -or $ctx -gt (Ctx-Max $c)) { $r.Err += 'Invalid logical context for this KV/head combination' }
+  if ($out -lt 1 -or $out -gt $ctx) { $r.Err += 'API output limit must be positive and no larger than context' }
+  if ($pages * 64 -lt [int]($ctx / 8) + 8192 + 256) { $r.Err += 'Resident budget cannot hold recommended retrieval plus 8K output; reduce context or free VRAM' }
+  if ([int]$c.THINK -gt $out) { $r.Err += 'Thinking limit exceeds API output limit' }
   return $r
 }
 
 
 function Show-Summary($c, [int]$pages) {
   Show-NinferRuntimeOptions $c
+  $i = $KvInfo[$c.KV]
   Write-Host ''
-  Write-Host '  ┌──────────── Swift 1.5 当前配置 ────────────'
-  Write-Host ('  │ KV / 输出头: ' + $c.KV + ' / ' + $c.HEAD)
-  Write-Host ('  │ 总上下文  : ' + (Fmt ([int]$c.CTX)))
-  Write-Host ('  │ 驻留容量  : ' + (K $pages) + '，按空闲显存估算；放不下时自动缩小重试')
-  Write-Host '  │ 固定开头  : 按实际系统、developer 指令及工具定义准确计数'
-  $lo = [int][Math]::Floor([int]$c.CTX / 8.0 / 128) * 128
-  $hi = [int][Math]::Floor([int]$c.CTX * 9.0 / 64 / 128) * 128
-  Write-Host ('  │ 检索目标  : ' + (Fmt $lo) + ' 到 ' + (Fmt $hi) + '，不含固定开头；容量不足时先缩检索')
-  Write-Host ('  │ Harness   : contextWindow=' + $c.CTX + '，maxTokens=' + (Out-Of $c $pages))
-  Write-Host '  │ 实际输出  : 请求到来后使用剩余容量，至少预留 8K；包含思考和正文'
-  $check = Check-Config $c $pages
-  foreach ($m in $check.Err) { Write-Host ('  │ [错误] ' + $m) -ForegroundColor Red }
-  Write-Host '  └───────────────────────────────────────'
+  Write-Host '  ┌──────────── ninfer Swift 1.5 懒人包 · 当前配置 ────────────'
+  Write-Host ('  │ 显卡      : {0}（{1} MiB，算力 {2}）' -f $script:GpuName, $script:GpuTotal, $script:GpuCap)
+  Write-Host '  │ 模型      : Swift-1.5 Qwen3.8-27B IQ2_S（MTP 草稿头 Q4）'
+  Write-Host ('  │ 模型文件  : ' + $(if (Test-Path -LiteralPath $Model) { '已就绪' } elseif (Test-Path -LiteralPath $SrcFile) { '原版已下载，启动时转换' } else { '还没下载（回车启动时会先下载约 9.6 GiB）' }))
+  Write-Host '  │ 模式      : KVMem（完整对话放内存，显存放窗口；超窗后每轮只算新内容）'
+  Write-Host ('  │ KV 量化   : ' + $i.Name)
+  if ($c.HEAD -eq 'lite') { Write-Host '  │ MTP 输出头: 精简（解码快约 10%，多占 346 MiB 显存，窗口少约 300 页）' } else { Write-Host '  │ MTP 输出头: 完整（窗口最大）' }
+  if ($c.VISION -ne '0') { Write-Host '  │ 看图      : 开（CPU 视觉编码，内存权重，线程见运行选项）' } else { Write-Host '  │ 看图      : 关' }
+  Write-Host ('  │ 总上下文  : {0}   上限 {1}' -f (Fmt ([int]$c.CTX)), (Fmt (Ctx-Max $c)))
+  if ("$($c.OUT)" -eq 'auto') { Write-Host ('  │ 单次输出  : 自动 = {0}（{1}；每次启动按实际窗口算）' -f (Fmt (Out-Of $c $pages)), (Auto-Desc $c)) }
+  else { Write-Host ('  │ 单次输出  : {0}   （思考 + 正文 合计，整段留在显存不滚出去）' -f (Fmt ([int]$c.OUT))) }
+  if ([int]$c.THINK -gt 0) { Write-Host ('  │ 思考上限  : ' + (Fmt ([int]$c.THINK))) } else { Write-Host '  │ 思考上限  : 不限（只受单次输出限制）' }
+  $v3Opts = @()
+  if ($c.POST_THINKING -ne '0') { $v3Opts += $(if ($c.POST_THINKING_TEMP) { "思考后降温($($c.POST_THINKING_TEMP))" } else { '思考后降温(0.2)' }) }
+  if ($c.ADAPTIVE_MTP -eq '1') { $v3Opts += '自适应MTP' }
+  if ($c.RECOVER_INVARIANT -ne '0') { $v3Opts += '异常自动恢复' }
+  Write-Host ('  │ 推理控制  : ' + $(if ($v3Opts.Count -gt 0) { $v3Opts -join ' / ' } else { '默认' }))
+  if ($script:Free -gt 0 -and $pages -ge (Gen-Pages $c $pages) + $RestMin) {
+    $sp = Split-Window $c $pages
+    Write-Host ('  │ 显存窗口  : {0} 页 = {1} token（按现在空闲显存 {2} MiB 自动算）' -f $pages, (K $pages), [int]$script:Free)
+    Write-Host '  │   分配    : 实际完整前缀 + 按逻辑窗口比例检索 + 剩余输出；请求到达后确定'
+  } elseif ($script:Free -le 0) { Write-Host '  │ 显存窗口  : 读不到空闲显存，启动时按 448 页试' }
+  Write-Host ('  │ 内存      : 对话记录预留 {0} MiB（Host KV）；最多保留 4 个对话的接续点' -f (Host-MiB $c))
+  Write-Host ('  │ 地址      : http://{0}:{1}/v1    模型名 {2}{3}' -f $(if ($c.HOST -eq '0.0.0.0') { '127.0.0.1' } else { $c.HOST }), $c.PORT, $c.MODEL_ID, $(if ($c.API_KEY) { '    （设了 API_KEY）' } else { '' }))
+  Write-Host '  └──────────────────────────────────────────────'
+  $chk = Check-Config $c $pages
+  foreach ($w in $chk.Warn) { Write-Host "  [提醒] $w" -ForegroundColor Yellow }
+  foreach ($x in $chk.Err)  { Write-Host "  [错误] $x" -ForegroundColor Red }
+  return $chk
 }
 
 # ---------------- 一步步选 ----------------
@@ -238,8 +250,8 @@ function Clamp-Step($c, [string]$key, [int]$lo, [int]$hi, [string]$what) {
 }
 
 function Run-Wizard($c) {
-  Edit-NinferRuntimeOptions $c -AskVision
-  $n = 7
+  Edit-NinferRuntimeOptions $c
+  $n = 6
   # 1. KV 量化：决定总上下文上限和显存窗口大小，所以放最前面
   $p4 = Est-Pages 'rk4v4'; $p8 = Est-Pages 'rk8v4'
   $c.KV = Ask-Step "第 1/$n 步：KV 量化（对话记录的存储格式）" @(
@@ -265,9 +277,9 @@ function Run-Wizard($c) {
 
   # 3. 看图
   $c.VISION = Ask-Step "第 3/$n 步：看图" @(
-    '视觉权重放内存（overlay），平时不占显存，看图时临时借用；开 / 关显存窗口一样大') @(
-    @{ Value = '1'; Label = '开　推荐。dsh 里可以发图片（每张图多约 1–2 秒）' },
-    @{ Value = '0'; Label = '关　dsh 里不能发图' }) $c.VISION ''
+    '视觉权重和编码在 CPU/内存，线程自动校准；语言模型及图片特征仍需显存') @(
+    @{ Value = '1'; Label = '开　推荐。支持图片的客户端可发图（CPU编码耗时取决于图片和硬件）' },
+    @{ Value = '0'; Label = '关　不接受图片输入' }) $c.VISION ''
 
   # 4. 总上下文
   $cm = Ctx-Max $c
@@ -284,20 +296,25 @@ function Run-Wizard($c) {
   }
   $c.CTX = Ask-Step "第 4/$n 步：总上下文长度（一次对话最多能记住多少 token）" @(
     ('{0}{2} 最多 {1}。超出显存窗口的部分放内存，每轮从里面挑相关内容放进显存（长对话每轮多约 1–2 秒）' -f $c.KV, (Fmt $cm), $(if ($c.HEAD -eq 'lite') { ' + 精简头' } else { '' })),
-    '上下文越大，内存预留越多（256K 约 10 GB，200K 约 8 GB；引擎本身另外还要约 14 GB）。3060 上 19 万的长文第一次读入约 9 分钟。dsh 自己的系统提示约 8K') $items $c.CTX '150000 或 150k'
+    '上下文越大，内存预留越多（256K 约 10 GB，200K 约 8 GB；引擎本身另外还要约 14 GB）。3060 上 19 万的长文第一次读入约 9 分钟。系统/工具前缀依客户端实际请求决定') $items $c.CTX '150000 或 150k'
   Clamp-Step $c 'CTX' 49152 $cm '总上下文'
 
-  $c.OUT = 'auto'; $c.SYS = 'auto'
-  Write-Host ('  分配规则：' + (Auto-Desc $c))
-
+  # 5. Framework-neutral API output envelope, not a physical partition.
+  $om = [int]$c.CTX
+  $items = @(@{ Value='auto'; Label='自动：完整前缀/检索/输出逐请求分配（推荐）' })
+  foreach ($x in @(8192,16384,32768,49152,65536)) { if ($x -le $om) { $items += @{ Value="$x"; Label="API上限 $x（实际受物理预算约束）" } } }
+  $c.OUT = Ask-Step "第 5/$n 步：API回答上限" @('auto不使用固定SYS、固定36K或32K封顶算法。') $items $c.OUT '48000 或 48k'
+  if ("$($c.OUT)" -ne 'auto') { Clamp-Step $c 'OUT' 1 $om 'API回答上限' }
+  # Actual prefix is unknowable until the request. No SYS wizard.
   # 7. 思考上限（输出选"自动"时按现在估算的窗口算）
   $o = Out-Of $c $pages
   if ([int]$c.THINK -gt $o - 256) { $c.THINK = '0' }
   $items = @(@{ Value = '0'; Label = "不限　　推荐。思考 + 正文 ≤ $o，难题能想完整" })
   foreach ($x in @(4096, 8192, 12288, 16384, 24576)) { if ($x -le $o - 4096) { $items += @{ Value = "$x"; Label = ((Fmt $x) + "　思考到这里就收尾，保证至少留 $($o - $x) 写正文") } } }
-  $c.THINK = Ask-Step "第 7/$n 步：思考长度上限" @(
+  $c.THINK = Ask-Step "第 6/$n 步：思考长度上限" @(
     '到上限时引擎会让模型把思考收尾、转去写正文（不是硬截断）。限得太紧，难题可能答错') $items $c.THINK '6k'
   if ($c.THINK -ne '0') { Clamp-Step $c 'THINK' 1024 ($o - 256) '思考上限' }
+  Initialize-NinferRuntimeOptions $c
   return $c
 }
 
@@ -308,7 +325,7 @@ function Build-Args($c, [int]$pages) {
          '--spec', 'mtp', '--draft-tokens', '3',
          '--max-context', "$($c.CTX)", '--kv-capacity', 'auto', '--kvmem-window-pages', "$pages",
          '--host-kv-mib', "$(Host-MiB $c)", '--device-state-slots', '0', '--prefill-chunk', '512',
-         '--cuda-graph-allowance-mib', '144', '--default-max-tokens', "$($c.OUT)",
+         '--default-max-tokens', "$($c.OUT)",
          '--max-private-continuations', '4', '--embedding-host')   # --embedding-host：词嵌入（388 MiB）放内存，速度不变，窗口多约 300 页
   if ($c.HEAD -eq 'lite') { $a += @('--lm-head-draft') }
   if ($c.ADAPTIVE_MTP -eq '1') { $a += @('--adaptive-mtp') }
@@ -327,10 +344,11 @@ function Build-Args($c, [int]$pages) {
   return (Complete-NinferRuntimeArgs -Config $c -Arguments $a -Swift)
 }
 function Set-KvmEnv($c, [int]$pages) {
-  $env:NINFER_KVMEM_AUTO_ALLOCATION = '1'
-  $env:NINFER_KVMEM_SINK_PAGES = '2'
-  $env:NINFER_KVMEM_GEN_RESERVE_PAGES = '0'
+  $sp = Split-Window $c $pages
+  $env:NINFER_KVMEM_SINK_PAGES = "$($sp[0])"
+  $env:NINFER_KVMEM_GEN_RESERVE_PAGES = "$(Gen-Pages $c $pages)"
   $env:NINFER_KVMEM_LONG_REUSE = '1'
+  $env:NINFER_KVMEM_AUTO_ALLOCATION = '1'
 }
 
 # ---------------- 模型下载和转换（和 8G 懒人包同一套，已实测） ----------------
@@ -481,79 +499,9 @@ function Ensure-Model {
 
 # ---------------- 客户端接入信息：显示在窗口里，并写到 接入信息.txt ----------------
 function Write-Info($c) {
-  $vis = $c.VISION -ne '0'
-  $locHost = $(if ($c.HOST -eq '0.0.0.0' -or $c.HOST -eq '::') { '127.0.0.1' } else { $c.HOST })
-  $baseUrl = "http://${locHost}:$($c.PORT)/v1"
-  $lanUrls = @()
-  if ($c.HOST -eq '0.0.0.0') {
-    try { $lanUrls = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction Stop | Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' } | ForEach-Object { "http://$($_.IPAddress):$($c.PORT)/v1" }) } catch {}
-  }
-  $keyTxt = $(if ($c.API_KEY) { '设置.ini 里 API_KEY 的值' } else { '没设密码，随便填（例如 none），但不能空着' })
-  $label = "Swift-1.5 27B (local, KVMem $($c.KV), ctx $($c.CTX), out $($c.OUT))"
-  $info = @(
-    "ninfer Swift 1.5 懒人包 客户端接入信息（每次启动自动生成，$(Get-Date -Format 'yyyy-MM-dd HH:mm')）",
-    '改了配置以后，上下文窗口和最大输出会变，请以最新的这份为准。',
-    '',
-    '==== 在客户端（harness）里这样填 ====',
-    '  接口类型     : OpenAI 兼容（Chat Completions）。也支持 Anthropic Messages（/v1/messages）和 OpenAI Responses（/v1/responses）',
-    "  Base URL     : $baseUrl"
-  )
-  foreach ($u in $lanUrls) { $info += "  局域网地址   : $u （其他电脑用这个）" }
-  $info += @(
-    "  模型名 / ID  : $($c.MODEL_ID)",
-    "  API Key      : $keyTxt",
-    "  上下文窗口   : $($c.CTX) （有的客户端叫 contextWindow / context length / max context）",
-    "  最大输出     : $($c.OUT) （maxTokens / max_tokens，含思考；不要填得比这个大）",
-    "  图片输入     : $(if ($vis) { '支持（input 里加 image）' } else { '不支持（设置.ini 里 VISION=0）' })",
-    '  工具调用     : 支持（function calling / tools）',
-    '  思考内容     : 放在 reasoning_content 字段（DeepSeek 格式）；请求里加 "enable_thinking": false 可以关思考',
-    '  思考档位     : 只有 off / low / medium / xhigh 四档（reasoning_effort），none/minimal/high 等别名会映射到这些档位',
-    '  同时请求数   : 1（一次只处理一个请求，多开对话会排队）',
-    '',
-    '==== DeepSeek Harness（dsh）可以直接用的配置 ====',
-    '1) 把下面这段存成 %USERPROFILE%\.dsh\profiles\<你用的 profile>\cordis.patch.yml',
-    '   （已经有这个文件的话，把 providers 下面 ninfer-local 这一块合并进去）；',
-    '   或者在 dsh 的 设置 → 模型 → 自定义模型 API 里按上面的值填。',
-    '2) 在 %USERPROFILE%\.dsh\.env 里加一行：NINFER_LOCAL_API_KEY=none（设了 API_KEY 就填那个值）',
-    '3) 改完要完全退出 dsh（包括右下角托盘图标）再打开。dsh 开着的时候改这个文件，它可能会把旧的值写回去。',
-    '',
-    '- id: llm-pi-ai',
-    '  config:',
-    '    providers:',
-    '      ninfer-local:',
-    '        displayName: ninfer local (Swift 1.5)',
-    '        apiKeyEnv: NINFER_LOCAL_API_KEY',
-    '        api: openai-completions',
-    "        baseURL: $baseUrl",
-    '        models:',
-    "          - id: $($c.MODEL_ID)",
-    "            name: $label",
-    "            contextWindow: $($c.CTX)",
-    "            maxTokens: $($c.OUT)",
-    '            input:',
-    '              - text'
-  )
-  if ($vis) { $info += '              - image' }
-  $info += @(
-    '            reasoningEfforts:',
-    '              "off": none',
-    '              low: low',
-    '              medium: medium',
-    '              xhigh: xhigh',
-    '            compat:',
-    '              thinkingFormat: deepseek',
-    '- id: agent-default-model',
-    '  config:',
-    '    provider: ninfer-local',
-    "    model: $($c.MODEL_ID)"
-  )
-  Write-Host ''
-  Write-Host '  ---- 客户端（harness）里这样填（完整说明和 dsh 配置见 接入信息.txt）----' -ForegroundColor Cyan
-  Write-Host "  Base URL：$baseUrl    模型名：$($c.MODEL_ID)    API Key：$keyTxt"
-  foreach ($u in $lanUrls) { Write-Host "  局域网地址：$u" }
-  Write-Host "  上下文窗口：$($c.CTX)    最大输出：$($c.OUT)    图片：$(if ($vis) { '支持' } else { '不支持' })    工具调用：支持"
-  try { [IO.File]::WriteAllLines((Join-Path $Here '接入信息.txt'), [string[]]$info, (New-Object Text.UTF8Encoding $true)) }
-  catch { Write-Host "  写 接入信息.txt 失败：$($_.Exception.Message)" -ForegroundColor Yellow }
+  $url = 'http://' + $c.HOST + ':' + $c.PORT + '/v1'
+  $t = @('NInfer 通用API接入信息', "Base URL: $url", "模型ID: $($c.MODEL_ID)", "上下文: $($c.CTX)", "最大输出: $($c.OUT)（API请求上界；真实输出由完整前缀和检索预算动态限制）", '支持OpenAI与Anthropic兼容API，框架自选；SYS为旧版兼容字段，不决定实际前缀。')
+  [IO.File]::WriteAllLines((Join-Path $Here '接入信息.txt'),[string[]]$t,(New-Object Text.UTF8Encoding $true))
 }
 
 # ---------------- 主流程 ----------------
@@ -625,20 +573,20 @@ if (-not (($argv -contains 'last') -or $DryRun)) {
 # 这次启动用的配置：输出"自动"在这里按估算窗口定下来；之后显存不够自动缩窗口时，输出预留不再变
 $run = [ordered]@{}; foreach ($k in $cfg.Keys) { $run[$k] = $cfg[$k] }
 $run.OUT = "$(Out-Of $cfg $pages)"
-$PageMin = (Gen-Pages $run $pages) + $RestMin
+$PageMin = [int][Math]::Ceiling(([int]$run.CTX / 8 + 8192 + 256) / 64)
 if ($DryRun) {
   Write-Host ''; Write-Host '  [dryrun] 只显示，不启动、不下载：'
   if (-not (Test-Path -LiteralPath $Model)) { Write-Host "  （模型还没准备好：$Model）" -ForegroundColor Yellow }
   Write-Host ('  EXE  ' + $Exe)
   Write-Host ('  MODEL ' + $Model)
   $dp = [Math]::Max($pages, $PageMin); $sp = Split-Window $run $dp
-  Write-Host ('  ENV  NINFER_KVMEM_SINK_PAGES={0} NINFER_KVMEM_GEN_RESERVE_PAGES={1} NINFER_KVMEM_LONG_REUSE=1' -f $sp[0], (Gen-Pages $run $dp))
+  Write-Host ('  ENV  NINFER_KVMEM_SINK_PAGES={0} NINFER_KVMEM_GEN_RESERVE_PAGES={1} NINFER_KVMEM_LONG_REUSE=1 NINFER_KVMEM_AUTO_ALLOCATION=1' -f $sp[0], (Gen-Pages $run $dp))
   Write-Host ('  ARGS ' + ((Build-Args $run $dp) -join ' '))
   exit 0
 }
 Save-Config $cfg
 Ensure-Model
-if ($pages -lt $PageMin) { $pages = $PageMin; Write-Host "  空闲显存偏少，先按最小窗口 $PageMin 页试一次" -ForegroundColor Yellow }
+if ($pages -lt $PageMin) { Fail "显存预算不足，不强行扩大驻留。请降低逻辑窗口或释放显存。" }
 Write-Info $run
 
 Get-ChildItem env: | Where-Object { $_.Name -like 'NINFER_*' -and $_.Name -ne 'NINFER_FREE_VRAM_MIB' } | ForEach-Object { Remove-Item "env:$($_.Name)" }
@@ -692,9 +640,9 @@ while ($true) {
     $fit++
     if ("$($cfg.OUT)" -eq 'auto') {
       $run.OUT = "$(Out-Of $cfg $next)"
-      $PageMin = (Gen-Pages $run $next) + $RestMin
+      $PageMin = [int][Math]::Ceiling(([int]$run.CTX / 8 + 8192 + 256) / 64)
     }
-    if ($next -lt $PageMin) { Write-Host "  显存不够（可用 $([int]$availMiB) MiB），连最小窗口 $PageMin 页都放不下。请关闭占显存的程序后重试；完整开头和 8K 输出不会缩小。" -ForegroundColor Red; break }
+    if ($next -lt $PageMin) { Write-Host "  显存不够（可用 $([int]$availMiB) MiB），连最小窗口 $PageMin 页都放不下。把单次输出调小（按 C 重新选），或关掉占显存的程序（游戏、浏览器视频等）再启动。" -ForegroundColor Red; break }
     Write-Host ("  显存比预计少（引擎可用 {0} MiB），窗口 {1} 页 → {2} 页，自动重试 ..." -f [int]$availMiB, $pages, $next) -ForegroundColor Yellow
     $pages = $next
     if ([int]$run.THINK -gt [int]$run.OUT - 256) { $run.THINK = "$([Math]::Max(0, [int]$run.OUT - 256))" }

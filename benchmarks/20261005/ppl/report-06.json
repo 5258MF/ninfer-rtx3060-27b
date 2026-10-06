@@ -1,0 +1,105 @@
+{
+  "artifact": {
+    "model_id": "qwen3.8-27b",
+    "path": "D:\\models\\bonsai2-27b\\model\\bonsai2_27b_ternary_v2.ninfer",
+    "target": "qwen3_8_27b",
+    "weights_id": "groupwise-int"
+  },
+  "corpus": {
+    "id": "custom-tiny.txt",
+    "mode": "custom",
+    "source": "D:\\models\\build-sm86\\tiny.txt",
+    "stream_count": 1
+  },
+  "domains": [
+    {
+      "domain": "custom",
+      "mean_nll": 0.10422890354762786,
+      "perplexity": 1.1098544754681559,
+      "scored_tokens": 400,
+      "total_nll": 41.69156141905114
+    }
+  ],
+  "execution": {
+    "context_tokens": 256,
+    "device": 0,
+    "kv_dtype": "int8-g64",
+    "prefill_chunk_tokens": 1024,
+    "purpose": "causal_scoring",
+    "score_tile_tokens": 1024,
+    "stride_tokens": 128
+  },
+  "metric": {
+    "log_base": "natural",
+    "name": "fixed-window truncated-context causal perplexity"
+  },
+  "overall": {
+    "mean_nll": 0.10422890354762786,
+    "perplexity": 1.1098544754681559,
+    "scored_tokens": 400,
+    "total_nll": 41.69156141905114
+  },
+  "schema_version": 1,
+  "streams": [
+    {
+      "domain": "custom",
+      "id": "tiny.txt",
+      "input_tokens": 401,
+      "mean_nll": 0.10422890354762786,
+      "path": "D:\\models\\build-sm86\\tiny.txt",
+      "perplexity": 1.1098544754681559,
+      "scored_tokens": 400,
+      "seconds": 2.3183222,
+      "total_nll": 41.69156141905114,
+      "unscored_tokens": 1,
+      "windows": [
+        {
+          "first_target": 1,
+          "index": 0,
+          "input_begin": 0,
+          "input_end": 256,
+          "mean_nll": 0.11916395347273233,
+          "perplexity": 1.126554605687694,
+          "scored_tokens": 255,
+          "seconds": 1.5649347,
+          "target_begin": 1,
+          "target_end": 256,
+          "total_nll": 30.386808135546744
+        },
+        {
+          "first_target": 128,
+          "index": 1,
+          "input_begin": 128,
+          "input_end": 384,
+          "mean_nll": 0.02139558234193828,
+          "perplexity": 1.0216261089620566,
+          "scored_tokens": 128,
+          "seconds": 0.3744145,
+          "target_begin": 256,
+          "target_end": 384,
+          "total_nll": 2.7386345397681
+        },
+        {
+          "first_target": 239,
+          "index": 2,
+          "input_begin": 145,
+          "input_end": 401,
+          "mean_nll": 0.503889337866841,
+          "perplexity": 1.6551461910139442,
+          "scored_tokens": 17,
+          "seconds": 0.3789657,
+          "target_begin": 384,
+          "target_end": 401,
+          "total_nll": 8.566118743736297
+        }
+      ]
+    }
+  ],
+  "timing": {
+    "load_seconds": 3.3853787,
+    "read_and_tokenize_seconds": 0.0004312,
+    "score_seconds": 2.3184263,
+    "scored_tokens_per_second": 172.53082403352653,
+    "total_seconds": 5.8112747
+  }
+}

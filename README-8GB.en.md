@@ -30,6 +30,8 @@ KVMem places the FP32 index and BF16 query stash in pinned host RAM and scores b
 
 ### KVMem allocation from the actual instruction prefix
 
+**Current main source (2026-10-06):** Automatic KVMem mode sets only the resident budget and a finite API request ceiling that follows it. It does not preallocate fixed SYS, a fixed 36K/half split or a 32K output cap. The engine preserves the actual system/developer/tool prefix and assigns retrieval/output per request. Here `--default-max-tokens` also caps explicit requests; it is not merely a fallback for omitted fields. A legacy SYS/sink setting or bootstrap seed is not the actual prefix allocation. Client compaction policies remain client-owned; no DSH test launchers are bundled.
+
 At startup, free VRAM determines total resident capacity C. Each request then tokenizes the complete rendered system/developer instructions and tool definitions as prefix S. Retrieval excludes S; output gets the remaining capacity.
 
 | Total context | Recommended retrieval | Preferred target | Output reserve |
@@ -59,11 +61,11 @@ As with the 12G build, four modes are available. The startup wizard lists recomm
 | **Standard** (recommended) | 56K (all on GPU) | 32K | Most reliable for everyday chat; the model sees the full context |
 | **KVMem** (recommended; default) | **256K** | Automatic, at least 8K reserved | Long documents, long conversations, coding tool loops |
 | Standard rk4v4 (not recommended) | 84K (all on GPU) | 32K | Above 56K when the model must see the entire context |
-| KVMem + rk4v4 (not recommended) | **256K** | Automatic, at least 8K reserved | Lower KV memory, with the historical speed/quality tradeoff |
+| KVMem + rk4v4 (current tested profile) | **128K** | Automatic, at least 8K reserved | Lower KV memory, with the historical speed/quality tradeoff |
 
 - Both KV formats use less VRAM than the int8 format in the 12G build:
   - **rk8v4:** K uses int8 and V uses 4-bit; used by the first two modes.
-  - **rk4v4:** K and V both use 4-bit, allowing more context in the same VRAM. Tradeoffs: 10–15% slower generation, draft hit rate falling from 64% to 55%, and about 0.33% higher PPL. That is why it is marked “not recommended.”
+  - **rk4v4:** K and V both use 4-bit, allowing more context in the same VRAM. Older builds measured speed/PPL tradeoffs. The current128K KVMem profile uses rk4v4 with Graph off; use the new tables rather than treating old percentages as fixed penalties.
 - **KVMem GPU window:**
 
 | Mode | KV on GPU | Retrieved history + output space |
@@ -94,16 +96,19 @@ These are historical measurements, grouped by build. Speeds from different tools
 
 ### Speed
 
-| Metric | Result |
-|---|---:|
-| Generation (`ninfer_bench`) | **about 45 tokens/s** (about 38 with rk4v4) |
-| Real chat response (median) | **about 36–40 tokens/s** |
-| Short prompts (`测试.bat` included in package) | 38–46 tokens/s |
-| Long prompt processing (2048-token chunks) | about 620 tokens/s |
-| Long generation when GPU throttles at 89°C | about 24 tokens/s |
+2026-10-05, RTX 3060 12GB / Windows; full output head, MTP draft3, CPU vision, prefill chunk512. Text/code inputs are 56/49 tokens, with 256 generated tokens; one warmup and three measured requests per case. Decode rates are medians in tokens/s, not end-to-end throughput.
 
-- About 30% slower than the 12G build (`ninfer_bench`: 45 vs. 67). Nearly all of the difference comes from the ptq1 model itself; most existing speed optimizations target the 12G PQ2 format. The [8G VRAM-saving changes](#implementation) have little effect on speed.
-- All measurements used an **RTX 3060 12 GB** with engine VRAM capped to stay at or below 7.5 GB. **No actual 8 GB GPU was tested.**
+| Configuration | Graph | Tested resident KV | Text decode | Code decode |
+|---|---|---:|---:|---:|
+| Bonsai2 8G · rk4v4 | off | 48K | 32.26 | 31.03 |
+
+Zero-cache prefill: exact 2K/8K/16K inputs, at most 8 output tokens; one warmup and three measured requests per input length. Rates below are prefill medians, with streaming TTFT shown separately. Prompt timing and usage counts agreed; cached tokens were zero.
+
+| Configuration | Graph | 2K prefill | 8K prefill | 16K prefill | 16K TTFT (s) |
+|---|---|---:|---:|---:|---:|
+| Bonsai2 8G · rk4v4 | off | 558.43 | 557.65 | 533.90 | 30.71 |
+
+Ten configurations produced 90 measured prefill samples plus 30 warmups. Different models used different windows; Graph pairs for the same model/KV used the same window. Small differences are not a general speedup guarantee. All prefill inputs fit within resident KV; these rates do not cover long-history KV paging. The 37K IQ3 / 48K Bonsai8 test windows are historical: current launchers use IQ3 33K / Bonsai8 up to 36K. IQ3 first exceeded the old 300MiB safety rule (223.68MiB remaining), then completed a retry; both facts are retained. [Metrics and methods](benchmarks/20261005/README.md).
 
 ### Long Context
 

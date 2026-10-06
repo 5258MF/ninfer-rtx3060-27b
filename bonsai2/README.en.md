@@ -2,11 +2,11 @@
 
 **Language:** [简体中文](README.md) | English
 
-The current shared source version is **0.1.5**, with CPU retrieval, blocked scoring, and request-based window allocation. The 8G and 12G one-click packages remain **0.1.3** and share the same Baidu and Quark links on the [project home](../README.en.md#downloads). See the [changelog](../CHANGELOG.md).
+The current shared source version is **0.1.6**, with CPU retrieval, blocked scoring, and request-based window allocation. The 8G and 12G one-click packages remain **0.1.3** and share the same Baidu and Quark links on the [project home](../README.en.md#downloads). See the [changelog](../CHANGELOG.md).
 
 This directory contains the engine source (formerly `ninfer-tree`) and build script shared by the Bonsai2 8 GB and 12 GB builds, plus separate one-click launchers for each memory target. The builds use different model files and launch settings; the engine implementation, common fixes, and build entry point are shared. It includes the sm_86, KVMem, rk8v4, and VRAM-budget changes, along with the three agent-compatibility fixes synchronized on 2026-10-04.
 
-The current shared source version is **0.1.5** (see [`VERSION`](VERSION)). The Bonsai2 8G / 12G source is available in the [0.1.5 release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-v0.1.5), whose asset contains only the Bonsai2 source directory. The one-click packages remain 0.1.3 and are on the [project downloads page](../README.en.md#downloads).
+Current main source is **0.1.6** (`VERSION`). This revision has no Release yet; the problem releases were withdrawn. Historical source downloads: [Swift 0.1.3](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.3), [Bonsai2 0.1.4](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.4).
 
 ## Directory
 

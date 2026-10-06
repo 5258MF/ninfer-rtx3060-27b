@@ -12,7 +12,10 @@ $ErrorActionPreference = "Stop"
 if (-not $KitRoot) { $KitRoot = Split-Path -Parent $MyInvocation.MyCommand.Path }
 
 $EmbeddedExpected = [ordered]@{
-    "launcher/runtime-options.ps1" = @{ Sha256 = "eff90bdebf0a2344bb1a5b64820464527106e6b327873d81bb37f4d6da0f1f7c"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "CPU vision and CUDA Graph controls" }
+    "launcher/runtime-options.ps1" = @{ Sha256 = "68de94cb47a0e70f65b8dec340f28c16b0b3dc2fdf19e80909696b89199189bc"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "Runtime options update" }
+    "RUNTIME-OPTIONS.txt" = @{ Sha256 = "8134d54310d5f2ab752c1fdcaf581ac99446b805f75e4e927f6010d259ba7190"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "Runtime options update" }
+    "engine/cpu-openblas.dll" = @{ Sha256 = "6b2103f2ae4d8547998b5d188e9801fba6cb12404ae8e4bfff319e8cc1949000"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "CPU-only OpenBLAS backend" }
+
     "engine/ninfer-serve.exe"   = @{
         Sha256          = "fe444757618e651c826f2edbeb5c7dccafb678983a4e57b63281cc32732e3f3b"
         MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2026-10-03T13:00:00", [System.DateTimeKind]::Utc)
@@ -49,7 +52,7 @@ $EmbeddedExpected = [ordered]@{
         Role            = "VC runtime 140_1 exception handling DLL"
     }
     "launcher/launch.ps1"       = @{
-        Sha256          = "193853a5c8050be67ad606d69c2901d8fff552a71abdc5f74ca5bf3e8567a044"
+        Sha256          = "3c06e315d2a569bdf08442a0e330ed37479441426dab47b42bd86c4016207977"
         MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2026-10-03T13:00:00", [System.DateTimeKind]::Utc)
         Role            = "One-click interactive launcher script"
     }

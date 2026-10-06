@@ -84,15 +84,15 @@ function New-Plan($c,$policy) {
 
  $approved=($tag -eq 'iq3-rk4-nograph' -and $c.MARGIN_MIB -eq '300' -and $row.status -eq '验证通过' -and $row.retrieval_correct -eq $true -and $row.remaining_mib -ge [int]$c.MARGIN_MIB -and $row.fixed_tokens -eq 2048 -and $row.output_tokens -eq 8192 -and $row.budget_mib -eq 12288)
 
- $a=@($Model,'--host','127.0.0.1','--port',[string]$c.PORT,'--model-id','swift15-iq3xxs','--max-concurrency','1','--kv-dtype',[string]$c.KV,'--spec','mtp','--draft-tokens','3','--max-context',"$ctx",'--default-max-tokens','16384','--prefill-chunk','512','--device-state-slots','0','--kv-capacity','auto','--kvmem-window-pages',[string]($cap/64),'--host-kv-mib',"$hostMiB",'--embedding-host','--gdn-state-fp16')
+ $a=@($Model,'--host','127.0.0.1','--port',[string]$c.PORT,'--model-id','swift15-iq3xxs','--max-concurrency','1','--kv-dtype',[string]$c.KV,'--spec','mtp','--draft-tokens','3','--max-context',"$ctx",'--default-max-tokens',[string]$cap,'--prefill-chunk','512','--device-state-slots','0','--kv-capacity','auto','--kvmem-window-pages',[string]($cap/64),'--host-kv-mib',"$hostMiB",'--embedding-host','--gdn-state-fp16')
 
  if($c.VISION -eq '1'){$a+=@('--vision','--vision-residency','cpu','--vision-max-merged','4096')}
 
  $a=@(Complete-NinferRuntimeArgs -Config $c -Arguments $a -Swift)
 
- $e=[ordered]@{NINFER_TERNARY_EMBED_HOST='1';NINFER_TERNARY_VISION_HOST='1';NINFER_VISION_CPU='1';NINFER_CPU_THREADS=[string]$c.CPU_THREADS;NINFER_KVMEM_SINK_PAGES='32';NINFER_KVMEM_GEN_RESERVE_PAGES='256';NINFER_KVMEM_LONG_REUSE='1';NINFER_KVMEM_AUTO_ALLOCATION='1'}
+ $e=[ordered]@{NINFER_TERNARY_EMBED_HOST='1';NINFER_TERNARY_VISION_HOST='1';NINFER_VISION_CPU='1';NINFER_CPU_THREADS=[string]$c.CPU_THREADS;NINFER_KVMEM_SINK_PAGES='2';NINFER_KVMEM_GEN_RESERVE_PAGES='0';NINFER_KVMEM_LONG_REUSE='1';NINFER_KVMEM_AUTO_ALLOCATION='1'}
 
- return [pscustomobject]@{Case=$tag;Approved=$approved;ValidationStatus=$row.status;MarginMiB=[int]$c.MARGIN_MIB;ResidentTokens=$cap;FixedTokens=$null;OutputTokens=16384;RetrievalTokens=18432;AllocationMode="automatic-complete-prefix";ContextTokens=$ctx;Executable=$Exe;Arguments=$a;Environment=$e}
+ return [pscustomobject]@{Case=$tag;Approved=$approved;ValidationStatus=$row.status;MarginMiB=[int]$c.MARGIN_MIB;ResidentTokens=$cap;FixedTokens=$null;OutputTokens=$cap;RetrievalTokens=18432;AllocationMode="automatic-complete-prefix";ContextTokens=$ctx;Executable=$Exe;Arguments=$a;Environment=$e}
 
 }
 
@@ -100,17 +100,17 @@ function Read-Policy {if(-not(Test-Path $PolicyFile)){throw '本机容量验收�
 
 function Show-Plan($c,$p){
 
- Write-Host "`nSwift1.5 IQ3XXS — 128K自动前缀档 / 精简短工具链已检查" -ForegroundColor Cyan
+ Write-Host "`nSwift1.5 IQ3XXS — 128K自动前缀档 / 框架无关动态分配" -ForegroundColor Cyan
 
  Show-NinferRuntimeOptions $c
 
  Write-Host ('  KV='+$c.KV+'；余量档='+$p.MarginMiB+'MiB；端口='+$c.PORT)
 
- Write-Host ('  驻留='+$p.ResidentTokens+'；完整系统/工具前缀自动保留；API输出上限=16384；检索目标='+$p.RetrievalTokens+'；逻辑上下文='+$p.ContextTokens)
+ Write-Host ('  驻留='+$p.ResidentTokens+'；完整系统/工具前缀自动保留；API请求上界随驻留；真实输出由完整前缀动态决定；检索目标='+$p.RetrievalTokens+'；逻辑上下文='+$p.ContextTokens)
 
  Write-Host ('  当前容量记录：'+$p.ValidationStatus+'；允许按此记录启动='+$p.Approved)
 
- Write-Host '  MTP Q4 / draft3 / 完整输出头。实际sink/检索/输出以[kvmem-alloc]日志为准。精简工具链已回归；普通长链需配套DSH的128K压缩设置。16K长输出未验证。'
+ Write-Host '  MTP Q4 / draft3 / 完整输出头。实际sink/检索/输出以[kvmem-alloc]日志为准。不绑定智能体框架；客户端裁剪/压缩策略由客户端决定。长输出未验证。'
 
 }
 

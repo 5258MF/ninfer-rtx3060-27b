@@ -5,7 +5,19 @@
 按版本和日期记录已发生的改动。源码更新与网盘包更新分别标明，避免把源码中的修复误认为已经进入旧下载包。
 
 
-## 2026-10-06：KV 换页与启动器修复（Swift 源码 0.1.4 / Bonsai2 源码 0.1.5）
+## 2026-10-06：通用启动器纠正与评分／性能报告（main 未发布）
+
+Swift main 源码 0.1.5，Bonsai2 main 共用源码 0.1.6。此前 Swift 0.1.4、Bonsai2 0.1.5 Release 已撤回，本轮不重新发布 Release，也不替换网盘包。
+
+- 同步四包修正：自动 KVMem 只定驻留预算和有限 API 上界，移除旧固定 SYS、固定 36K／平分和 32K 输出封顶；`default-max-tokens` 在此引擎中也限制显式请求。完整前缀、检索与输出交给引擎逐请求分配。IQ3／8G 的测试用 16K API 限制取消。保留命令行参数读取、CPU／Graph 控制和旧 KV 页回收修复。
+- 从公开源码移除四包的 DSH 测试入口、预设和客户端脚本。B 机原会话保留在本地归档；通用包只提供兼容 API，不绑定某个框架或压缩策略。个人配置、会话、原始请求和运行日志未上传。
+- 主 README 更新 IQ3XXS PPL 4.495637819904494；Q6/Q4 两份原报告共 261167 评分 token、124 窗口，主模型评分一致。CausalScoring 不验证 MTP 草稿或视觉。19 份原始 PPL 报告按原哈希保存，早期 custom 语料不与 quick 混算；IQ2 旧 PPL 未找到原报告，保留历史参考标签。
+- 用 2026-10-05 同口径数据替换主展示速度表：60 个文本／代码正式样本，以及 90 个正式 2K/8K/16K prefill 样本。保留测试驻留窗口、Graph、MTP、缓存计数、TTFT 和异常记录。旧 refbench／ninfer_bench 优化数字移作历史记录，不据不同输入／工具宣称新代码提速。公开数据和哈希见 `benchmarks/20261005/`。
+- B 机最新修正的 12 个短请求包括 8582-token 完整前缀，未观察到 OOM；它们不是 32K／64K 长输出验收。新默认窗口与旧速度测试窗口不同，未把旧高窗口成绩当成当前默认保证。
+
+English: Framework-neutral launchers, truly request-time allocation, archived IQ3 PPL and current decode/prefill display tables. Test-only DSH wrappers are removed. Source revisions are main-only; withdrawn Releases are not republished and cloud ZIPs remain unchanged.
+
+## 2026-10-06：KV 换页与启动器修复（Swift 0.1.4 / Bonsai2 0.1.5，Release 已撤回）
 
 **本次更新 GitHub 源码与两套独立源码 Release。网盘懒人包及下载链接保持现有发布状态；源码版本不代表旧 ZIP 已包含修复。**
 

@@ -21,7 +21,10 @@ $UtcDll = [datetime]::SpecifyKind([datetime]"2025-01-01T00:00:00", [System.DateT
 $UtcEngine = [datetime]::SpecifyKind([datetime]"2026-10-03T00:00:00", [System.DateTimeKind]::Utc)
 
 $EmbeddedExpected = [ordered]@{
-    "launcher/runtime-options.ps1" = @{ Sha256 = "eff90bdebf0a2344bb1a5b64820464527106e6b327873d81bb37f4d6da0f1f7c"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "CPU vision and CUDA Graph controls" }
+    "launcher/runtime-options.ps1" = @{ Sha256 = "68de94cb47a0e70f65b8dec340f28c16b0b3dc2fdf19e80909696b89199189bc"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "Runtime options update" }
+    "RUNTIME-OPTIONS.txt" = @{ Sha256 = "8134d54310d5f2ab752c1fdcaf581ac99446b805f75e4e927f6010d259ba7190"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "Runtime options update" }
+    "engine/cpu-openblas.dll" = @{ Sha256 = "6b2103f2ae4d8547998b5d188e9801fba6cb12404ae8e4bfff319e8cc1949000"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "CPU-only OpenBLAS backend" }
+
     "engine/ninfer-serve.exe"       = @{ Sha256 = "43cdbfc15ab2ab0714a9bc2d6832b77e4c5704c15c5d42ac2c68926fab443d60"; MinLastWriteUtc = $UtcEngine; Role = "rk8v4 engine (normal / KVMem modes), identical to the 12G kit binary" }
     "engine/ninfer-serve-rk4.exe"   = @{ Sha256 = "1e3e5a57bc989d0ae24328676139b547fc79618a1ca7184027e1db018f196e7a"; MinLastWriteUtc = $UtcKit; Role = "rk4v4 engine (rk4 / kvrk4 modes)" }
     "engine/cudart64_13.dll"        = @{ Sha256 = "b00ca6f53699120da815bf3e06e2e4285fae2f201235b883dcbb50eec51e2a2a"; MinLastWriteUtc = $UtcDll; Role = "CUDA 13 runtime DLL" }
@@ -37,7 +40,7 @@ $EmbeddedExpected = [ordered]@{
     "engine/swresample-7.dll"       = @{ Sha256 = "a81be671fe3fdebb6bc12abc1268c6e065d68de61ddf1efca721e52752f10f8f"; MinLastWriteUtc = $UtcDll; Role = "FFmpeg swresample runtime DLL" }
     "patch/ops.txt"                 = @{ Sha256 = "25678c4a4f70998087d0c5fb4a47436257b90867bc9db445387eacf3222ba1f9"; MinLastWriteUtc = $UtcDll; Role = "MTP Q4 conversion patch script" }
     "patch/lit.bin"                 = @{ Sha256 = "8b924c284cd262883f76706c16a5b5b58fe6bc1fd7f4c21f362218c317b09701"; MinLastWriteUtc = $UtcDll; Role = "MTP Q4 conversion literal payload" }
-    "launcher/launch.ps1"           = @{ Sha256 = "eb24ac3a3496d0422a8024ae921241ebc51ec8d674d272b8a97cf302e070a555"; MinLastWriteUtc = $UtcKit; Role = "One-click interactive launcher" }
+    "launcher/launch.ps1"           = @{ Sha256 = "8a239a26256548df75fd76446088ae5f0ce5398995d0bee7fae29a8b1d8b7aed"; MinLastWriteUtc = $UtcKit; Role = "One-click interactive launcher" }
     "launcher/test.ps1"             = @{ Sha256 = "fef3ba95e1423ce0df107b63cfd78e027e69fd875b20acd81edd7eba94a05ca2"; MinLastWriteUtc = $UtcDll; Role = "Connectivity and speed test script" }
     "verify-arch-engine.ps1"        = @{ Sha256 = "5bec4815a679c8e6a5036bc79f7f91ac5351e4d87081a2c43dc651e3d7573d25"; MinLastWriteUtc = $UtcKit; Role = "End-to-end hardware, needle and agent-compat verification harness" }
 }

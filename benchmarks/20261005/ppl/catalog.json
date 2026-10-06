@@ -1,0 +1,493 @@
+[
+  {
+    "report": "ppl/report-01.json",
+    "original_report_name": "converted-mtp-q4",
+    "sha256": "80cff7a1b72ce7dcb4e29a950eeda5afa478fcad086d9fea8fd83698c4468496",
+    "artifact": "swift15_iq3xxs_mtpq4.ninfer",
+    "corpus": "ninfer-ppl-1m-v1",
+    "mode": "quick",
+    "execution": {
+      "context_tokens": 4096,
+      "device": 0,
+      "embedding_host": true,
+      "fast_prefill_kernel": false,
+      "gdn_state_fp16": true,
+      "kv_dtype": "rotated-lloyd4g64-v4g32",
+      "prefill_chunk_tokens": 1024,
+      "purpose": "causal_scoring",
+      "rope_scaling_factor": 1.0,
+      "rope_scaling_original_context": 0,
+      "rope_yarn": false,
+      "rope_yarn_factor": 1.0,
+      "score_tile_tokens": 1024,
+      "stride_tokens": 2048,
+      "windows": "sliding"
+    },
+    "overall": {
+      "mean_nll": 1.503107553275511,
+      "perplexity": 4.495637819904494,
+      "scored_tokens": 261167,
+      "total_nll": 392562.0903663054
+    },
+    "window_count": 124,
+    "kind": "IQ3 MTP conversion A/B"
+  },
+  {
+    "report": "ppl/report-02.json",
+    "original_report_name": "original-mtp-q6",
+    "sha256": "28a47b5c427dfbbdc93e0a1cce430c2e7622ee8f3337e0c9c87dcfec0c242c63",
+    "artifact": "swift15_iq3xxs_mtp.ninfer",
+    "corpus": "ninfer-ppl-1m-v1",
+    "mode": "quick",
+    "execution": {
+      "context_tokens": 4096,
+      "device": 0,
+      "embedding_host": true,
+      "fast_prefill_kernel": false,
+      "gdn_state_fp16": true,
+      "kv_dtype": "rotated-lloyd4g64-v4g32",
+      "prefill_chunk_tokens": 1024,
+      "purpose": "causal_scoring",
+      "rope_scaling_factor": 1.0,
+      "rope_scaling_original_context": 0,
+      "rope_yarn": false,
+      "rope_yarn_factor": 1.0,
+      "score_tile_tokens": 1024,
+      "stride_tokens": 2048,
+      "windows": "sliding"
+    },
+    "overall": {
+      "mean_nll": 1.503107553275511,
+      "perplexity": 4.495637819904494,
+      "scored_tokens": 261167,
+      "total_nll": 392562.0903663054
+    },
+    "window_count": 124,
+    "kind": "IQ3 MTP conversion A/B"
+  },
+  {
+    "report": "ppl/report-03.json",
+    "original_report_name": "ppl-new",
+    "sha256": "b9b5ae943d92f4302768e6b5f07666746077f63de9b9af59d2df2f8e0e04cbad",
+    "artifact": "Swift-Bonsai-2-base.ninfer",
+    "corpus": "ninfer-ppl-1m-v1",
+    "mode": "quick",
+    "execution": {
+      "context_tokens": 4096,
+      "device": 0,
+      "kv_dtype": "int8-g64",
+      "prefill_chunk_tokens": 1024,
+      "purpose": "causal_scoring",
+      "score_tile_tokens": 1024,
+      "stride_tokens": 2048
+    },
+    "overall": {
+      "mean_nll": 1.727831254531994,
+      "perplexity": 5.6284340215296345,
+      "scored_tokens": 261167,
+      "total_nll": 451252.5052523573
+    },
+    "window_count": 124,
+    "kind": "Historical Bonsai quick"
+  },
+  {
+    "report": "ppl/report-04.json",
+    "original_report_name": "20260926-173744",
+    "sha256": "7c811a8beb545c34c5064ec0e92934663a8ef64840c20d08330449f837187905",
+    "artifact": "bonsai2_27b_ternary_v2.ninfer",
+    "corpus": "custom-tiny.txt",
+    "mode": "custom",
+    "execution": {
+      "context_tokens": 16,
+      "device": 0,
+      "kv_dtype": "int8-g64",
+      "prefill_chunk_tokens": 1024,
+      "purpose": "causal_scoring",
+      "score_tile_tokens": 1024,
+      "stride_tokens": 8
+    },
+    "overall": {
+      "mean_nll": 0.3121040226519108,
+      "perplexity": 1.3662968114552088,
+      "scored_tokens": 400,
+      "total_nll": 124.84160906076431
+    },
+    "window_count": 50,
+    "kind": "Early custom-corpus pipeline/sweep"
+  },
+  {
+    "report": "ppl/report-05.json",
+    "original_report_name": "20260926-173754",
+    "sha256": "0a9698ac07a0c7619e539bbfbf31b4185c165da9d207c3b4b8d930cf1a2c6eaf",
+    "artifact": "bonsai2_27b_ternary_v2.ninfer",
+    "corpus": "custom-tiny.txt",
+    "mode": "custom",
+    "execution": {
+      "context_tokens": 64,
+      "device": 0,
+      "kv_dtype": "int8-g64",
+      "prefill_chunk_tokens": 1024,
+      "purpose": "causal_scoring",
+      "score_tile_tokens": 1024,
+      "stride_tokens": 32
+    },
+    "overall": {
+      "mean_nll": 0.09731407501385547,
+      "perplexity": 1.1022064947842818,
+      "scored_tokens": 400,
+      "total_nll": 38.92563000554219
+    },
+    "window_count": 12,
+    "kind": "Early custom-corpus pipeline/sweep"
+  },
+  {
+    "report": "ppl/report-06.json",
+    "original_report_name": "20260926-173800",
+    "sha256": "b1fb926c2ba43b67533662e558010c5c0058a4c1caf185f509955d63bcba390d",
+    "artifact": "bonsai2_27b_ternary_v2.ninfer",
+    "corpus": "custom-tiny.txt",
+    "mode": "custom",
+    "execution": {
+      "context_tokens": 256,
+      "device": 0,
+      "kv_dtype": "int8-g64",
+      "prefill_chunk_tokens": 1024,
+      "purpose": "causal_scoring",
+      "score_tile_tokens": 1024,
+      "stride_tokens": 128
+    },
+    "overall": {
+      "mean_nll": 0.10422890354762786,
+      "perplexity": 1.1098544754681559,
+      "scored_tokens": 400,
+      "total_nll": 41.69156141905114
+    },
+    "window_count": 3,
+    "kind": "Early custom-corpus pipeline/sweep"
+  },
+  {
+    "report": "ppl/report-07.json",
+    "original_report_name": "20260926-174045",
+    "sha256": "31783258514e372f60a3ad3e3e26f3f9d0e6fb73047f47146a30529ce9675b12",
+    "artifact": "bonsai2_27b_ternary_v2.ninfer",
+    "corpus": "custom-tiny.txt",
+    "mode": "custom",
+    "execution": {
+      "context_tokens": 384,
+      "device": 0,
+      "kv_dtype": "int8-g64",
+      "prefill_chunk_tokens": 1024,
+      "purpose": "causal_scoring",
+      "score_tile_tokens": 1024,
+      "stride_tokens": 192
+    },
+    "overall": {
+      "mean_nll": 0.11119750375044532,
+      "perplexity": 1.1176156183342456,
+      "scored_tokens": 400,
+      "total_nll": 44.47900150017813
+    },
+    "window_count": 2,
+    "kind": "Early custom-corpus pipeline/sweep"
+  },
+  {
+    "report": "ppl/report-08.json",
+    "original_report_name": "20260926-174051",
+    "sha256": "cb42d88101d66bec04bb41afcec72a6adc74dd277816b81e39483bbdb91f1bde",
+    "artifact": "bonsai2_27b_ternary_v2.ninfer",
+    "corpus": "custom-tiny.txt",
+    "mode": "custom",
+    "execution": {
+      "context_tokens": 512,
+      "device": 0,
+      "kv_dtype": "int8-g64",
+      "prefill_chunk_tokens": 1024,
+      "purpose": "causal_scoring",
+      "score_tile_tokens": 1024,
+      "stride_tokens": 256
+    },
+    "overall": {
+      "mean_nll": 0.10920545676490293,
+      "perplexity": 1.115391491528788,
+      "scored_tokens": 400,
+      "total_nll": 43.68218270596117
+    },
+    "window_count": 1,
+    "kind": "Early custom-corpus pipeline/sweep"
+  },
+  {
+    "report": "ppl/report-09.json",
+    "original_report_name": "20260926-174057",
+    "sha256": "77aae3237f19787a412f34dc917a6243d06c4412457ad6ca715f5ad17a9c31d6",
+    "artifact": "bonsai2_27b_ternary_v2.ninfer",
+    "corpus": "custom-tiny.txt",
+    "mode": "custom",
+    "execution": {
+      "context_tokens": 768,
+      "device": 0,
+      "kv_dtype": "int8-g64",
+      "prefill_chunk_tokens": 1024,
+      "purpose": "causal_scoring",
+      "score_tile_tokens": 1024,
+      "stride_tokens": 384
+    },
+    "overall": {
+      "mean_nll": 0.10920545676490293,
+      "perplexity": 1.115391491528788,
+      "scored_tokens": 400,
+      "total_nll": 43.68218270596117
+    },
+    "window_count": 1,
+    "kind": "Early custom-corpus pipeline/sweep"
+  },
+  {
+    "report": "ppl/report-10.json",
+    "original_report_name": "20260926-174102",
+    "sha256": "85dce83c2f73ae4ad66213921924130ca3da431cd99d0890da5655cb643da0ba",
+    "artifact": "bonsai2_27b_ternary_v2.ninfer",
+    "corpus": "custom-tiny.txt",
+    "mode": "custom",
+    "execution": {
+      "context_tokens": 1024,
+      "device": 0,
+      "kv_dtype": "int8-g64",
+      "prefill_chunk_tokens": 1024,
+      "purpose": "causal_scoring",
+      "score_tile_tokens": 1024,
+      "stride_tokens": 512
+    },
+    "overall": {
+      "mean_nll": 0.10920545676490293,
+      "perplexity": 1.115391491528788,
+      "scored_tokens": 400,
+      "total_nll": 43.68218270596117
+    },
+    "window_count": 1,
+    "kind": "Early custom-corpus pipeline/sweep"
+  },
+  {
+    "report": "ppl/report-11.json",
+    "original_report_name": "20260926-174412",
+    "sha256": "f67b20fc7f3ff08064de672d0de82f9595b6fd7bd31b6dea4e5c7354dc94e981",
+    "artifact": "bonsai2_27b_ternary_v2.ninfer",
+    "corpus": "custom-wiki40k.txt",
+    "mode": "custom",
+    "execution": {
+      "context_tokens": 512,
+      "device": 0,
+      "kv_dtype": "int8-g64",
+      "prefill_chunk_tokens": 1024,
+      "purpose": "causal_scoring",
+      "score_tile_tokens": 1024,
+      "stride_tokens": 256
+    },
+    "overall": {
+      "mean_nll": 2.342884775424222,
+      "perplexity": 10.411227336365993,
+      "scored_tokens": 9258,
+      "total_nll": 21690.427250877445
+    },
+    "window_count": 36,
+    "kind": "Early custom-corpus pipeline/sweep"
+  },
+  {
+    "report": "ppl/report-12.json",
+    "original_report_name": "20260926-175259",
+    "sha256": "f7fe84427ca91b38d7646e7df7078bc627d9603d238afbfd1d7eecc5f8f8404f",
+    "artifact": "bonsai2_27b_ternary_v2.ninfer",
+    "corpus": "custom-wiki40k.txt",
+    "mode": "custom",
+    "execution": {
+      "context_tokens": 576,
+      "device": 0,
+      "kv_dtype": "int8-g64",
+      "prefill_chunk_tokens": 1024,
+      "purpose": "causal_scoring",
+      "score_tile_tokens": 1024,
+      "stride_tokens": 288
+    },
+    "overall": {
+      "mean_nll": 2.33537972356045,
+      "perplexity": 10.333383013468028,
+      "scored_tokens": 9258,
+      "total_nll": 21620.945480722643
+    },
+    "window_count": 32,
+    "kind": "Early custom-corpus pipeline/sweep"
+  },
+  {
+    "report": "ppl/report-13.json",
+    "original_report_name": "20260926-175333",
+    "sha256": "ae337463a1c5152c64f478e77cdf370f27b54b8bb411e9871b0f66f5db388115",
+    "artifact": "bonsai2_27b_ternary_v2.ninfer",
+    "corpus": "custom-wiki40k.txt",
+    "mode": "custom",
+    "execution": {
+      "context_tokens": 640,
+      "device": 0,
+      "kv_dtype": "int8-g64",
+      "prefill_chunk_tokens": 1024,
+      "purpose": "causal_scoring",
+      "score_tile_tokens": 1024,
+      "stride_tokens": 320
+    },
+    "overall": {
+      "mean_nll": 2.318512052657262,
+      "perplexity": 10.160544697350987,
+      "scored_tokens": 9258,
+      "total_nll": 21464.78458350093
+    },
+    "window_count": 28,
+    "kind": "Early custom-corpus pipeline/sweep"
+  },
+  {
+    "report": "ppl/report-14.json",
+    "original_report_name": "20260926-175407",
+    "sha256": "5c23991c11347be422672da818e118432803a03a801ead8272206b9e69f743c2",
+    "artifact": "bonsai2_27b_ternary_v2.ninfer",
+    "corpus": "custom-wiki40k.txt",
+    "mode": "custom",
+    "execution": {
+      "context_tokens": 768,
+      "device": 0,
+      "kv_dtype": "int8-g64",
+      "prefill_chunk_tokens": 1024,
+      "purpose": "causal_scoring",
+      "score_tile_tokens": 1024,
+      "stride_tokens": 384
+    },
+    "overall": {
+      "mean_nll": 2.2756616975761674,
+      "perplexity": 9.734358083115396,
+      "scored_tokens": 9258,
+      "total_nll": 21068.075996160158
+    },
+    "window_count": 24,
+    "kind": "Early custom-corpus pipeline/sweep"
+  },
+  {
+    "report": "ppl/report-15.json",
+    "original_report_name": "20260926-175448",
+    "sha256": "265276285a2748a09e92314321974788040be07ea60e03794951d78db9314172",
+    "artifact": "bonsai2_27b_ternary_v2.ninfer",
+    "corpus": "custom-wiki40k.txt",
+    "mode": "custom",
+    "execution": {
+      "context_tokens": 768,
+      "device": 0,
+      "kv_dtype": "int8-g64",
+      "prefill_chunk_tokens": 1024,
+      "purpose": "causal_scoring",
+      "score_tile_tokens": 1024,
+      "stride_tokens": 384
+    },
+    "overall": {
+      "mean_nll": 2.2756616975761674,
+      "perplexity": 9.734358083115396,
+      "scored_tokens": 9258,
+      "total_nll": 21068.075996160158
+    },
+    "window_count": 24,
+    "kind": "Early custom-corpus pipeline/sweep"
+  },
+  {
+    "report": "ppl/report-16.json",
+    "original_report_name": "20260926-175519",
+    "sha256": "e91afecfdcb0ea47163c9ffdc75a79b8ba561b080de630776da772956b239e1c",
+    "artifact": "bonsai2_27b_ternary_v2.ninfer",
+    "corpus": "custom-wiki40k.txt",
+    "mode": "custom",
+    "execution": {
+      "context_tokens": 896,
+      "device": 0,
+      "kv_dtype": "int8-g64",
+      "prefill_chunk_tokens": 1024,
+      "purpose": "causal_scoring",
+      "score_tile_tokens": 1024,
+      "stride_tokens": 448
+    },
+    "overall": {
+      "mean_nll": 2.2482127967879824,
+      "perplexity": 9.470794467740578,
+      "scored_tokens": 9258,
+      "total_nll": 20813.954072663142
+    },
+    "window_count": 20,
+    "kind": "Early custom-corpus pipeline/sweep"
+  },
+  {
+    "report": "ppl/report-17.json",
+    "original_report_name": "20260926-180649",
+    "sha256": "09af053df19c66a6d74a25ee0ed2187bf6bc416c83b7904784a43fa6de8d319f",
+    "artifact": "bonsai2_27b_ternary_v2.ninfer",
+    "corpus": "custom-wiki40k.txt",
+    "mode": "custom",
+    "execution": {
+      "context_tokens": 960,
+      "device": 0,
+      "kv_dtype": "int8-g64",
+      "prefill_chunk_tokens": 1024,
+      "purpose": "causal_scoring",
+      "score_tile_tokens": 1024,
+      "stride_tokens": 480
+    },
+    "overall": {
+      "mean_nll": 2.242970449297306,
+      "perplexity": 9.421275184182075,
+      "scored_tokens": 9258,
+      "total_nll": 20765.42041959446
+    },
+    "window_count": 19,
+    "kind": "Early custom-corpus pipeline/sweep"
+  },
+  {
+    "report": "ppl/report-18.json",
+    "original_report_name": "20260926-181326",
+    "sha256": "9d1857ade44f7e86123163483def91a119b89e9d5e1c623c5fe38de51ea4452f",
+    "artifact": "bonsai2_27b_ternary_v2.ninfer",
+    "corpus": "custom-wiki40k.txt",
+    "mode": "custom",
+    "execution": {
+      "context_tokens": 4096,
+      "device": 0,
+      "kv_dtype": "int8-g64",
+      "prefill_chunk_tokens": 1024,
+      "purpose": "causal_scoring",
+      "score_tile_tokens": 1024,
+      "stride_tokens": 2048
+    },
+    "overall": {
+      "mean_nll": 2.0922330472086803,
+      "perplexity": 8.102989334271955,
+      "scored_tokens": 9258,
+      "total_nll": 19369.89355105796
+    },
+    "window_count": 4,
+    "kind": "Early custom-corpus pipeline/sweep"
+  },
+  {
+    "report": "ppl/report-19.json",
+    "original_report_name": "20260927-034617",
+    "sha256": "7c619e27a2c4700c33c908c637c0362fe12d31d36226396caec40ca45ac3dc15",
+    "artifact": "bonsai2_27b_ternary_v2.ninfer",
+    "corpus": "custom-wiki40k.txt",
+    "mode": "custom",
+    "execution": {
+      "context_tokens": 4096,
+      "device": 0,
+      "kv_dtype": "int8-g64",
+      "prefill_chunk_tokens": 1024,
+      "purpose": "causal_scoring",
+      "score_tile_tokens": 1024,
+      "stride_tokens": 2048
+    },
+    "overall": {
+      "mean_nll": 2.0922330472086803,
+      "perplexity": 8.102989334271955,
+      "scored_tokens": 9258,
+      "total_nll": 19369.89355105796
+    },
+    "window_count": 4,
+    "kind": "Early custom-corpus pipeline/sweep"
+  }
+]

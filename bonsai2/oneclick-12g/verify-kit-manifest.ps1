@@ -11,7 +11,10 @@ $ErrorActionPreference = "Stop"
 if (-not $KitRoot) { $KitRoot = $PSScriptRoot }
 
 $EmbeddedExpected = [ordered]@{
-    "launcher/runtime-options.ps1" = @{ Sha256 = "eff90bdebf0a2344bb1a5b64820464527106e6b327873d81bb37f4d6da0f1f7c"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "CPU vision and CUDA Graph controls" }
+    "launcher/runtime-options.ps1" = @{ Sha256 = "68de94cb47a0e70f65b8dec340f28c16b0b3dc2fdf19e80909696b89199189bc"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "Runtime options update" }
+    "RUNTIME-OPTIONS.txt" = @{ Sha256 = "8134d54310d5f2ab752c1fdcaf581ac99446b805f75e4e927f6010d259ba7190"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "Runtime options update" }
+    "engine/cpu-openblas.dll" = @{ Sha256 = "6b2103f2ae4d8547998b5d188e9801fba6cb12404ae8e4bfff319e8cc1949000"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "CPU-only OpenBLAS backend" }
+
     "engine/ninfer-serve.exe"       = @{
         Sha256          = "43cdbfc15ab2ab0714a9bc2d6832b77e4c5704c15c5d42ac2c68926fab443d60"
         MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2026-10-03T14:00:00", [System.DateTimeKind]::Utc)
@@ -48,7 +51,7 @@ $EmbeddedExpected = [ordered]@{
         Role            = "FFmpeg avutil runtime DLL"
     }
     "launcher/launch.ps1"           = @{
-        Sha256          = "c7d70f6266701e34315c2aaaae621425f9d3debe145dd0d1f5bab5dfae47b9a8"
+        Sha256          = "7d39656e62cb1f00bb426bccc50cae3cb884bb411a2814309350cd45f80541dc"
         MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2026-10-03T14:00:00", [System.DateTimeKind]::Utc)
         Role            = "One-click interactive launcher script"
     }

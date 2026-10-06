@@ -1,0 +1,393 @@
+{
+  "completed_local": "2026-10-05T23:01:26",
+  "formal_samples": 90,
+  "warmup_samples": 30,
+  "cases": [
+    {
+      "case": "bonsai12-int8-nograph",
+      "attempt": 1,
+      "resident_tokens": 100352,
+      "peak_mib": 11736.96875,
+      "lengths": [
+        {
+          "tokens": 2048,
+          "median_tps": 818.5960725615071,
+          "range": [
+            815.8547020140496,
+            819.4856071237947
+          ],
+          "median_ttft_seconds": 2.5048877000808716
+        },
+        {
+          "tokens": 8192,
+          "median_tps": 813.0529941430807,
+          "range": [
+            811.4902663119474,
+            813.3751601977725
+          ],
+          "median_ttft_seconds": 10.082984699867666
+        },
+        {
+          "tokens": 16384,
+          "median_tps": 743.9291415847313,
+          "range": [
+            741.720251171177,
+            747.0897096194444
+          ],
+          "median_ttft_seconds": 22.03591990005225
+        }
+      ],
+      "remaining_mib": 551.03125,
+      "max_temp_c": 74
+    },
+    {
+      "case": "bonsai12-int8-graph",
+      "attempt": 1,
+      "resident_tokens": 100352,
+      "peak_mib": 11751.9140625,
+      "lengths": [
+        {
+          "tokens": 2048,
+          "median_tps": 805.7838598896099,
+          "range": [
+            804.9125131235522,
+            806.9854679570028
+          ],
+          "median_ttft_seconds": 2.553920700214803
+        },
+        {
+          "tokens": 8192,
+          "median_tps": 791.7197709417079,
+          "range": [
+            775.2887463185378,
+            792.4870984802976
+          ],
+          "median_ttft_seconds": 10.368404800072312
+        },
+        {
+          "tokens": 16384,
+          "median_tps": 733.6710928041226,
+          "range": [
+            733.3136819231047,
+            735.515023947088
+          ],
+          "median_ttft_seconds": 22.343549500219524
+        }
+      ],
+      "remaining_mib": 536.0859375,
+      "max_temp_c": 75
+    },
+    {
+      "case": "bonsai12-rk8-nograph",
+      "attempt": 1,
+      "resident_tokens": 134144,
+      "peak_mib": 11845.75,
+      "lengths": [
+        {
+          "tokens": 2048,
+          "median_tps": 803.2570819584223,
+          "range": [
+            802.0725115063921,
+            805.4665377815327
+          ],
+          "median_ttft_seconds": 2.5536870998330414
+        },
+        {
+          "tokens": 8192,
+          "median_tps": 790.3748856527642,
+          "range": [
+            789.8057214829952,
+            792.4748016810526
+          ],
+          "median_ttft_seconds": 10.372285900171846
+        },
+        {
+          "tokens": 16384,
+          "median_tps": 734.3127256202629,
+          "range": [
+            734.2318588321301,
+            734.7378668617944
+          ],
+          "median_ttft_seconds": 22.324978100135922
+        }
+      ],
+      "remaining_mib": 442.25,
+      "max_temp_c": 77
+    },
+    {
+      "case": "bonsai12-rk8-graph",
+      "attempt": 1,
+      "resident_tokens": 134144,
+      "peak_mib": 11858.671875,
+      "lengths": [
+        {
+          "tokens": 2048,
+          "median_tps": 805.2368389091068,
+          "range": [
+            804.6445908808545,
+            806.8762879782446
+          ],
+          "median_ttft_seconds": 2.54739259975031
+        },
+        {
+          "tokens": 8192,
+          "median_tps": 790.504451267649,
+          "range": [
+            788.4595318862247,
+            790.7587179314617
+          ],
+          "median_ttft_seconds": 10.37043819995597
+        },
+        {
+          "tokens": 16384,
+          "median_tps": 735.1213221185694,
+          "range": [
+            733.7963980942739,
+            735.5485165853127
+          ],
+          "median_ttft_seconds": 22.300237100105733
+        }
+      ],
+      "remaining_mib": 429.328125,
+      "max_temp_c": 77
+    },
+    {
+      "case": "bonsai8-rk4-nograph",
+      "attempt": 1,
+      "resident_tokens": 49152,
+      "peak_mib": 7805.7265625,
+      "lengths": [
+        {
+          "tokens": 2048,
+          "median_tps": 558.4345748222846,
+          "range": [
+            558.3480226846333,
+            559.6582739696132
+          ],
+          "median_ttft_seconds": 3.6712013999931514
+        },
+        {
+          "tokens": 8192,
+          "median_tps": 557.6522654466715,
+          "range": [
+            548.7670456493059,
+            557.7265117516829
+          ],
+          "median_ttft_seconds": 14.721797000151128
+        },
+        {
+          "tokens": 16384,
+          "median_tps": 533.9026591826183,
+          "range": [
+            533.7277880519001,
+            533.9035778089678
+          ],
+          "median_ttft_seconds": 30.71020680014044
+        }
+      ],
+      "remaining_mib": 386.2734375,
+      "max_temp_c": 77
+    },
+    {
+      "case": "iq2-rk4-nograph",
+      "attempt": 1,
+      "resident_tokens": 74752,
+      "peak_mib": 11794.4140625,
+      "lengths": [
+        {
+          "tokens": 2048,
+          "median_tps": 483.6591687844861,
+          "range": [
+            483.2066119274739,
+            484.9647432052485
+          ],
+          "median_ttft_seconds": 4.270425599999726
+        },
+        {
+          "tokens": 8192,
+          "median_tps": 498.10247097557453,
+          "range": [
+            497.01340265926086,
+            498.24122126124473
+          ],
+          "median_ttft_seconds": 16.469303799793124
+        },
+        {
+          "tokens": 16384,
+          "median_tps": 489.0193457832095,
+          "range": [
+            488.8361156991544,
+            489.4613524718777
+          ],
+          "median_ttft_seconds": 33.54980979999527
+        }
+      ],
+      "remaining_mib": 493.5859375,
+      "max_temp_c": 77
+    },
+    {
+      "case": "iq2-rk4-graph",
+      "attempt": 1,
+      "resident_tokens": 74752,
+      "peak_mib": 11907.625,
+      "lengths": [
+        {
+          "tokens": 2048,
+          "median_tps": 483.401587450215,
+          "range": [
+            483.01686294887077,
+            484.26763883395165
+          ],
+          "median_ttft_seconds": 4.264328599907458
+        },
+        {
+          "tokens": 8192,
+          "median_tps": 497.85147794734905,
+          "range": [
+            497.08776171204937,
+            498.3389745138973
+          ],
+          "median_ttft_seconds": 16.498463899828494
+        },
+        {
+          "tokens": 16384,
+          "median_tps": 489.36356902862775,
+          "range": [
+            488.6992751874478,
+            489.83275930458905
+          ],
+          "median_ttft_seconds": 33.51527730002999
+        }
+      ],
+      "remaining_mib": 380.375,
+      "max_temp_c": 78
+    },
+    {
+      "case": "iq2-rk8-nograph",
+      "attempt": 1,
+      "resident_tokens": 50176,
+      "peak_mib": 11770.0625,
+      "lengths": [
+        {
+          "tokens": 2048,
+          "median_tps": 484.25532939187013,
+          "range": [
+            482.73942555516925,
+            484.5159192697115
+          ],
+          "median_ttft_seconds": 4.252071400173008
+        },
+        {
+          "tokens": 8192,
+          "median_tps": 498.1398592962861,
+          "range": [
+            497.32522261784356,
+            498.4354651046621
+          ],
+          "median_ttft_seconds": 16.468137399759144
+        },
+        {
+          "tokens": 16384,
+          "median_tps": 490.37655612884504,
+          "range": [
+            489.7338568794711,
+            490.6428752786499
+          ],
+          "median_ttft_seconds": 33.44487740006298
+        }
+      ],
+      "remaining_mib": 517.9375,
+      "max_temp_c": 78
+    },
+    {
+      "case": "iq2-rk8-graph",
+      "attempt": 1,
+      "resident_tokens": 50176,
+      "peak_mib": 11894.0,
+      "lengths": [
+        {
+          "tokens": 2048,
+          "median_tps": 483.58708274675575,
+          "range": [
+            483.29913582905107,
+            484.4944162373384
+          ],
+          "median_ttft_seconds": 4.249818900134414
+        },
+        {
+          "tokens": 8192,
+          "median_tps": 498.52377143237646,
+          "range": [
+            497.80192678878353,
+            498.88877579850106
+          ],
+          "median_ttft_seconds": 16.455814099870622
+        },
+        {
+          "tokens": 16384,
+          "median_tps": 490.6469394015004,
+          "range": [
+            490.5197023013652,
+            490.8517799111215
+          ],
+          "median_ttft_seconds": 33.436899499967694
+        }
+      ],
+      "remaining_mib": 394.0,
+      "max_temp_c": 78
+    },
+    {
+      "case": "iq3-rk4-nograph",
+      "attempt": 2,
+      "resident_tokens": 37888,
+      "peak_mib": 11935.03125,
+      "lengths": [
+        {
+          "tokens": 2048,
+          "median_tps": 500.46904310612206,
+          "range": [
+            499.7638079151947,
+            502.49679320924656
+          ],
+          "median_ttft_seconds": 4.105064500123262
+        },
+        {
+          "tokens": 8192,
+          "median_tps": 515.4056847988718,
+          "range": [
+            514.7788793464882,
+            515.970018438433
+          ],
+          "median_ttft_seconds": 15.918004100210965
+        },
+        {
+          "tokens": 16384,
+          "median_tps": 505.6876418116406,
+          "range": [
+            505.5469023298566,
+            506.0435089253347
+          ],
+          "median_ttft_seconds": 32.440748000051826
+        }
+      ],
+      "remaining_mib": 352.96875,
+      "max_temp_c": 78
+    }
+  ],
+  "failures": [
+    {
+      "case": "iq3-rk4-nograph",
+      "attempt": 1,
+      "status": "invalid_safety_margin",
+      "exit_code": 0,
+      "result_dir": "D:\\models\\handoff\\cpu-graph-capacity-20261005\\speed-preparation\\runs\\20261005-225417-iq3-rk4-nograph-prefill",
+      "error": "[WinError 10054] 远程主机强迫关闭了一个现有的连接。",
+      "peak_mib": 12064.3203125,
+      "remaining_mib": 223.6796875,
+      "safety_breach": true,
+      "recorded_requests": 11,
+      "last_sample": "prefill-16384-2",
+      "resident_tokens": 37888
+    }
+  ]
+}

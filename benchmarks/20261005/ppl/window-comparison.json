@@ -1,0 +1,882 @@
+{
+  "summary": {
+    "windows_compared": 124,
+    "equal_windows": 124,
+    "max_abs_window_nll_delta": 0.0,
+    "max_abs_window_ppl_delta": 0.0,
+    "execution_equal": true,
+    "prefill_signature_equal": true,
+    "domains_equal": true,
+    "overall_equal": true
+  },
+  "windows": [
+    {
+      "stream": "wikitext-00",
+      "index": 0,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 1,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 2,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 3,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 4,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 5,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 6,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 7,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 8,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 9,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 10,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 11,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 12,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 13,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 14,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 15,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 16,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 17,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 18,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 19,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 20,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 21,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 22,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 23,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 24,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 25,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 26,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 27,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 28,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 29,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "wikitext-00",
+      "index": 30,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 0,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 1,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 2,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 3,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 4,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 5,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 6,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 7,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 8,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 9,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 10,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 11,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 12,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 13,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 14,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 15,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 16,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 17,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 18,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 19,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 20,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 21,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 22,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 23,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 24,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 25,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 26,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 27,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 28,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 29,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "pg19-00",
+      "index": 30,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 0,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 1,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 2,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 3,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 4,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 5,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 6,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 7,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 8,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 9,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 10,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 11,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 12,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 13,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 14,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 15,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 16,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 17,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 18,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 19,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 20,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 21,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 22,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 23,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 24,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 25,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 26,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 27,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 28,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 29,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "zhwiki-00",
+      "index": 30,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 0,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 1,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 2,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 3,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 4,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 5,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 6,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 7,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 8,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 9,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 10,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 11,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 12,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 13,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 14,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 15,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 16,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 17,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 18,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 19,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 20,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 21,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 22,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 23,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 24,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 25,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 26,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 27,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 28,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 29,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    },
+    {
+      "stream": "ninfer-00",
+      "index": 30,
+      "equal": true,
+      "nll_delta": 0.0,
+      "ppl_delta": 0.0
+    }
+  ]
+}

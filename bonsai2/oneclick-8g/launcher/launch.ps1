@@ -11,6 +11,8 @@
 $ErrorActionPreference = 'Stop'
 $launchArguments = @($args)
 . (Join-Path $PSScriptRoot 'runtime-options.ps1')
+
+$env:NINFER_VISION_CPU = '1' # Host option means CPU encoding; no GPU fallback
 $CpuRetrieval = ($env:NINFER_TERNARY_KVMEM_CPU_RETRIEVAL -ne '0')
 $Root = Split-Path -Parent $PSScriptRoot
 try { $Host.UI.RawUI.WindowTitle = 'ninfer 3060 8G 引擎' } catch {}
@@ -90,10 +92,8 @@ $LimIgpu = $(if ($CpuRetrieval) { 61440 } else { 49152 })
 $WinMin = 24576                      # KVMem 检索窗口最少留 24576
 $Pre = @{ normal = 'NORMAL'; kvmem = 'KVMEM'; rk4 = 'RK4'; kvrk4 = 'KVRK4' }
 $ModeName = @{ normal = '普通（全部放显存，rk8v4）'; kvmem = 'KVMem（历史放内存，rk8v4）'
-               rk4 = '普通 rk4v4（全部放显存，KV 压得更狠；不推荐）'; kvrk4 = 'KVMem + rk4v4（历史放内存，KV 压得更狠；不推荐）' }
+               rk4 = '普通 rk4v4（全部放显存，KV 压得更狠；不推荐）'; kvrk4 = 'KVMem + rk4v4（推荐：128K自动前缀档，关闭Graph）' }
 $Dirty = [ordered]@{}                # 向导改过、启动时要写回 设置.ini 的项
-foreach ($k in @('KVMEM_ANSWER','KVRK4_ANSWER','KVMEM_SINK')) { $C[$k]='auto'; $Dirty[$k]='auto' }
-foreach ($k in @('KVMEM_WINDOW','KVRK4_WINDOW')) { $C[$k]='0'; $Dirty[$k]='0' }
 
 function Fmt([int]$n) { if ($n -gt 0 -and $n % 1024 -eq 0) { return ('{0}（{1}K）' -f $n, ($n / 1024)) } else { return "$n" } }
 function Set-C([string]$k, $v) { $C[$k] = "$v"; $Dirty[$k] = "$v" }
@@ -125,57 +125,63 @@ function Physical-8G-Cap([string]$kv, [int]$ctx, [int]$fallback) {
     if ($kv -eq 'rk4v4') { $cap = [Math]::Min($cap,36864) }
     return [Math]::Max(0, [Math]::Min($ctx - 8192, $cap))
 }
-function Harness-Out([int]$cap, [int]$ctx, [int]$unit = 64) {
-    $target = [int][Math]::Floor($ctx * 9.0 / 64 / $unit) * $unit
-    $available = [Math]::Max(0, [int][Math]::Floor(($cap - $unit - 8192) / $unit) * $unit)
-    return [Math]::Max(8192, $cap - $unit - [Math]::Min($target, $available))
-}
+function Auto-8G-Answer([int]$cap, [int]$outMax) { return $cap } # API envelope, not a physical partition
 
 # 按当前设置算出某个模式的各项数值（不报错、不改东西）
 function Get-View([string]$m) {
     $p = $Pre[$m]
-    $r = @{ Mode=$m; On=($m -eq 'kvmem' -or $m -eq 'kvrk4'); Kv=$(if ($m -eq 'rk4' -or $m -eq 'kvrk4') { 'rk4v4' } else { 'rk8v4' }); Lim=(Mode-Lim $m); Think=(CfgInt 'THINK_BUDGET' 0); Err=@(); Warn=@() }
+    $r = @{ Mode = $m; On = ($m -eq 'kvmem' -or $m -eq 'kvrk4'); Kv = $(if ($m -eq 'rk4' -or $m -eq 'kvrk4') { 'rk4v4' } else { 'rk8v4' })
+            Lim = (Mode-Lim $m); Think = (CfgInt 'THINK_BUDGET' 0); Err = @(); Warn = @() }
     if ($r.On) {
         $r.Ctx = CfgInt "${p}_CTX" 262144
-        $r.AutoOut = $true
-        $r.Cap = Mode-Lim $m
-        $r.CapAuto = $r.Cap
-        $r.Ans = Harness-Out $r.Cap $r.Ctx
-        $r.Win = $r.Cap - $r.Ans
-        $r.WinTop = $r.Win
-        $r.Mt = $r.Ans
-        if ($r.Cap -lt 8384) { $r.Err += '显存容量不足：连完整开头、最低 8K 输出和检索块都放不下。请释放显存后重试。' }
-        $min = [int][Math]::Floor($r.Ctx / 8.0 / 64) * 64
-        if ($r.Win -lt $min + 64) { $r.Warn += '实际请求将保留完整系统提示及最低 8K 输出，检索可能低于推荐范围。' }
+        $answer = ([string](Cfg "${p}_ANSWER" 'auto')).ToLower()
+        $r.AutoOut = ($answer -eq 'auto')
+        $r.Cap = $r.Lim
+        $residentLimit = CfgInt "${p}_RESIDENT_LIMIT" 0
+        if ($residentLimit -gt 0) { $r.Cap = [Math]::Min($r.Cap,$residentLimit) }
+        $r.Cap = [int]([Math]::Floor($r.Cap / 64.0) * 64)
+        $r.Mt = $(if ($r.AutoOut) { $r.Cap } else { CfgInt "${p}_ANSWER" 16384 })
+        if ($r.Mt -lt 1 -or $r.Mt -gt $r.Ctx) { $r.Err += 'API output limit must be positive and no larger than logical context' }
+        $r.Win = $r.Cap; $r.Ans = 0; $r.WinTop = $r.Cap; $r.CapAuto = $r.Cap
+        if ($r.Cap -lt [int]($r.Ctx / 8) + 8192 + 256) { $r.Err += 'Resident budget too small for recommended retrieval plus 8K output; reduce logical context or free VRAM' }
     } else {
         $r.Ctx = CfgInt "${p}_CTX" $(if ($m -eq 'rk4') { 86016 } else { 57344 })
         $r.Mt = CfgInt "${p}_MAX_TOKENS" 32768
         $r.Cap = $r.Ctx
     }
-    if ($r.Mt -gt $r.Ctx) { $r.Err += '客户端输出上限不能大于总上下文。' }
+    if ($r.Mt -gt $r.Ctx) { $r.Err += "单次回答（$($r.Mt)）不能比总上下文（$($r.Ctx)）还大" }
+    if ($r.Cap -gt $r.Lim) { $r.Warn += "显存部分 $($r.Cap) 超过这个模式的实测上限 $($r.Lim)，8 GB 显存可能放不下" }
+    if ($r.Think -gt 0 -and $r.Think -ge $r.Mt) { $r.Warn += "思考上限（$($r.Think)）不比单次回答（$($r.Mt)）小，等于不限" }
     return $r
 }
 
 function Show-Summary([string]$m) {
     Show-NinferRuntimeOptions $script:C
     $v = Get-View $m
+    $letter = @{ normal = 'N'; kvmem = 'K'; rk4 = 'R'; kvrk4 = 'V' }[$m]
     Say ''
-    Say '  ┌──────────── 当前配置 ────────────'
-    Say ('  │ 模式      : ' + $ModeName[$m])
-    Say ('  │ 模型文件  : ' + (Model-State))
+    Say '  ┌──────────── 当前配置（RTX 3060 8GB）────────────'
+    $ms = Model-State
+    if (Model-Custom) { Say ('  │ 模型      : 自定义 ' + (Model-Path) + $(if ($ms -eq 'missing') { '（文件不存在）' } else { '' })) }
+    else {
+        $st = @{ ok = '已就绪'; src = '原始文件已下载，按回车后转换（约 1–2 分钟）'
+                 part = '没下完，按回车后接着下载'; missing = ('还没下载，按回车后自动下载 ' + (GiB $Orig.Size) + ' GiB 并转换') }[$ms]
+        Say ('  │ 模型      : Swift-Bonsai-2 ptq1 + Q4 MTP（' + $st + '）')
+    }
+    Say ("  │ 模式      : [{0}] {1}" -f $letter, $ModeName[$m])
+    if ($m -eq 'kvmem') { Say ('  │ 显存档    : ' + $(if (Igpu) { '核显档（仍按当前空闲显存计算）' } else { '自动（按当前空闲显存计算）' })) }
+    Say ('  │ 看图      : ' + $(if ((CfgInt 'VISION' 1) -ne 0) { '开（CPU 视觉编码，线程见运行选项）' } else { '关' }))
     Say ('  │ 总上下文  : ' + (Fmt $v.Ctx))
-    if ($v.On) {
-        Say ('  │ 驻留容量  : ' + (Fmt $v.Cap) + '，按空闲显存估算，放不下时自动缩小重试')
-        Say '  │ 固定开头  : 按实际系统、developer 指令及工具定义准确计数'
-        $lo = [int][Math]::Floor($v.Ctx / 8.0 / 64) * 64
-        $hi = [int][Math]::Floor($v.Ctx * 9.0 / 64 / 64) * 64
-        Say ('  │ 检索目标  : ' + (Fmt $lo) + ' 到 ' + (Fmt $hi) + '，不含固定开头；不足时先缩检索')
-        Say ('  │ Harness   : contextWindow=' + $v.Ctx + '，maxTokens=' + $v.Mt + '（启动前申请上限）')
-        Say '  │ 实际输出  : 收到请求后使用剩余容量，至少预留 8K；包含思考和正文'
-    } else { Say ('  │ 单次输出  : ' + (Fmt $v.Mt)) }
-    foreach ($message in $v.Warn) { Warn $message }
-    foreach ($message in $v.Err) { Say ('  │ [错误] ' + $message) 'Red' }
-    Say '  └──────────────────────────────'
+    Say ('  │ 单次回答  : ' + (Fmt $v.Mt) + '   （思考 + 正文 合计）')
+    if ($v.Think -gt 0) { Say ('  │ 思考上限  : ' + (Fmt $v.Think)) } else { Say '  │ 思考上限  : 不限（只受单次回答限制）' }
+    $pct = [int](100 * $v.Cap / $v.Lim)
+    if ($v.On) { Say ('  │ 驻留预算  : {0}；完整前缀/检索/输出逐请求动态分配' -f $v.Cap) }
+    else       { Say ('  │ 显存      : {0} / 上限 {1}（{2}%）' -f $v.Cap, $v.Lim, $pct) }
+    Say ('  │ 地址      : http://{0}:{1}/v1   模型名：{2}' -f (Cfg 'HOST' '127.0.0.1'), (Cfg 'PORT' '8084'), (Cfg 'MODEL_ID' 'qwen3.8-27b'))
+    Say '  └──────────────────────────────────'
+    foreach ($w in $v.Warn) { Say "  [提醒] $w" 'Yellow' }
+    foreach ($x in $v.Err)  { Say "  [错误] $x" 'Red' }
+    return $v
 }
 
 # 测试用：ONECLICK_INPUT='c|1|2||' 按 | 分成一次次输入
@@ -248,8 +254,8 @@ function Run-Wizard([string]$m) {
     }
     $L = Mode-Lim $m
 
-    $vis = Ask-Step (StepTitle '看图') @('8G 版的视觉权重固定放内存，开不开看图都不影响上限') @(
-        @{ Value = '1'; Label = '开　　推荐，可以发图片（每张图多约 0.1 秒）' },
+    $vis = Ask-Step (StepTitle '看图') @('8G 版采用 CPU 视觉编码，线程自动适配；语言模型及图片特征仍需显存') @(
+        @{ Value = '1'; Label = '开　　推荐，可以发图片（CPU编码；首次加载/校准较慢，耗时依图片与CPU而定）' },
         @{ Value = '0'; Label = '关　　不能发图' }) $(if ((CfgInt 'VISION' 1) -ne 0) { '1' } else { '0' }) $false
     Set-C 'VISION' $vis
     $v = Get-View $m
@@ -263,11 +269,16 @@ function Run-Wizard([string]$m) {
             @{ Value = '131072'; Label = '131072（128K）' }) $c0 $true 65536 262144
         Set-C "${p}_CTX" $ctx
 
-        Set-C "${p}_ANSWER" 'auto'
-        Set-C "${p}_WINDOW" 0
-        Set-C 'KVMEM_SINK' 'auto'
+        $v = Get-View $m
+        $outMax = $v.Ctx
+        $items = @(@{ Value='auto'; Label='自动：完整前缀、检索和输出由引擎逐请求分配（推荐）' })
+        foreach ($x in @(8192,16384,32768,49152,65536)) {
+            if ($x -le $outMax) { $items += @{ Value="$x"; Label="API上限 $x（仍受实际物理输出预算约束）" } }
+        }
+        $o0 = [string](Cfg "${p}_ANSWER" 'auto')
+        $ans = Ask-Step 'API回答上限' @('自动不套用旧32K/固定36K分区；数值只限制请求，不改变物理检索比例。') $items $o0 $true 1 $outMax
+        Set-C "${p}_ANSWER" $ans
         $mt = (Get-View $m).Mt
-        Say '  开头按请求计数；检索随总上下文缩放；剩余容量给输出，最低 8K。'
     } else {
         $c0 = $v.Ctx; if ($c0 -gt $L -or $c0 -lt 16384) { $c0 = $L }
         $items = @(@{ Value = "$L"; Label = ((Fmt $L) + "　推荐，这个模式的默认上限（显存不足时会缩窗）") })
@@ -598,6 +609,7 @@ function Round64([string]$name, [int]$v) {
     return $r
 }
 
+$env:NINFER_KVMEM_AUTO_ALLOCATION = '0'
 $env:NINFER_KVMEM_ORPHAN_EVICT_FIX = '0'
 $kv = 'rk8v4'; $exeName = 'ninfer-serve.exe'
 if ($Mode -eq 'rk4' -or $Mode -eq 'kvrk4') { $kv = 'rk4v4'; $exeName = 'ninfer-serve-rk4.exe' }   # rk4v4 和 rk8v4 的内核同名，只能分成两个程序（放在同一个 engine 文件夹，共用 DLL）
@@ -617,11 +629,17 @@ switch ($Mode) {
         $view = Get-View $Mode
         if ($view.Err.Count -gt 0) { Fail ($view.Err -join '；') }
         $win = [int]$view.Win; $ans = [int]$view.Ans
-        $sink = 64
+        $sink = 64 # bootstrap only; actual full prefix is allocated per request
         $hostMib = CfgInt "${p}_HOST_MIB" 10240
-        $cap = $win + $ans; $mt = $ans
+        $cap = [int]$view.Cap; $mt = [int]$view.Mt
         $env:NINFER_TERNARY_KVMEM_CPU_RETRIEVAL = $(if ($CpuRetrieval) { '1' } else { '0' })
         $env:NINFER_TERNARY_KVMEM = '1'
+        $env:NINFER_KVMEM_AUTO_ALLOCATION = '1'
+        # Auto allocator protects the entire rendered system/developer/tool prefix per request.
+        if ($Mode -eq 'kvrk4') {
+            $env:NINFER_KVMEM_AUTO_ALLOCATION = '1'
+            $env:NINFER_KVMEM_ORPHAN_EVICT_FIX = '1'
+        }
         $env:NINFER_TERNARY_KVMEM_WINDOW = '1'
         $env:NINFER_TERNARY_KVMEM_WINDOW_ASSEMBLY = '1'
         $env:NINFER_TERNARY_KVMEM_SCORE = '1'
@@ -633,16 +651,15 @@ switch ($Mode) {
         $env:NINFER_TERNARY_KVMEM_NEIGHBORS = '0'
         $env:NINFER_TERNARY_HOST_KV_PAGEABLE = '1'
         $env:NINFER_TERNARY_KVMEM_NO_REBAKE = '1'
-        $env:NINFER_TERNARY_KVMEM_GEN_RESERVE = '0'
-        $env:NINFER_KVMEM_AUTO_ALLOCATION = '1'
-        if ($Mode -eq 'kvrk4') { $env:NINFER_KVMEM_ORPHAN_EVICT_FIX = '1' }
+        $env:NINFER_TERNARY_KVMEM_GEN_RESERVE = "$ans"
         # kv8/kv9：按最后一条用户消息挑块、保护本轮新内容、重算范围 = 挑块范围（这一轮的新输入）
         $env:NINFER_TERNARY_KVMEM_SCORE_QUERY_MODE = 'msg'
         $env:NINFER_TERNARY_KVMEM_SCORE_PROTECT_NEW = '1'
         $env:NINFER_TERNARY_KVMEM_REPLAY_MODE = 'msg'
         $env:NINFER_TERNARY_KVMEM_REPLAY_MAX = "$(CfgInt 'KVMEM_REPLAY_MAX' 6144)"
         $name = if ($Mode -eq 'kvrk4') { 'KVMem+rk4v4 模式' } else { 'KVMem 模式（rk8v4）' }
-        $desc = "${name}：总上下文 $ctx，驻留容量 $cap；Harness 输出申请上限 $mt，实际分配在请求时计算"
+        $desc = "${name}：上下文 $ctx；驻留预算 $cap；API输出上限 $mt"
+        if ($Mode -eq 'kvrk4') { $desc += '；完整系统/工具前缀自动保留，实际sink/检索/输出以[kvmem-alloc]日志为准' }
     }
 }
 if ($mt -gt $ctx) { Fail "单次回答上限（$mt）不能比上下文（$ctx）还大。" }
@@ -688,7 +705,7 @@ Say "  参数  ：$shown"
 Say '  出现 "listening" 之后就能用了。可以运行 测试.bat 检查。关掉这个窗口就停止引擎。' 'Cyan'
 Say ''
 
-# ---------- 6b. 客户端（harness）接入信息：显示在窗口里，并写到 接入信息.txt ----------
+# ---------- 6b. 客户端（自选框架）接入信息：显示在窗口里，并写到 接入信息.txt ----------
 $vis = (CfgInt 'VISION' 1) -ne 0
 $locHost = $(if ($bindHost -eq '0.0.0.0' -or $bindHost -eq '::') { '127.0.0.1' } else { $bindHost })
 $baseUrl = "http://${locHost}:$port/v1"
@@ -697,63 +714,8 @@ if ($bindHost -eq '0.0.0.0') {
     try { $lanUrls = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction Stop | Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' } | ForEach-Object { "http://$($_.IPAddress):$port/v1" }) } catch {}
 }
 $keyTxt = $(if ($key -ne '') { '设置.ini 里 API_KEY 的值' } else { '没设密码，随便填（例如 none），但不能空着' })
-$info = @(
-  "ninfer 3060 8G 一键包 客户端接入信息（每次启动自动生成，当前模式：$Mode，$(Get-Date -Format 'yyyy-MM-dd HH:mm')）",
-  '换了模式或改了 设置.ini，上下文窗口和最大输出会变，请以最新的这份为准。',
-  '',
-  '==== 在客户端（harness）里这样填 ====',
-  '  接口类型     : OpenAI 兼容（Chat Completions）。也支持 Anthropic Messages（/v1/messages）和 OpenAI Responses（/v1/responses）',
-  "  Base URL     : $baseUrl"
-)
-foreach ($u in $lanUrls) { $info += "  局域网地址   : $u （其他电脑用这个）" }
-$info += @(
-  "  模型名 / ID  : $modelId",
-  "  API Key      : $keyTxt",
-  "  上下文窗口   : $ctx （有的客户端叫 contextWindow / context length / max context）",
-  "  最大输出     : $mt （maxTokens / max_tokens，含思考；不要填得比这个大）",
-  "  图片输入     : $(if ($vis) { '支持（input 里加 image）' } else { '不支持（设置.ini 里 VISION=0）' })",
-  '  工具调用     : 支持（function calling / tools）',
-  '  思考内容     : 放在 reasoning_content 字段（DeepSeek 格式）；请求里加 "enable_thinking": false 可以关思考',
-  '  思考档位     : 只有 off / low / medium / xhigh 四档（reasoning_effort），兼容 none/minimal/high 等别名，映射到上述档位',
-  '  同时请求数   : 1（一次只处理一个请求，多开对话会排队）',
-  '',
-  '==== DeepSeek Harness（dsh）可以直接用的配置 ====',
-  '1) 把下面这段存成 %USERPROFILE%\.dsh\profiles\<你用的 profile>\cordis.patch.yml',
-  '   （已经有这个文件的话，把 providers 下面 ninfer-local 这一块合并进去）；',
-  '   或者在 dsh 的 设置 → 模型 → 自定义模型 API 里按上面的值填。',
-  '2) 在 %USERPROFILE%\.dsh\.env 里加一行：NINFER_LOCAL_API_KEY=none（设了 API_KEY 就填那个值）',
-  '',
-  '- id: llm-pi-ai',
-  '  config:',
-  '    providers:',
-  '      ninfer-local:',
-  '        displayName: ninfer local (RTX 3060 8G)',
-  '        apiKeyEnv: NINFER_LOCAL_API_KEY',
-  '        api: openai-completions',
-  "        baseURL: $baseUrl",
-  '        models:',
-  "          - id: $modelId",
-  "            name: $modelLabel 27B (local, $Mode)",
-  "            contextWindow: $ctx",
-  "            maxTokens: $mt",
-  '            input:',
-  '              - text'
-)
-if ($vis) { $info += '              - image' }
-$info += @(
-  '            reasoningEfforts:',
-  '              "off": none',
-  '              low: low',
-  '              medium: medium',
-  '              xhigh: xhigh',
-  '            compat:',
-  '              thinkingFormat: deepseek',
-  '- id: agent-default-model',
-  '  config:',
-  '    provider: ninfer-local',
-  "    model: $modelId"
-)
-Say '  ---- 客户端（harness）里这样填（完整说明和 dsh 配置见 接入信息.txt）----' 'Cyan'
+$info = @('NInfer 通用API接入信息', "Base URL: $baseUrl", "模型ID: $modelId", "上下文: $ctx", "最大输出: $mt（API请求上界，实际受完整前缀/检索/驻留动态预算约束）", '支持OpenAI Chat Completions/Responses与Anthropic Messages；客户端框架自选。')
+Say '  ---- 客户端（自选框架）里这样填（通用说明见 接入信息.txt）----' 'Cyan'
 Say "  Base URL：$baseUrl    模型名：$modelId    API Key：$keyTxt"
 foreach ($u in $lanUrls) { Say "  局域网地址：$u" }
 Say "  上下文窗口：$ctx    最大输出：$mt    图片：$(if ($vis) { '支持' } else { '不支持' })    工具调用：支持"
@@ -764,7 +726,7 @@ if (-not $dry) {
 }
 
 if ($dry) {
-    Get-ChildItem env: | Where-Object { $_.Name -like 'NINFER_TERNARY_*' } | Sort-Object Name | ForEach-Object { Say "  环境变量：$($_.Name)=$($_.Value)" 'DarkGray' }
+    Get-ChildItem env: | Where-Object { $_.Name -like 'NINFER_TERNARY_*' -or $_.Name -like 'NINFER_KVMEM_*' } | Sort-Object Name | ForEach-Object { Say "  环境变量：$($_.Name)=$($_.Value)" 'DarkGray' }
     Say '  （DRYRUN=1：只显示参数，没有启动引擎）' 'Yellow'; exit 0
 }
 $ErrorActionPreference = 'Continue'
@@ -826,11 +788,12 @@ for ($try = 1; $try -le (1 + $retry); $try++) {
     $step = [int]([Math]::Ceiling($step / 64.0) * 64); if ($step -lt 1024) { $step = 1024 }
     if ($isKv) {
         $new = [int]([Math]::Floor(($cap - $step) / 64.0) * 64)
-        if ($new -lt 8384 -or $new -ge $cap) { Say '驻留容量已达到下限，请释放显存后重试。' 'Yellow'; break }
-        $cap = $new
-        $ans = Harness-Out $cap $ctx
-        $mt = $ans
-        $win = $cap - $ans
+        $floorCap = [int]([Math]::Ceiling(($ctx / 8 + 8192 + 256) / 64.0) * 64)
+        if ($new -lt $floorCap) { $new = $floorCap }
+        if ($new -ge $cap -or $new - $ans -lt 16384) { Say '  检索窗口已达到下限，请释放显存后重试。' 'Yellow'; break }
+        $cap = $new; $win = $cap; $ans = 0
+        if ($view.AutoOut) { $mt = $cap }
+        $env:NINFER_TERNARY_KVMEM_GEN_RESERVE = '0'
         $env:NINFER_TERNARY_KVMEM_SCORE_BUDGET = "$win"
     } else {
         $new = [int]([Math]::Floor(($ctx - $step) / 64.0) * 64)

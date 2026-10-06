@@ -1,0 +1,9 @@
+Runtime options for the framework-neutral NInfer launcher
+
+CUDA_GRAPH=1 enables CUDA Graph; 0 disables it and removes graph allowance arguments.
+VISION=1 enables CPU vision; 0 disables image input.
+VISION_DEVICE=cpu selects CPU encoding. The language model, KV and final image features still use GPU memory.
+CPU_THREADS=auto uses backend selection; a positive integer requests a manual limit.
+Automatic KVMem mode determines the resident budget and a finite API ceiling. Actual complete prefix, retrieval and output are allocated per request by the engine.
+The default-max-tokens option also caps explicit client requests in this engine. A larger API ceiling is not a long-output qualification.
+No test-only DSH entry points, presets or sessions are included. Use any supported OpenAI/Anthropic client and configure its own compaction policy.

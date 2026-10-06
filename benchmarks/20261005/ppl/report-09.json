@@ -1,0 +1,79 @@
+{
+  "artifact": {
+    "model_id": "qwen3.8-27b",
+    "path": "D:\\models\\bonsai2-27b\\model\\bonsai2_27b_ternary_v2.ninfer",
+    "target": "qwen3_8_27b",
+    "weights_id": "groupwise-int"
+  },
+  "corpus": {
+    "id": "custom-tiny.txt",
+    "mode": "custom",
+    "source": "D:\\models\\build-sm86\\tiny.txt",
+    "stream_count": 1
+  },
+  "domains": [
+    {
+      "domain": "custom",
+      "mean_nll": 0.10920545676490293,
+      "perplexity": 1.115391491528788,
+      "scored_tokens": 400,
+      "total_nll": 43.68218270596117
+    }
+  ],
+  "execution": {
+    "context_tokens": 768,
+    "device": 0,
+    "kv_dtype": "int8-g64",
+    "prefill_chunk_tokens": 1024,
+    "purpose": "causal_scoring",
+    "score_tile_tokens": 1024,
+    "stride_tokens": 384
+  },
+  "metric": {
+    "log_base": "natural",
+    "name": "fixed-window truncated-context causal perplexity"
+  },
+  "overall": {
+    "mean_nll": 0.10920545676490293,
+    "perplexity": 1.115391491528788,
+    "scored_tokens": 400,
+    "total_nll": 43.68218270596117
+  },
+  "schema_version": 1,
+  "streams": [
+    {
+      "domain": "custom",
+      "id": "tiny.txt",
+      "input_tokens": 401,
+      "mean_nll": 0.10920545676490293,
+      "path": "D:\\models\\build-sm86\\tiny.txt",
+      "perplexity": 1.115391491528788,
+      "scored_tokens": 400,
+      "seconds": 1.8678659,
+      "total_nll": 43.68218270596117,
+      "unscored_tokens": 1,
+      "windows": [
+        {
+          "first_target": 1,
+          "index": 0,
+          "input_begin": 0,
+          "input_end": 401,
+          "mean_nll": 0.10920545676490293,
+          "perplexity": 1.115391491528788,
+          "scored_tokens": 400,
+          "seconds": 1.8678626,
+          "target_begin": 1,
+          "target_end": 401,
+          "total_nll": 43.68218270596117
+        }
+      ]
+    }
+  ],
+  "timing": {
+    "load_seconds": 3.397662,
+    "read_and_tokenize_seconds": 0.0004293,
+    "score_seconds": 1.8679434,
+    "scored_tokens_per_second": 214.1392506860754,
+    "total_seconds": 5.3599715
+  }
+}
