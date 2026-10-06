@@ -228,6 +228,11 @@ The IQ3XXS MTP Q6 and Q4 artifacts both scored **4.495637819904494**; all 124 wi
 
 | Configuration | Graph | Tested resident KV | Text decode | Code decode |
 |---|---|---:|---:|---:|
+| Bonsai2 12G · int8 | off | 98K | 45.83 | 45.11 |
+| Bonsai2 12G · int8 | on | 98K | 47.19 | 46.57 |
+| Bonsai2 12G · rk8v4 | off | 131K | 45.09 | 45.95 |
+| Bonsai2 12G · rk8v4 | on | 131K | 46.67 | 47.74 |
+| Bonsai2 8G · rk4v4 | off | 48K | 32.26 | 31.03 |
 | Swift IQ2S · rk4v4 | off | 73K | 42.21 | 44.93 |
 | Swift IQ2S · rk4v4 | on | 73K | 43.24 | 46.12 |
 | Swift IQ2S · rk8v4 | off | 49K | 42.19 | 47.13 |
@@ -238,6 +243,11 @@ Zero-cache prefill: exact 2K/8K/16K inputs, at most 8 output tokens; one warmup 
 
 | Configuration | Graph | 2K prefill | 8K prefill | 16K prefill | 16K TTFT (s) |
 |---|---|---:|---:|---:|---:|
+| Bonsai2 12G · int8 | off | 818.60 | 813.05 | 743.93 | 22.04 |
+| Bonsai2 12G · int8 | on | 805.78 | 791.72 | 733.67 | 22.34 |
+| Bonsai2 12G · rk8v4 | off | 803.26 | 790.37 | 734.31 | 22.32 |
+| Bonsai2 12G · rk8v4 | on | 805.24 | 790.50 | 735.12 | 22.30 |
+| Bonsai2 8G · rk4v4 | off | 558.43 | 557.65 | 533.90 | 30.71 |
 | Swift IQ2S · rk4v4 | off | 483.66 | 498.10 | 489.02 | 33.55 |
 | Swift IQ2S · rk4v4 | on | 483.40 | 497.85 | 489.36 | 33.52 |
 | Swift IQ2S · rk8v4 | off | 484.26 | 498.14 | 490.38 | 33.44 |
