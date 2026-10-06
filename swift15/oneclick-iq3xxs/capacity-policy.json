@@ -1,0 +1,94 @@
+{
+  "status": "completed",
+  "note": "RTX 3060 12GB measurements; this is a local development profile, not a portable capacity guarantee.",
+  "rows": [
+    {
+      "case": "iq3-rk4-nograph",
+      "margin_mib": 400,
+      "capacity_tokens": 32768,
+      "status": "验证通过",
+      "retrieval_correct": true,
+      "remaining_mib": 440.09375,
+      "fixed_tokens": 2048,
+      "output_tokens": 8192,
+      "budget_mib": 12288
+    },
+    {
+      "case": "iq3-rk4-nograph",
+      "margin_mib": 300,
+      "capacity_tokens": 39936,
+      "status": "验证通过",
+      "retrieval_correct": true,
+      "remaining_mib": 347.875,
+      "fixed_tokens": 2048,
+      "output_tokens": 8192,
+      "budget_mib": 12288
+    },
+    {
+      "case": "iq3-rk4-graph",
+      "margin_mib": 400,
+      "capacity_tokens": 25600,
+      "status": "未通过，详见原始错误/检索记录",
+      "retrieval_correct": false,
+      "remaining_mib": 450.78125,
+      "fixed_tokens": 2048,
+      "output_tokens": 8192,
+      "budget_mib": 12288
+    },
+    {
+      "case": "iq3-rk4-graph",
+      "margin_mib": 300,
+      "capacity_tokens": 33792,
+      "status": "验证通过",
+      "retrieval_correct": true,
+      "remaining_mib": 300.03125,
+      "fixed_tokens": 2048,
+      "output_tokens": 8192,
+      "budget_mib": 12288
+    },
+    {
+      "case": "iq3-rk8-nograph",
+      "margin_mib": 400,
+      "capacity_tokens": 21504,
+      "status": "验证通过",
+      "retrieval_correct": true,
+      "remaining_mib": 459.53125,
+      "fixed_tokens": 2048,
+      "output_tokens": 8192,
+      "budget_mib": 12288
+    },
+    {
+      "case": "iq3-rk8-nograph",
+      "margin_mib": 300,
+      "capacity_tokens": 26624,
+      "status": "验证通过",
+      "retrieval_correct": true,
+      "remaining_mib": 353.46875,
+      "fixed_tokens": 2048,
+      "output_tokens": 8192,
+      "budget_mib": 12288
+    },
+    {
+      "case": "iq3-rk8-graph",
+      "margin_mib": 400,
+      "capacity_tokens": 17408,
+      "status": "验证通过",
+      "retrieval_correct": true,
+      "remaining_mib": 447.65625,
+      "fixed_tokens": 2048,
+      "output_tokens": 8192,
+      "budget_mib": 12288
+    },
+    {
+      "case": "iq3-rk8-graph",
+      "margin_mib": 300,
+      "capacity_tokens": 22528,
+      "status": "验证通过",
+      "retrieval_correct": true,
+      "remaining_mib": 346.9375,
+      "fixed_tokens": 2048,
+      "output_tokens": 8192,
+      "budget_mib": 12288
+    }
+  ]
+}

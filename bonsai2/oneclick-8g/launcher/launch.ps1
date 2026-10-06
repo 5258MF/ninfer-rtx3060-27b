@@ -9,6 +9,8 @@
 #   再用 patch 文件夹里的补丁把 MTP 部分转成 Q4（8 GB 显存要靠这一步省出约 225 MB），转完再校验一次
 
 $ErrorActionPreference = 'Stop'
+$launchArguments = @($args)
+. (Join-Path $PSScriptRoot 'runtime-options.ps1')
 $CpuRetrieval = ($env:NINFER_TERNARY_KVMEM_CPU_RETRIEVAL -ne '0')
 $Root = Split-Path -Parent $PSScriptRoot
 try { $Host.UI.RawUI.WindowTitle = 'ninfer 3060 8G 引擎' } catch {}
@@ -35,12 +37,14 @@ foreach ($line in (Get-Content -LiteralPath $ini -Encoding UTF8)) {
 $Modes = @('normal', 'kvmem', 'rk4', 'kvrk4')
 $Mode = $null
 $CliExtra = @()
-foreach ($a in $args) {
+foreach ($a in $launchArguments) {
     $s = [string]$a
     if (-not $Mode -and ($Modes -contains $s.ToLower())) { $Mode = $s.ToLower(); continue }
     if ($s -match '^([A-Za-z_][A-Za-z0-9_]*)=(.*)$') { $C[$Matches[1].ToUpper()] = $Matches[2]; continue }
     $CliExtra += $s
 }
+
+Initialize-NinferRuntimeOptions $script:C
 
 function Cfg([string]$k, $d) { if ($C.ContainsKey($k) -and $C[$k] -ne '') { return $C[$k] } else { return $d } }
 function CfgInt([string]$k, [int]$d) {
@@ -112,11 +116,13 @@ function Free-8G-MiB {
     } catch { return -1 }
 }
 function Physical-8G-Cap([string]$kv, [int]$ctx, [int]$fallback) {
+    if ($kv -eq 'rk4v4') { $fallback = [Math]::Min($fallback,36864) }
     $free = Free-8G-MiB
     if ($free -lt 0) { return [Math]::Min($fallback, $ctx - 8192) }
     $load = $(if ($CpuRetrieval) { 6208 } else { 6612 })
     $perToken = $(if ($kv -eq 'rk4v4') { 0.0176 } else { 0.0264 })
-    $cap = [int][Math]::Floor(($free - $load - 170) / $perToken / 1024) * 1024
+    $cap = [int][Math]::Floor(($free - $load - 300) / $perToken / 1024) * 1024
+    if ($kv -eq 'rk4v4') { $cap = [Math]::Min($cap,36864) }
     return [Math]::Max(0, [Math]::Min($ctx - 8192, $cap))
 }
 function Harness-Out([int]$cap, [int]$ctx, [int]$unit = 64) {
@@ -151,6 +157,7 @@ function Get-View([string]$m) {
 }
 
 function Show-Summary([string]$m) {
+    Show-NinferRuntimeOptions $script:C
     $v = Get-View $m
     Say ''
     Say '  ┌──────────── 当前配置 ────────────'
@@ -213,6 +220,8 @@ function Ask-Step([string]$title, [string[]]$intro, $items, $current, [bool]$all
 }
 
 function Run-Wizard([string]$m) {
+    Edit-NinferRuntimeOptions $script:C
+    foreach ($rk in @('CUDA_GRAPH','VISION_DEVICE','CPU_THREADS')) { Set-C $rk $script:C[$rk] }
     $v = Get-View $m
     function StepTitle([string]$t) { $script:si++; return "第 $($script:si) 步：$t" }
     $script:si = 0
@@ -521,7 +530,7 @@ function New-Argv([int]$c, [int]$k, [int]$m, [int]$h) {
     if ($key -ne '') { $a += @('--api-key', $key) }
     if ($iniExtra -ne '') { $a += ($iniExtra -split '\s+' | Where-Object { $_ -ne '' }) }
     $a += $CliExtra
-    return $a
+    return (Complete-NinferRuntimeArgs -Config $script:C -Arguments $a)
 }
 
 # 从引擎日志里读“显存不够”的差额：reservation requires N bytes, but only M bytes are available
@@ -589,6 +598,7 @@ function Round64([string]$name, [int]$v) {
     return $r
 }
 
+$env:NINFER_KVMEM_ORPHAN_EVICT_FIX = '0'
 $kv = 'rk8v4'; $exeName = 'ninfer-serve.exe'
 if ($Mode -eq 'rk4' -or $Mode -eq 'kvrk4') { $kv = 'rk4v4'; $exeName = 'ninfer-serve-rk4.exe' }   # rk4v4 和 rk8v4 的内核同名，只能分成两个程序（放在同一个 engine 文件夹，共用 DLL）
 $desc = ''
@@ -625,6 +635,7 @@ switch ($Mode) {
         $env:NINFER_TERNARY_KVMEM_NO_REBAKE = '1'
         $env:NINFER_TERNARY_KVMEM_GEN_RESERVE = '0'
         $env:NINFER_KVMEM_AUTO_ALLOCATION = '1'
+        if ($Mode -eq 'kvrk4') { $env:NINFER_KVMEM_ORPHAN_EVICT_FIX = '1' }
         # kv8/kv9：按最后一条用户消息挑块、保护本轮新内容、重算范围 = 挑块范围（这一轮的新输入）
         $env:NINFER_TERNARY_KVMEM_SCORE_QUERY_MODE = 'msg'
         $env:NINFER_TERNARY_KVMEM_SCORE_PROTECT_NEW = '1'

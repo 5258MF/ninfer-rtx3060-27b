@@ -12,6 +12,7 @@ $ErrorActionPreference = "Stop"
 if (-not $KitRoot) { $KitRoot = Split-Path -Parent $MyInvocation.MyCommand.Path }
 
 $EmbeddedExpected = [ordered]@{
+    "launcher/runtime-options.ps1" = @{ Sha256 = "eff90bdebf0a2344bb1a5b64820464527106e6b327873d81bb37f4d6da0f1f7c"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "CPU vision and CUDA Graph controls" }
     "engine/ninfer-serve.exe"   = @{
         Sha256          = "e83e4c18b6d92b37d3986c7c4c83b7d87b943776c70393ebcf8fc81429117a87"
         MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2026-10-03T13:00:00", [System.DateTimeKind]::Utc)
@@ -48,7 +49,7 @@ $EmbeddedExpected = [ordered]@{
         Role            = "VC runtime 140_1 exception handling DLL"
     }
     "launcher/launch.ps1"       = @{
-        Sha256          = "51ba219983986489f3e70292792429eb9d2ccbf52ce42f2d3732808ac65a1546"
+        Sha256          = "193853a5c8050be67ad606d69c2901d8fff552a71abdc5f74ca5bf3e8567a044"
         MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2026-10-03T13:00:00", [System.DateTimeKind]::Utc)
         Role            = "One-click interactive launcher script"
     }

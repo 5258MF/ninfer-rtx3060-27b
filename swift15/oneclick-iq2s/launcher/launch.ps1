@@ -8,7 +8,9 @@
 #   测试用环境变量：L8084_INPUT=答案1|答案2|...（代替键盘输入）  L8084_EXTRA_ARGS=额外引擎参数
 #   测试下载流程：ONECLICK_TEST_URL / _SIZE / _SHA / _FILE（用小文件代替模型）
 $ErrorActionPreference = 'Stop'
-$argv    = @($args | ForEach-Object { "$_".ToLower() })
+$launchArguments = @($args)
+. (Join-Path $PSScriptRoot 'runtime-options.ps1')
+$argv    = @($launchArguments | ForEach-Object { "$_".ToLower() })
 $DryRun  = $argv -contains 'dryrun'
 $Here    = Split-Path $PSScriptRoot -Parent
 $CfgFile = Join-Path $Here '设置.ini'
@@ -43,7 +45,7 @@ $KvInfo = [ordered]@{
 $RestMin  = 134      # 一页完整开头、两检索块和 8K 输出的启动下限
 $OutMin   = 8192    # 自动输出至少 8K
 $SmallCtx = 131072  # 精简头或 rk8v4 的现有支持范围；分配按总上下文同比缩放
-$Defaults = [ordered]@{ KV = 'rk4v4'; HEAD = 'full'; VISION = '1'; CTX = '204800'; OUT = 'auto'; SYS = 'auto'; THINK = '0'
+$Defaults = [ordered]@{ KV = 'rk4v4'; HEAD = 'full'; VISION = '1'; CUDA_GRAPH = '1'; VISION_DEVICE = 'cpu'; CPU_THREADS = 'auto'; CTX = '204800'; OUT = 'auto'; SYS = 'auto'; THINK = '0'
                         POST_THINKING = '1'; POST_THINKING_TEMP = ''; POST_THINKING_TOP_P = ''; POST_THINKING_TOP_K = ''; POST_THINKING_SAMPLER = ''
                         ADAPTIVE_MTP = '0'; RECOVER_INVARIANT = '1'
                         PORT = '8084'; HOST = '127.0.0.1'; API_KEY = ''; MODEL_ID = 'qwen3.8-27b' }
@@ -126,6 +128,7 @@ function Load-Config {
   if (-not $c.HOST) { $c.HOST = '127.0.0.1' }
   if (-not $c.MODEL_ID) { $c.MODEL_ID = 'qwen3.8-27b' }
   $n = 0; if ([int]::TryParse("$($c.CTX)", [ref]$n) -and $n -gt (Ctx-Max $c)) { $c.CTX = "$(Ctx-Max $c)" }
+  Initialize-NinferRuntimeOptions $c
   return $c
 }
 function Use-Mtp($c) { $script:LoadMiB = Load-For 'q4' $c.HEAD }
@@ -138,8 +141,11 @@ function Save-Config($c) {
     "KV=$($c.KV)",
     '; MTP 输出头：full（完整，推荐，显存窗口最大）/ lite（精简 --lm-head-draft，解码快约 10%，多占 346 MiB 显存，总上下文最多 128K）',
     "HEAD=$($c.HEAD)",
-    '; 看图：1 开 / 0 关（视觉权重放内存，开着也不多占显存）',
+    '; 看图：1 开 / 0 关（CPU 视觉编码；语言模型、KV 与最终图片特征仍占显存）',
     "VISION=$($c.VISION)",
+    "CUDA_GRAPH=$($c.CUDA_GRAPH)",
+    "VISION_DEVICE=$($c.VISION_DEVICE)",
+    "CPU_THREADS=$($c.CPU_THREADS)",
     '; 总上下文（token）：rk4v4 + 完整头 推荐 204800、最多 262144；其他组合最多 131072',
     "CTX=$($c.CTX)",
     '; 输出：auto，启动前生成 Harness 申请上限；实际输出由每次请求的剩余容量决定',
@@ -188,6 +194,7 @@ function Check-Config($c, [int]$pages) {
 
 
 function Show-Summary($c, [int]$pages) {
+  Show-NinferRuntimeOptions $c
   Write-Host ''
   Write-Host '  ┌──────────── Swift 1.5 当前配置 ────────────'
   Write-Host ('  │ KV / 输出头: ' + $c.KV + ' / ' + $c.HEAD)
@@ -231,6 +238,7 @@ function Clamp-Step($c, [string]$key, [int]$lo, [int]$hi, [string]$what) {
 }
 
 function Run-Wizard($c) {
+  Edit-NinferRuntimeOptions $c -AskVision
   $n = 7
   # 1. KV 量化：决定总上下文上限和显存窗口大小，所以放最前面
   $p4 = Est-Pages 'rk4v4'; $p8 = Est-Pages 'rk8v4'
@@ -312,11 +320,11 @@ function Build-Args($c, [int]$pages) {
     if ($c.POST_THINKING_TOP_K) { $a += @('--post-thinking-top-k', "$($c.POST_THINKING_TOP_K)") }
     if ($c.POST_THINKING_SAMPLER) { $a += @('--post-thinking-sampler', "$($c.POST_THINKING_SAMPLER)") }
   }
-  if ($c.VISION -ne '0') { $a += @('--vision', '--vision-residency', 'overlay', '--vision-max-merged', '4096') }
+  if ($c.VISION -ne '0') { $a += @('--vision', '--vision-residency', 'cpu', '--vision-max-merged', '4096') }
   if ([int]$c.THINK -gt 0) { $a += @('--default-thinking-budget', "$($c.THINK)") }
   if ($c.API_KEY) { $a += @('--api-key', $c.API_KEY) }
   if ($env:L8084_EXTRA_ARGS) { $a += @($env:L8084_EXTRA_ARGS -split '\s+' | Where-Object { $_ }) }
-  return $a
+  return (Complete-NinferRuntimeArgs -Config $c -Arguments $a -Swift)
 }
 function Set-KvmEnv($c, [int]$pages) {
   $env:NINFER_KVMEM_AUTO_ALLOCATION = '1'
@@ -597,7 +605,7 @@ if (($busy.Count -gt 0) -or ($lis.Count -gt 0)) {
 $script:Free = Free-MiB
 Use-Mtp $cfg
 $pages = Est-Pages $cfg.KV
-if (-not ($argv -contains 'last')) {
+if (-not (($argv -contains 'last') -or $DryRun)) {
   while ($true) {
     $chk = Show-Summary $cfg $pages
     Write-Host ''

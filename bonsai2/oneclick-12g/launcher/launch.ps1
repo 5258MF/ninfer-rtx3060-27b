@@ -8,6 +8,8 @@
 # 模型不在包里：第一次用时（配置完、按回车后）自动从魔搭社区下载，支持断点续传，下完校验 SHA256
 
 $ErrorActionPreference = 'Stop'
+$launchArguments = @($args)
+. (Join-Path $PSScriptRoot 'runtime-options.ps1')
 $CpuRetrieval = ($env:NINFER_TERNARY_KVMEM_CPU_RETRIEVAL -ne '0')
 $Root = Split-Path -Parent $PSScriptRoot
 try { $Host.UI.RawUI.WindowTitle = 'ninfer 3060 引擎' } catch {}
@@ -34,12 +36,14 @@ foreach ($line in (Get-Content -LiteralPath $ini -Encoding UTF8)) {
 $Modes = @('normal', 'kvmem', 'rk8v4', 'kvrk')
 $Mode = $null
 $CliExtra = @()
-foreach ($a in $args) {
+foreach ($a in $launchArguments) {
     $s = [string]$a
     if (-not $Mode -and ($Modes -contains $s.ToLower())) { $Mode = $s.ToLower(); continue }
     if ($s -match '^([A-Za-z_][A-Za-z0-9_]*)=(.*)$') { $C[$Matches[1].ToUpper()] = $Matches[2]; continue }
     $CliExtra += $s
 }
+
+Initialize-NinferRuntimeOptions $script:C
 
 function Cfg([string]$k, $d) { if ($C.ContainsKey($k) -and $C[$k] -ne '') { return $C[$k] } else { return $d } }
 function CfgInt([string]$k, [int]$d) {
@@ -125,7 +129,7 @@ foreach ($k in @('KVMEM_ANSWER','KVRK_ANSWER','KVMEM_SINK')) { $C[$k]='auto'; $D
 foreach ($k in @('KVMEM_WINDOW','KVRK_WINDOW')) { $C[$k]='0'; $Dirty[$k]='0' }
 
 function Fmt([int]$n) { if ($n -gt 0 -and $n % 1024 -eq 0) { return ('{0}（{1}K）' -f $n, ($n / 1024)) } else { return "$n" } }
-function VisKey { if ((CfgInt 'VISION' 1) -eq 0) { return 'n' } elseif ((CfgInt 'VISION_HOST' 0) -eq 1) { return 'h' } else { return 'v' } }
+function VisKey { if ((CfgInt 'VISION' 1) -eq 0) { return 'n' } else { return 'h' } }
 function Set-C([string]$k, $v) { $C[$k] = "$v"; $Dirty[$k] = "$v" }
 
 # 按当前设置算出某个模式的各项数值（不报错、不改东西）
@@ -154,6 +158,7 @@ function Get-View([string]$m) {
 }
 
 function Show-Summary([string]$m) {
+    Show-NinferRuntimeOptions $script:C
     $v = Get-View $m
     Say ''
     Say '  ┌──────────── 当前配置 ────────────'
@@ -220,6 +225,8 @@ function Ask-Step([string]$title, [string[]]$intro, $items, $current, [bool]$all
 }
 
 function Run-Wizard([string]$m) {
+    Edit-NinferRuntimeOptions $script:C
+    foreach ($rk in @('CUDA_GRAPH','VISION_DEVICE','CPU_THREADS')) { Set-C $rk $script:C[$rk] }
     $v = Get-View $m; $n = 7
     $mk = Model-Key; $mcur = $(if ($mk) { $mk } else { [string](Cfg 'MODEL' 'swift') })
     $items = @()
@@ -467,7 +474,7 @@ function Round64([string]$name, [int]$v) {
 
 $kv = 'int8'
 $desc = ''
-# 10-01 起：开看图一律把视觉权重放内存（看图时逐段搬上显卡），设置.ini 里的 VISION_HOST 不再起作用
+# 10-01 起：开看图一律把视觉权重放内存（视觉编码在 CPU 执行），设置.ini 里的 VISION_HOST 不再起作用
 $vh = ((CfgInt 'VISION' 1) -ne 0)
 $lim = $ModeLimits[$Mode][(VisKey)]
 switch ($Mode) {
@@ -561,6 +568,7 @@ elseif ($bindHost -ne '127.0.0.1' -and $bindHost -ne 'localhost') { Warn "HOST=$
 $iniExtra = [string](Cfg 'EXTRA' '')
 if ($iniExtra -ne '') { $argv += ($iniExtra -split '\s+' | Where-Object { $_ -ne '' }) }
 $argv += $CliExtra
+$argv = @(Complete-NinferRuntimeArgs -Config $script:C -Arguments $argv)
 
 if (-not $dry) { Set-Content -LiteralPath $modeFile -Value $Mode -Encoding ASCII }
 

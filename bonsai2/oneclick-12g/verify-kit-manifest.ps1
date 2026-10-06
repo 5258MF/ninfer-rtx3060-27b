@@ -11,6 +11,7 @@ $ErrorActionPreference = "Stop"
 if (-not $KitRoot) { $KitRoot = $PSScriptRoot }
 
 $EmbeddedExpected = [ordered]@{
+    "launcher/runtime-options.ps1" = @{ Sha256 = "eff90bdebf0a2344bb1a5b64820464527106e6b327873d81bb37f4d6da0f1f7c"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "CPU vision and CUDA Graph controls" }
     "engine/ninfer-serve.exe"       = @{
         Sha256          = "8240fef86cfe2730ead6bd2a92dcd99714806c0b8fd19a8597f25b8fa0c194c4"
         MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2026-10-03T14:00:00", [System.DateTimeKind]::Utc)
@@ -47,7 +48,7 @@ $EmbeddedExpected = [ordered]@{
         Role            = "FFmpeg avutil runtime DLL"
     }
     "launcher/launch.ps1"           = @{
-        Sha256          = "cb019e5d5a5526ba1e6ec78bbf03737271e6b8444a0c1f40bf0abb3b1bf47f32"
+        Sha256          = "c7d70f6266701e34315c2aaaae621425f9d3debe145dd0d1f5bab5dfae47b9a8"
         MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2026-10-03T14:00:00", [System.DateTimeKind]::Utc)
         Role            = "One-click interactive launcher script"
     }

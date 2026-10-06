@@ -5,6 +5,20 @@
 按版本和日期记录已发生的改动。源码更新与网盘包更新分别标明，避免把源码中的修复误认为已经进入旧下载包。
 
 
+## 2026-10-06：KV 换页与启动器修复（Swift 源码 0.1.4 / Bonsai2 源码 0.1.5）
+
+**本次更新 GitHub 源码与两套独立源码 Release。网盘懒人包及下载链接保持现有发布状态；源码版本不代表旧 ZIP 已包含修复。**
+
+- Bonsai2 修复 KVMem 换入时不能回收旧设备页的问题。非当前成员页必须没有活跃引用、写入引用或源锁定；已有有效且最新 Host 副本时直接通过原有保护释放设备副本，避免重复 `host.prepare()` 被拒绝。无有效副本仍走原 D2H 路径。开关为 `NINFER_KVMEM_ORPHAN_EVICT_FIX=1`，8G 的 kvrk4 启动器启用，其余构建默认保持关闭。8G / 12G 共用源码，实机修复验收针对 rk4 构建。
+- 四个配置补齐 CPU 视觉、CPU 线程与 CUDA Graph 开关处理。Swift 使用 `--vision-residency cpu`，Bonsai 使用 `NINFER_VISION_CPU=1`；关闭 Graph 时去除 allowance 并传 `--no-cuda-graph`。保留完整系统/developer/工具前缀按请求分配、输出使用剩余容量且最低 8K 的现有逻辑；没有用 B 机旧启动器覆盖回固定开头或 32K 封顶算法，也保留了已有分配回归测试。
+- 8G rk4 默认逻辑上下文 128K、关闭 Graph；KVMem 驻留上限 36K，仍按空闲显存下调，并非强制分配 36K。IQ3XXS 开发配置为 33K 驻留、128K 逻辑上下文、API 默认 16K，实际前缀/检索/输出在请求时确定。API 申请上限不等于实际可生成长度。
+- 新增独立的 DSH 精简/普通入口。普通预设的压缩预留为 8192 token，摘要上限为 4096；精简入口加载 DSH 自带 minimal 预设。依赖通过 `DSH_MODULES_DIR` 和 PATH/`DSH_NODE_EXE` 指定，使用包内独立配置与会话，不修改全局 DSH 配置。入口需要已有 Python、Node 和 DSH，不是随源码附带这些软件。
+- IQ3XXS 启动器源码放在 `swift15/oneclick-iq3xxs/`，与 IQ2S 共用引擎。附测量配置及路径覆盖选项，不附模型、EXE、DLL 或独立懒人包。只允许已验证的 rk4/noGraph 默认档启动，其余容量记录可预览。
+
+交接验收：旧页修复关闭时定向回归出现 HTTP 500，开启后 15 次请求完成，并释放 1169 页；另有 11 项模拟存储保护检查。原真实 DSH 精简长链完成约 11 万输入 token、34 次工具调用。四套部署启动器的短工具链完成读取、写入、回读。新 36K 自动档未完成长压力与连续 16K 输出验收，不能把这些记录解释为所有窗口和负载均已验证。本次 A 机检查通过：11 个相关 PowerShell 脚本语法、8 组 Graph 开关 dryrun、4 组 CPU/Graph 参数检查、8 组 DSH 隔离配置生成；测试使用临时夹具，没有重新加载 GPU。另修复公共脚本加载时的命令行参数保留、Swift dryrun 仍弹菜单，以及新运行选项未进入配置读取白名单的问题。
+
+English: Bonsai2 source 0.1.5 includes the opt-in old-KV-page eviction fix, enabled by the 8G kvrk4 launcher. Swift source 0.1.4 and all four launcher profiles add CPU vision/thread and CUDA Graph controls plus isolated DSH entry points. Existing request-time prefix/retrieval/output allocation and its tests are preserved. The IQ3XXS development launcher shares the Swift engine; no portable IQ3XXS ZIP is published. Existing cloud packages are unchanged. Targeted GPU and DSH evidence comes from the recorded handoff; the new 36K profile has not completed long-output or full stress qualification.
+
 ## 2026-10-05：Bonsai2 共用源码目录更名
 
 Bonsai2 8G 与 12G 共用同一份引擎源码；仓库目录由 `bonsai2-12g/` 改为 `bonsai2/`，目录内 `oneclick-8g/` 和 `oneclick/` 分别保留 8G、12G 启动器。此次只调整命名和文档链接，不改变引擎代码或懒人包参数。已发布的 `bonsai2-12g-v0.1.3` 标签保留原名，作为历史版本标识。

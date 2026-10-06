@@ -2,7 +2,7 @@
 
 **Language:** [简体中文](README.md) | English
 
-Current sources: **Swift 1.5 shared IQ2S / IQ3XXS engine 0.1.3; Bonsai2 shared 8G / 12G source 0.1.4**. The available Swift one-click package remains IQ2S 0.1.2; the IQ3XXS package will be published later. All three current one-click packages use the same Baidu and Quark folder links below. See the [changelog](CHANGELOG.md).
+Current sources: **Swift 1.5 shared IQ2S / IQ3XXS engine 0.1.4; Bonsai2 shared 8G / 12G source 0.1.5**. The available Swift one-click package remains IQ2S 0.1.2; the IQ3XXS package will be published later. All three current one-click packages use the same Baidu and Quark folder links below. See the [changelog](CHANGELOG.md).
 
 Run Swift 1.5 and Bonsai2 locally on Windows, with chat, image input, tool calling, and long-context KVMem. The one-click package starts after extraction; the model is downloaded on first launch.
 
@@ -37,7 +37,7 @@ These Huihui Qwen3.8 27B Abliterated models have been converted to NInfer format
 
 Abliterated variants reduce refusal or safety filtering. Read each model card for provenance, licensing, and usage warnings before use. The Swift model card recommends research and controlled local inference, not public-facing services or use by minors.
 
-Source releases are published by engine family. Each asset contains only its source directory: [Swift 1.5 shared IQ2S / IQ3XXS source 0.1.3](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.3) and [Bonsai2 shared 8G / 12G source 0.1.4](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.4). Swift source VERSION is 0.1.3 and Bonsai2 is 0.1.4; one-click package versions are unchanged. Development continues on main; release changes are listed in CHANGELOG.
+Source releases are published by engine family. Each asset contains only its source directory: [Swift 1.5 shared IQ2S / IQ3XXS source 0.1.4](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.4) and [Bonsai2 shared 8G / 12G source 0.1.5](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-v0.1.5). Swift source VERSION is 0.1.4 and Bonsai2 is 0.1.5; one-click package versions are unchanged. Development continues on main; release changes are listed in CHANGELOG.
 
 ## Quick Start
 

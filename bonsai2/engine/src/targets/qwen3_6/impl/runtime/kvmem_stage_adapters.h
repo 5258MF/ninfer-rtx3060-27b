@@ -240,7 +240,11 @@ private:
                                                      DeviceKVPageReservation& reservation) {
         try {
             return pages_.reserve_device_replica(page, reservation);
+        } catch (const std::exception& e) {
+            std::fprintf(stderr, "[kvmem-diag] reserve exception: %s\n", e.what());
+            return {};
         } catch (...) {
+            std::fprintf(stderr, "[kvmem-diag] reserve nonstandard exception\n");
             return {};
         }
     }
@@ -268,12 +272,43 @@ private:
                 }
             }
             if (wanted) { ++wanted_cnt; continue; }   // 新窗还要它，不许动
-            if (!resolver_.addresses().release_stale_member(resolver_.address(), victim)) {
+            const bool released =
+                resolver_.addresses().release_stale_member(resolver_.address(), victim);
+            if (!released) {
                 ++kept_row;
+                if (kept_row <= 8U) {
+                    std::fprintf(stderr,
+                        "[kvmem-diag] nonmember refs=%u active=%u writer=%u pins=%u host_current=%d\n",
+                        pages_.address_references(victim), pages_.active_address_references(victim),
+                        static_cast<unsigned>(pages_.writer_references(victim)),
+                        pages_.source_pins(victim), pages_.host_replica_current(victim) ? 1 : 0);
+                }
+                const char* fix = std::getenv("NINFER_KVMEM_ORPHAN_EVICT_FIX");
+                // No active owner or writer may be bypassed. Final drop still uses all store guards.
+                if (fix == nullptr || fix[0] != '1' ||
+                    pages_.active_address_references(victim) != 0 ||
+                    pages_.writer_references(victim) != 0 || pages_.source_pins(victim) != 0) {
+                    continue;
+                }
+                std::fprintf(stderr, "[kvmem-diag] eligible nonmember eviction candidate\n");
+            }
+            if (released && pages_.writer_references(victim) != 0) {
+                pages_.set_writer(victim, false);
+            }
+            if (!pages_.can_pin_source(victim)) { ++unpinned; continue; }
+            // Revision 2: prepare() rejects host-resident pages. Reuse a current,
+            // valid host replica rather than attempting a duplicate D2H reservation.
+            const char* reuse_fix = std::getenv("NINFER_KVMEM_ORPHAN_EVICT_FIX");
+            if (reuse_fix != nullptr && reuse_fix[0] == '1' && pages_.host_resident(victim)) {
+                if (pages_.host_replica_current(victim) &&
+                    host_.valid(pages_.host_replica(victim).extent) &&
+                    pages_.can_drop_device_replica(victim) && pages_.drop_device_replica(victim)) {
+                    std::fprintf(stderr, "[kvmem-diag-v2] dropped device; reused current host replica\n");
+                    ++dropped;
+                    return true;
+                }
                 continue;
             }
-            if (pages_.writer_references(victim) != 0) { pages_.set_writer(victim, false); }
-            if (!pages_.can_pin_source(victim)) { ++unpinned; continue; }
             std::vector<LogicalKVPageHandle> one{victim};
             std::optional<HostKVExtentReservation> reserved = host_.prepare(pages_, one);
             if (!reserved) { continue; }
