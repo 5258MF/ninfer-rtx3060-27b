@@ -6,7 +6,7 @@ The current shared source version is **0.1.5**, with CPU retrieval, blocked scor
 
 This directory contains the engine source (formerly `ninfer-tree`) and build script shared by the Bonsai2 8 GB and 12 GB builds, plus separate one-click launchers for each memory target. The builds use different model files and launch settings; the engine implementation, common fixes, and build entry point are shared. It includes the sm_86, KVMem, rk8v4, and VRAM-budget changes, along with the three agent-compatibility fixes synchronized on 2026-10-04.
 
-Current main source is **0.1.5** (`VERSION`). This source Release has been withdrawn; main is retained pending fixes. The historical [Bonsai2 0.1.4 source Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.4) remains available; cloud-package versions are unchanged.
+Current source is **0.1.5** (`VERSION`). The [Bonsai2 0.1.5 source Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-v0.1.5) includes the latest BAT/capacity-calibration fixes and this engine family only. Cloud-package versions are unchanged.
 
 ## Directory
 

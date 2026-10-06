@@ -2,7 +2,7 @@
 
 **简体中文 | [English](README.en.md)**
 
-当前源码：**Swift 1.5 IQ2S / IQ3XXS 共用引擎 0.1.4，Bonsai2 8G / 12G 共用源码 0.1.5**。当前 Swift 懒人包仍是 IQ2S 0.1.2；IQ3XXS 懒人包后续发布。三款现有懒人包共用下方同一组百度网盘和夸克网盘链接。详情见[更新记录](CHANGELOG.md)。 Swift 0.1.4、Bonsai2 0.1.5 源码 Release 已撤回，当前 main 保留待修正。
+当前源码：**Swift 1.5 IQ2S / IQ3XXS 共用引擎 0.1.4，Bonsai2 8G / 12G 共用源码 0.1.5**。当前 Swift 懒人包仍是 IQ2S 0.1.2；IQ3XXS 懒人包后续发布。三款现有懒人包共用下方同一组百度网盘和夸克网盘链接。详情见[更新记录](CHANGELOG.md)。 Swift 0.1.4、Bonsai2 0.1.5 源码已分别重新发布，包含最新 BAT 与容量校准修正。
 
 为 Windows 提供 Swift 1.5 和 Bonsai2 的本地推理方案，支持对话和图片输入，也支持工具调用与 KVMem 长上下文。懒人包解压后双击启动，模型在第一次运行时下载。
 
@@ -37,7 +37,7 @@ Swift 1.5 默认总上下文为 200K，最多可配置 256K；KVMem 会从历史
 
 Abliterated 版本会削弱模型的拒答或安全过滤能力。使用前请阅读各自模型卡中的来源、许可和使用警告；Swift 版本的模型卡建议用于研究和本地受控推理，不建议用于面向公众或未成年人的服务。
 
-Swift 0.1.4、Bonsai2 0.1.5 源码 Release 已撤回，当前 main 保留待修正。仍可下载的历史源码为 [Swift 0.1.3](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.3) 和 [Bonsai2 0.1.4](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.4)。网盘懒人包版本和链接不变。
+当前源码 Release：[Swift 0.1.4](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.4) 和 [Bonsai2 0.1.5](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-v0.1.5)，各附件只含对应引擎系列，均包含最新 BAT／容量修正。网盘懒人包版本和链接不变。
 
 ## 快速开始
 

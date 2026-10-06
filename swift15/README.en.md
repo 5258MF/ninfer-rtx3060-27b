@@ -6,7 +6,7 @@ The current engine source is **0.1.4** and is shared by IQ2_S and IQ3_XXS. The a
 
 This directory has one Swift 1.5 engine source tree for both quantization formats. Their NInfer format mappings and GPU kernels are part of the same CMake project, so the engine source does not need to be duplicated. The IQ2S launcher is in `oneclick-iq2s/`; `oneclick-iq3xxs/` contains the IQ3XXS development profile. Both share `engine/`. The IQ3XXS profile is not a published portable package.
 
-Current main source is **0.1.4** (`VERSION`). This source Release has been withdrawn; main is retained pending fixes. The historical [Swift 0.1.3 source Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.3) remains available; cloud-package versions are unchanged.
+Current source is **0.1.4** (`VERSION`). The [Swift 0.1.4 source Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.4) includes the latest BAT/capacity-calibration fixes and this engine family only. Cloud-package versions are unchanged.
 
 The 2026-10-05 source update adds CPU vision encoding with optional OpenBLAS acceleration, automatic thread calibration and caching, and a reference CPU fallback when OpenBLAS is unavailable. The same engine path serves IQ2S and IQ3XXS. The handoff records passing IQ2S/IQ3XXS image checks and CPU-backend unit tests; this does not qualify every image, CPU, or long-context configuration.
 

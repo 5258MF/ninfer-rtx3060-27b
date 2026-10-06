@@ -5,9 +5,15 @@
 按版本和日期记录已发生的改动。源码更新与网盘包更新分别标明，避免把源码中的修复误认为已经进入旧下载包。
 
 
+## 2026-10-06：Swift 0.1.4 / Bonsai2 0.1.5 源码重新发布
+
+按用户要求，用最新 BAT、数字菜单和按模型校准的容量逻辑重新发布 [Swift 0.1.4](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.4) 与 [Bonsai2 0.1.5](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-v0.1.5)。沿用此前撤回的版本号；标签和独立源码附件更新至本次提交。公开脚本保留路径覆盖、参数读取和非交互预览，修复 Bonsai 缺模型路径的未初始化容量检查。改动、短测点和验收范围见下一节。网盘懒人包版本、链接与文件未替换。
+
+English: Swift 0.1.4 and Bonsai2 0.1.5 are republished from the latest BAT/capacity fixes. The withdrawn versions' tags and separate source assets now point to this snapshot. Cloud packages are unchanged. Earlier withdrawal entries below remain historical records.
+
 ## 2026-10-06：BAT 菜单与显存容量校准（main）
 
-本轮同步四套公开启动器源码：Swift IQ2S、IQ3XXS 与 Bonsai2 8G、12G。源码版本保持 Swift 0.1.4 / Bonsai2 0.1.5；两个 Release 仍撤回，网盘包未重新上传。B 机本地三个 BAT 的 DSH 自动同步属于本地配置，未加入通用 oneclick。
+本轮同步四套公开启动器源码：Swift IQ2S、IQ3XXS 与 Bonsai2 8G、12G。源码版本保持 Swift 0.1.4 / Bonsai2 0.1.5；两个源码 Release 已按用户要求重新发布，网盘包未重新上传。B 机本地三个 BAT 的 DSH 自动同步属于本地配置，未加入通用 oneclick。
 
 - BAT 转发参数并保留引擎退出码。菜单统一数字选项；名称仍可用，回车保留当前值，原 0关/1开语义不变。先选 KV／MTP头／Graph／CPU视觉，再选驻留、逻辑上下文、API与思考上限。
 - 新增四份相同的 `launcher/capacity-options.ps1`。`recommended` 取历史推荐与当前允许上限的较小值；`auto` 取允许上限；手动值必须在当前范围内并按64 token对齐。显存未知、低于最低预算、CLI/EXTRA改变已预算条件或启动前显存减少时拒绝加载。
@@ -26,7 +32,7 @@ B机交接短测（RTX3060 12GB，8G为整卡预算模拟）：
 
 这些auto数值是当时空闲显存下的短测点，不是所有硬件或负载的容量保证，也不是满上下文/长输出验收。B机记录7个入口auto短问答通过，另有约7.2K输入预填充和CPU看图；8G整卡采样峰值7961MiB，采样不保证捕获所有瞬时峰值。A机对公开脚本通过140项离线边界/菜单/启动前复查、16个相关PowerShell脚本语法、8组Graph开关预览、4组数字向导/越界拒绝与四包源码哈希检查；未重新加载GPU。
 
-English: Numbered BAT launchers now separate recommended, auto and manual resident capacity. Live VRAM and matching per-model calibration bound every selection, with whole-card 8GiB accounting for the 8G profile and a fresh pre-start check. Generic packages do not sync local DSH settings. Portable paths, argument preservation and noninteractive dry-run support are retained; the Bonsai missing-model path no longer checks uninitialized capacity variables. The table contains recorded short-test points, not long-output qualification. Releases and cloud packages remain unchanged.
+English: Numbered BAT launchers now separate recommended, auto and manual resident capacity. Live VRAM and matching per-model calibration bound every selection, with whole-card 8GiB accounting for the 8G profile and a fresh pre-start check. Generic packages do not sync local DSH settings. Portable paths, argument preservation and noninteractive dry-run support are retained; the Bonsai missing-model path no longer checks uninitialized capacity variables. The table contains recorded short-test points, not long-output qualification. Swift 0.1.4 and Bonsai2 0.1.5 source Releases include these corrections; cloud packages remain unchanged.
 
 ## 2026-10-06：通用启动器纠正与评分／性能报告（Swift 0.1.4 / Bonsai2 0.1.5，Release 再次撤回）
 

@@ -6,7 +6,7 @@
 
 本目录公开 Bonsai2 8GB 与 12GB 共用的完整引擎源码（原 ninfer-tree）和构建脚本，并分别提供两种显存方案的懒人包启动器。两套方案使用不同的模型文件与启动配置；引擎实现和构建入口共用，通用修复也适用于两者。这里包含 sm_86、KVMem 与 rk8v4 相关改动，也涵盖显存预算和 2026-10-04 的三项智能体兼容修复。
 
-当前 main 源码版本为 **0.1.5**，见 `VERSION`。本版本源码 Release 已撤回，main 保留待修正。历史 [Bonsai2 0.1.4 源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.4) 仍可下载；网盘懒人包版本不变。
+当前源码版本为 **0.1.5**，见 `VERSION`。[Bonsai2 0.1.5 源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-v0.1.5) 已包含最新 BAT／容量校准修正，附件只包含本引擎系列；网盘懒人包版本不变。
 
 ## 目录
 
