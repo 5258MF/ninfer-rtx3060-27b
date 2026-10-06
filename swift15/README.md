@@ -6,7 +6,7 @@
 
 本目录只有一套 Swift 1.5 引擎源码，覆盖 IQ2_S 与 IQ3_XXS 两种量化格式。量化类型、NInfer 格式映射和对应 GPU 内核都已纳入同一个 CMake 工程，不需要复制出第二套引擎目录。`oneclick-iq2s/` 提供 IQ2S 启动器；`oneclick-iq3xxs/` 提供 IQ3XXS 的开发配置，两者共用 `engine/`。IQ3XXS 配置尚未制作成独立网盘懒人包。
 
-当前源码版本为 **0.1.4**，见 `VERSION`。[Swift 0.1.4 源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.4) 的附件只包含本引擎系列。本次重新发布修正后的源码；网盘懒人包版本不变。
+当前 main 源码版本为 **0.1.4**，见 `VERSION`。本版本源码 Release 已撤回，main 保留待修正。历史 [Swift 0.1.3 源码 Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.3) 仍可下载；网盘懒人包版本不变。
 
 2026-10-05 同步了 CPU 视觉编码实现：可选 OpenBLAS 加速、自动线程校准和缓存；OpenBLAS 不可用时回退到参考 CPU 实现。该引擎路径供 IQ2S 与 IQ3XXS 共用。交接记录中的 IQ2S、IQ3XXS 看图测试和 CPU 后端单测均已通过；这不代表所有图片、CPU 或长上下文配置都经过全面验证。
 

@@ -2,7 +2,7 @@
 
 **Language:** [简体中文](README.md) | English
 
-Current sources: **Swift 1.5 shared IQ2S / IQ3XXS engine 0.1.4; Bonsai2 shared 8G / 12G source 0.1.5**. The available Swift one-click package remains IQ2S 0.1.2; the IQ3XXS package will be published later. All three current one-click packages use the same Baidu and Quark folder links below. See the [changelog](CHANGELOG.md). The updated sources are published as separate Releases.
+Current sources: **Swift 1.5 shared IQ2S / IQ3XXS engine 0.1.4; Bonsai2 shared 8G / 12G source 0.1.5**. The available Swift one-click package remains IQ2S 0.1.2; the IQ3XXS package will be published later. All three current one-click packages use the same Baidu and Quark folder links below. See the [changelog](CHANGELOG.md). The Swift 0.1.4 and Bonsai2 0.1.5 source Releases have been withdrawn; main is retained pending fixes.
 
 Run Swift 1.5 and Bonsai2 locally on Windows, with chat, image input, tool calling, and long-context KVMem. The one-click package starts after extraction; the model is downloaded on first launch.
 
@@ -37,7 +37,7 @@ These Huihui Qwen3.8 27B Abliterated models have been converted to NInfer format
 
 Abliterated variants reduce refusal or safety filtering. Read each model card for provenance, licensing, and usage warnings before use. The Swift model card recommends research and controlled local inference, not public-facing services or use by minors.
 
-Current source Releases: [Swift 0.1.4](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.4) and [Bonsai2 0.1.5](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-v0.1.5), with one engine family per asset. Cloud-package versions are unchanged.
+The Swift 0.1.4 and Bonsai2 0.1.5 source Releases have been withdrawn; main is retained pending fixes. Historical source downloads remain available: [Swift 0.1.3](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.3) and [Bonsai2 0.1.4](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-12g-v0.1.4). Cloud-package versions and links are unchanged.
 
 ## Quick Start
 
