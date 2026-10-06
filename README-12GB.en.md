@@ -34,6 +34,9 @@ KVMem places the FP32 index and BF16 query stash in pinned host RAM and scores b
 
 **Current main source (2026-10-06):** Automatic KVMem mode sets only the resident budget and a finite API request ceiling that follows it. It does not preallocate fixed SYS, a fixed 36K/half split or a 32K output cap. The engine preserves the actual system/developer/tool prefix and assigns retrieval/output per request. Here `--default-max-tokens` also caps explicit requests; it is not merely a fallback for omitted fields. A legacy SYS/sink setting or bootstrap seed is not the actual prefix allocation. Client compaction policies remain client-owned; no DSH test launchers are bundled.
 
+The main launchers support `recommended` (the lower of historical recommendation and the current bound), `auto` (the current bound), or a manual resident token count within that bound. Recommendations are not hard caps. Missing VRAM information or out-of-range settings block startup. Press C to choose KV/head/Graph before resident capacity, logical context and API limits; numbered choices are supported and VRAM is checked again before startup. The 8G profile includes desktop and other allocations within its whole-card 8GiB budget. Calibration scope and short-test results are in the [changelog](CHANGELOG.md#2026-10-06bat-菜单与显存容量校准main).
+
+
 At startup, free VRAM determines total resident capacity C. Each request then tokenizes the complete rendered system/developer instructions and tool definitions as prefix S. Retrieval excludes S; output gets the remaining capacity.
 
 | Total context | Recommended retrieval | Preferred target | Output reserve |
@@ -137,7 +140,7 @@ Zero-cache prefill: exact 2K/8K/16K inputs, at most 8 output tokens; one warmup 
 | Bonsai2 12G · rk8v4 | off | 803.26 | 790.37 | 734.31 | 22.32 |
 | Bonsai2 12G · rk8v4 | on | 805.24 | 790.50 | 735.12 | 22.30 |
 
-Ten configurations produced 90 measured prefill samples plus 30 warmups. Different models used different windows; Graph pairs for the same model/KV used the same window. Small differences are not a general speedup guarantee. All prefill inputs fit within resident KV; these rates do not cover long-history KV paging. The 37K IQ3 / 48K Bonsai8 test windows are historical: current launchers use IQ3 33K / Bonsai8 up to 36K. IQ3 first exceeded the old 300MiB safety rule (223.68MiB remaining), then completed a retry; both facts are retained. [Metrics and methods](benchmarks/20261005/README.md).
+Ten configurations produced 90 measured prefill samples plus 30 warmups. Different models used different windows; Graph pairs for the same model/KV used the same window. Small differences are not a general speedup guarantee. All prefill inputs fit within resident KV; these rates do not cover long-history KV paging. The 37K IQ3 / 48K Bonsai8 test windows are historical: current recommendations are IQ3 33K / Bonsai8 36K, not hard caps; auto/manual capacity follows live VRAM and matching calibration bounds. IQ3 first exceeded the old 300MiB safety rule (223.68MiB remaining), then completed a retry; both facts are retained. [Metrics and methods](benchmarks/20261005/README.md).
 
 ### Long Context
 

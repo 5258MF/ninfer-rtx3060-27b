@@ -21,8 +21,12 @@ $UtcDll = [datetime]::SpecifyKind([datetime]"2025-01-01T00:00:00", [System.DateT
 $UtcEngine = [datetime]::SpecifyKind([datetime]"2026-10-03T00:00:00", [System.DateTimeKind]::Utc)
 
 $EmbeddedExpected = [ordered]@{
-    "launcher/runtime-options.ps1" = @{ Sha256 = "68de94cb47a0e70f65b8dec340f28c16b0b3dc2fdf19e80909696b89199189bc"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "Runtime options update" }
-    "RUNTIME-OPTIONS.txt" = @{ Sha256 = "8134d54310d5f2ab752c1fdcaf581ac99446b805f75e4e927f6010d259ba7190"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "Runtime options update" }
+    "启动.bat" = @{ Sha256 = "d5e472495c94aae20f5065dc6b9436fec4dfb169325101b1d740f53c89c37b63"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "BAT entry arguments and exit status" }
+
+    "launcher/capacity-options.ps1" = @{ Sha256 = "998110abdb725c00833b7b0d413b756270f2ae7046e3b6a30b7684f2514c3ba9"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "VRAM capacity bounds and numbered choices" }
+
+    "launcher/runtime-options.ps1" = @{ Sha256 = "20f4a6346ec3e780d522283cf7356b576cd2ca454cd9c3e471051f08157e5b65"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "Runtime options update" }
+    "RUNTIME-OPTIONS.txt" = @{ Sha256 = "ebe02280149724b21083bfd1890ecee4d92376615aa8144590fb1193c6367453"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "Runtime options update" }
     "engine/cpu-openblas.dll" = @{ Sha256 = "6b2103f2ae4d8547998b5d188e9801fba6cb12404ae8e4bfff319e8cc1949000"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "CPU-only OpenBLAS backend" }
 
     "engine/ninfer-serve.exe"       = @{ Sha256 = "43cdbfc15ab2ab0714a9bc2d6832b77e4c5704c15c5d42ac2c68926fab443d60"; MinLastWriteUtc = $UtcEngine; Role = "rk8v4 engine (normal / KVMem modes), identical to the 12G kit binary" }
@@ -40,9 +44,9 @@ $EmbeddedExpected = [ordered]@{
     "engine/swresample-7.dll"       = @{ Sha256 = "a81be671fe3fdebb6bc12abc1268c6e065d68de61ddf1efca721e52752f10f8f"; MinLastWriteUtc = $UtcDll; Role = "FFmpeg swresample runtime DLL" }
     "patch/ops.txt"                 = @{ Sha256 = "25678c4a4f70998087d0c5fb4a47436257b90867bc9db445387eacf3222ba1f9"; MinLastWriteUtc = $UtcDll; Role = "MTP Q4 conversion patch script" }
     "patch/lit.bin"                 = @{ Sha256 = "8b924c284cd262883f76706c16a5b5b58fe6bc1fd7f4c21f362218c317b09701"; MinLastWriteUtc = $UtcDll; Role = "MTP Q4 conversion literal payload" }
-    "launcher/launch.ps1"           = @{ Sha256 = "8a239a26256548df75fd76446088ae5f0ce5398995d0bee7fae29a8b1d8b7aed"; MinLastWriteUtc = $UtcKit; Role = "One-click interactive launcher" }
-    "launcher/test.ps1"             = @{ Sha256 = "fef3ba95e1423ce0df107b63cfd78e027e69fd875b20acd81edd7eba94a05ca2"; MinLastWriteUtc = $UtcDll; Role = "Connectivity and speed test script" }
-    "verify-arch-engine.ps1"        = @{ Sha256 = "5bec4815a679c8e6a5036bc79f7f91ac5351e4d87081a2c43dc651e3d7573d25"; MinLastWriteUtc = $UtcKit; Role = "End-to-end hardware, needle and agent-compat verification harness" }
+    "launcher/launch.ps1"           = @{ Sha256 = "bdb984142884659d9079f74573016cece7c98e2bacc02e362efefc9bfc7964be"; MinLastWriteUtc = $UtcKit; Role = "One-click interactive launcher" }
+    "launcher/test.ps1"             = @{ Sha256 = "c6991fb22c6c0a0f442c2594dfb91105bb383ede7ac78dfde367f04a0f6ce55a"; MinLastWriteUtc = $UtcDll; Role = "Connectivity and speed test script" }
+    "verify-arch-engine.ps1"        = @{ Sha256 = "2b77503a859aff67f65467353efdb7f7a062b31b03f766608a1ce39be4d9a204"; MinLastWriteUtc = $UtcKit; Role = "End-to-end hardware, needle and agent-compat verification harness" }
 }
 
 function Format-CodePoints([string]$s) {

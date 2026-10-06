@@ -12,8 +12,12 @@ $ErrorActionPreference = "Stop"
 if (-not $KitRoot) { $KitRoot = Split-Path -Parent $MyInvocation.MyCommand.Path }
 
 $EmbeddedExpected = [ordered]@{
-    "launcher/runtime-options.ps1" = @{ Sha256 = "68de94cb47a0e70f65b8dec340f28c16b0b3dc2fdf19e80909696b89199189bc"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "Runtime options update" }
-    "RUNTIME-OPTIONS.txt" = @{ Sha256 = "8134d54310d5f2ab752c1fdcaf581ac99446b805f75e4e927f6010d259ba7190"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "Runtime options update" }
+    "启动.bat" = @{ Sha256 = "d5e472495c94aae20f5065dc6b9436fec4dfb169325101b1d740f53c89c37b63"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "BAT entry arguments and exit status" }
+
+    "launcher/capacity-options.ps1" = @{ Sha256 = "998110abdb725c00833b7b0d413b756270f2ae7046e3b6a30b7684f2514c3ba9"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "VRAM capacity bounds and numbered choices" }
+
+    "launcher/runtime-options.ps1" = @{ Sha256 = "20f4a6346ec3e780d522283cf7356b576cd2ca454cd9c3e471051f08157e5b65"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "Runtime options update" }
+    "RUNTIME-OPTIONS.txt" = @{ Sha256 = "ebe02280149724b21083bfd1890ecee4d92376615aa8144590fb1193c6367453"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "Runtime options update" }
     "engine/cpu-openblas.dll" = @{ Sha256 = "6b2103f2ae4d8547998b5d188e9801fba6cb12404ae8e4bfff319e8cc1949000"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "CPU-only OpenBLAS backend" }
 
     "engine/ninfer-serve.exe"   = @{
@@ -52,7 +56,7 @@ $EmbeddedExpected = [ordered]@{
         Role            = "VC runtime 140_1 exception handling DLL"
     }
     "launcher/launch.ps1"       = @{
-        Sha256          = "3c06e315d2a569bdf08442a0e330ed37479441426dab47b42bd86c4016207977"
+        Sha256          = "4cee13d44b7dea97074105eaf1b17abff065e9560f3d139b5d8a6708f26fafb5"
         MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2026-10-03T13:00:00", [System.DateTimeKind]::Utc)
         Role            = "One-click interactive launcher script"
     }

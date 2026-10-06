@@ -5,6 +5,29 @@
 按版本和日期记录已发生的改动。源码更新与网盘包更新分别标明，避免把源码中的修复误认为已经进入旧下载包。
 
 
+## 2026-10-06：BAT 菜单与显存容量校准（main）
+
+本轮同步四套公开启动器源码：Swift IQ2S、IQ3XXS 与 Bonsai2 8G、12G。源码版本保持 Swift 0.1.4 / Bonsai2 0.1.5；两个 Release 仍撤回，网盘包未重新上传。B 机本地三个 BAT 的 DSH 自动同步属于本地配置，未加入通用 oneclick。
+
+- BAT 转发参数并保留引擎退出码。菜单统一数字选项；名称仍可用，回车保留当前值，原 0关/1开语义不变。先选 KV／MTP头／Graph／CPU视觉，再选驻留、逻辑上下文、API与思考上限。
+- 新增四份相同的 `launcher/capacity-options.ps1`。`recommended` 取历史推荐与当前允许上限的较小值；`auto` 取允许上限；手动值必须在当前范围内并按64 token对齐。显存未知、低于最低预算、CLI/EXTRA改变已预算条件或启动前显存减少时拒绝加载。
+- 按模型独立校准，当前上限取实时显存估算、匹配组合的 CUDA 校准边界及逻辑上下文的较小值。8G按整卡8GiB扣除桌面/其他程序；未匹配的显卡、KV、Graph或MTP组合使用原保守估算，不套用另一模型的常数。原生预留失败会记录组合校正并返回配置；不悄悄改写手动值。
+- 保留完整前缀／检索／输出逐请求分配，不恢复固定SYS、36K／平分或32K输出分区。API上界不等于独占物理输出窗口。IQ3 33K与8G 36K是推荐档，不是硬上限。
+- 同步时保留公开仓库的模型路径覆盖、命令行参数保留和非交互dryrun；移除IQ3对B机固定目录与测试队列的默认依赖。另修复Bonsai8/12新模型未就绪路径上的重复显存检查：原位置使用尚未初始化的KV/容量，可能报“驻留0”；正式启动前校验保留。
+
+B机交接短测（RTX3060 12GB，8G为整卡预算模拟）：
+
+| 组合 | 推荐驻留 token | 本次 auto 驻留 token |
+|---|---:|---:|
+| Bonsai2 12G · int8 · Graph开 | 88064 | 107584 |
+| Swift IQ2S · rk4v4 · full/MTP-Q4 · Graph开 | 73728 | 83968 |
+| Bonsai2 8G · rk4v4 · Graph关 | 36864 | 69504 |
+| Swift IQ3XXS · rk4v4 · full/MTP-Q4 · Graph关 | 33792 | 48320 |
+
+这些auto数值是当时空闲显存下的短测点，不是所有硬件或负载的容量保证，也不是满上下文/长输出验收。B机记录7个入口auto短问答通过，另有约7.2K输入预填充和CPU看图；8G整卡采样峰值7961MiB，采样不保证捕获所有瞬时峰值。A机对公开脚本通过140项离线边界/菜单/启动前复查、16个相关PowerShell脚本语法、8组Graph开关预览、4组数字向导/越界拒绝与四包源码哈希检查；未重新加载GPU。
+
+English: Numbered BAT launchers now separate recommended, auto and manual resident capacity. Live VRAM and matching per-model calibration bound every selection, with whole-card 8GiB accounting for the 8G profile and a fresh pre-start check. Generic packages do not sync local DSH settings. Portable paths, argument preservation and noninteractive dry-run support are retained; the Bonsai missing-model path no longer checks uninitialized capacity variables. The table contains recorded short-test points, not long-output qualification. Releases and cloud packages remain unchanged.
+
 ## 2026-10-06：通用启动器纠正与评分／性能报告（Swift 0.1.4 / Bonsai2 0.1.5，Release 再次撤回）
 
 Swift 0.1.4、Bonsai2 0.1.5 源码 Release 按用户要求再次撤回，发布页面及附件已移除。Git 标签和 main 源码保留；这两版仍有待修正问题，暂不重新发布。历史 Swift 0.1.3、Bonsai2 0.1.4 Release 及网盘包保持不变。

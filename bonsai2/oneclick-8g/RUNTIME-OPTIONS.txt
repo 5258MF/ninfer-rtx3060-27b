@@ -1,9 +1,10 @@
-Runtime options for the framework-neutral NInfer launcher
-
-CUDA_GRAPH=1 enables CUDA Graph; 0 disables it and removes graph allowance arguments.
-VISION=1 enables CPU vision; 0 disables image input.
-VISION_DEVICE=cpu selects CPU encoding. The language model, KV and final image features still use GPU memory.
-CPU_THREADS=auto uses backend selection; a positive integer requests a manual limit.
-Automatic KVMem mode determines the resident budget and a finite API ceiling. Actual complete prefix, retrieval and output are allocated per request by the engine.
-The default-max-tokens option also caps explicit client requests in this engine. A larger API ceiling is not a long-output qualification.
-No test-only DSH entry points, presets or sessions are included. Use any supported OpenAI/Anthropic client and configure its own compaction policy.
+运行配置更新（2026-10-05）
+CUDA_GRAPH=1 开启（兼容原默认）；CUDA_GRAPH=0 关闭。
+Swift关闭Graph时不传 --cuda-graph-allowance-mib；开启沿用144MiB预留。
+VISION=1：CPU视觉编码；VISION=0：关闭看图。旧VISION=2兼容为1。
+VISION_DEVICE=cpu：仅CPU视觉编码，不提供GPU/overlay回退。
+CPU_THREADS=auto：自动校准；也可填正整数，实际线程受CPU/亲和性约束。
+视觉编码与视觉权重放CPU/内存；语言模型、KV与最终图像特征仍占GPU显存。
+这些选项不改变MTP完整输出头。Graph选项不代表容量已经验收，不自动扩大旧容量表。
+配置向导新增运行选项；旧INI缺少新键时用上述默认。此次部署不改用户INI，保存发生在用户确认启动时。
+当前驻留范围由capacity-options.ps1按实时显存和匹配组合校准确定，不使用固定300MiB余量门槛。

@@ -10,6 +10,7 @@
 $ErrorActionPreference = 'Stop'
 $launchArguments = @($args)
 . (Join-Path $PSScriptRoot 'runtime-options.ps1')
+. (Join-Path $PSScriptRoot 'capacity-options.ps1')
 
 $env:NINFER_VISION_CPU = '1' # Host option means CPU encoding; no GPU fallback
 $CpuRetrieval = ($env:NINFER_TERNARY_KVMEM_CPU_RETRIEVAL -ne '0')
@@ -115,13 +116,8 @@ function Free-MiB {
         return [double]$line.Trim()
     } catch { return -1 }
 }
-function Physical-Cap($v, [bool]$isAuto, [int]$wantedOut, [int]$wTop = $WinMax, [double]$free = (Free-MiB)) {
-    # 先算整个驻留窗口；不因回答较短而少分配显存。
-    $top = [Math]::Min($v.Lim, $v.Ctx - 8192)
-    if ($free -lt 0) { return $top }
-    $n = [int][Math]::Floor(($free - $LoadMiB - $KeepMiB - $StashMiB) / $TokMiB[$v.Kv] / 1024) * 1024
-    return [Math]::Max(0, [Math]::Min($top, $n))
-}
+function Physical-Cap($v,[bool]$isAuto,[int]$wantedOut,[int]$wTop=262144,[double]$free=-1){$i=Get-CapacityInfo '12g' $v.Kv ([string](Cfg 'CUDA_GRAPH' '1'));return [Math]::Min($v.Ctx,$i.Recommended)}
+
 function Auto-Answer([int]$cap, [int]$ctx) { return $cap } # API envelope, not a physical partition
 $Dirty = [ordered]@{}                # 向导改过、启动时要写回 设置.ini 的项
 
@@ -138,26 +134,30 @@ function Get-View([string]$m) {
         $r.Ctx = CfgInt "${p}_CTX" 262144
         $answer = ([string](Cfg "${p}_ANSWER" 'auto')).ToLower()
         $r.AutoOut = ($answer -eq 'auto')
-        $r.Cap = Physical-Cap $r $true 0 $WinMax (Free-MiB)
-        $residentLimit = CfgInt "${p}_RESIDENT_LIMIT" 0
-        if ($residentLimit -gt 0) { $r.Cap = [Math]::Min($r.Cap,$residentLimit) }
-        $r.Cap = [int]([Math]::Floor($r.Cap / 64.0) * 64)
+        $info=Get-CapacityInfo '12g' $r.Kv ([string](Cfg 'CUDA_GRAPH' '1'))
+        try{$r.Cap = Resolve-Capacity ([string](Cfg "${p}_RESIDENT" 'recommended')) $info $r.Ctx}catch{$r.Cap=0;$r.Err+=$_.Exception.Message}
+        $r.CapacityInfo=$info
+        if($info.Estimated -ge 0 -and $r.Cap -gt $info.Estimated){$r.Warn+='高于当前显存估算，可能OOM；用户自选值保留。'}
         $r.Mt = $(if ($r.AutoOut) { $r.Cap } else { CfgInt "${p}_ANSWER" 16384 })
         if ($r.Mt -lt 1 -or $r.Mt -gt $r.Ctx) { $r.Err += 'API output limit must be positive and no larger than logical context' }
         $r.Win = $r.Cap; $r.Ans = 0; $r.WinTop = $r.Cap; $r.CapAuto = $r.Cap
-        if ($r.Cap -lt [int]($r.Ctx / 8) + 8192 + 256) { $r.Err += 'Resident budget too small for recommended retrieval plus 8K output; reduce logical context or free VRAM' }
+        if ($r.Cap -lt [int]($r.Ctx / 8) + 8192 + 256) { $r.Warn += '低于检索推荐预算；按实际前缀缩减检索，不禁止这个选择' }
     } else {
         $r.Ctx = CfgInt "${p}_CTX" $(if ($m -eq 'rk8v4') { 114688 } else { 90112 })
         $r.Mt = CfgInt "${p}_MAX_TOKENS" 32768
+        $info=Get-CapacityInfo '12g' $r.Kv ([string](Cfg 'CUDA_GRAPH' '1'))
+        try{Confirm-ResidentBound $info $r.Ctx}catch{$r.Err+=$_.Exception.Message}
         $r.Cap = $r.Ctx
     }
     if ($r.Mt -gt $r.Ctx) { $r.Err += "单次回答（$($r.Mt)）不能比总上下文（$($r.Ctx)）还大" }
-    if ($r.Cap -gt $r.Lim) { $r.Warn += "显存部分 $($r.Cap) 超过这个组合的实测上限 $($r.Lim)，12 GB 显存可能放不下" }
+    if ($r.Cap -gt $r.Lim) { $r.Warn += "显存部分 $($r.Cap) 超过这个组合的历史参考值（非硬上限） $($r.Lim)，12 GB 显存可能放不下" }
     if ($r.Think -gt 0 -and $r.Think -ge $r.Mt) { $r.Warn += "思考上限（$($r.Think)）不比单次回答（$($r.Mt)）小，等于不限" }
     return $r
 }
 
 function Show-Summary([string]$m) {
+    $cv=Get-View $m
+    if($cv.On){Show-CapacityInfo $cv.CapacityInfo;Say ('  驻留选择='+[string](Cfg ($Pre[$m]+'_RESIDENT') 'recommended')+'；实际驻留='+$cv.Cap)}
     Show-NinferRuntimeOptions $script:C
     $v = Get-View $m
     $letter = @{ normal = 'N'; kvmem = 'K'; rk8v4 = 'R'; kvrk = 'V' }[$m]
@@ -233,93 +233,33 @@ function Ask-Step([string]$title, [string[]]$intro, $items, $current, [bool]$all
     }
 }
 
-function Run-Wizard([string]$m) {
-    Edit-NinferRuntimeOptions $script:C
-    foreach ($rk in @('CUDA_GRAPH','VISION_DEVICE','CPU_THREADS')) { Set-C $rk $script:C[$rk] }
-    $v = Get-View $m; $n = 7
-    $mk = Model-Key; $mcur = $(if ($mk) { $mk } else { [string](Cfg 'MODEL' 'swift') })
-    $items = @()
-    foreach ($k in @('swift', 'base')) {
-        $x = $Models[$k]; $got = Test-Path -LiteralPath (Join-Path $Root ('model\' + $x.File))
-        $items += @{ Value = $k; Label = ('{0}　{1}（{2}）' -f $x.Name, $x.Note, $(if ($got) { '已下载' } else { '还没下载，' + (GiB $x.Size) + ' GiB，配置完自动下载' })) }
-    }
-    $sel = Ask-Step "第 1/$n 步：模型" @('两个模型显存占用一样，后面的上限也一样。没下载的会在配置完、按回车后从魔搭社区自动下载') $items $mcur $false
-    Set-C 'MODEL' $sel
-
-    $on = Ask-Step "第 2/$n 步：是否开启 KVMem" @(
-        '关：全部对话记录放显存，最快、最稳，但上下文最长 88K（int8）/ 112K（rk8v4）',
-        '开：显存只放"检索窗口 + 本次回答"，其余历史放内存，上下文可到 256K；',
-        '    每轮先从历史里挑相关内容，长对话每轮多约 1–2 秒，极少数情况会漏掉远处细节') @(
-        @{ Value = '1'; Label = '开　　长对话 / 大文档（推荐）' },
-        @{ Value = '0'; Label = '关　　日常短对话，追求最快' }) $(if ($v.On) { '1' } else { '0' }) $false
-
-    $kv = Ask-Step "第 3/$n 步：KV 量化（显存里对话记录的存储格式）" @() @(
-        @{ Value = 'int8';  Label = 'int8　　 精度几乎无损、最快（推荐）' },
-        @{ Value = 'rk8v4'; Label = 'rk8v4　　同样显存多放约 30%，质量只差约 0.1%，慢约 5%。KVMem 下单次回答能开到 32K 以上' }) $v.Kv $false
-    if ($on -eq '1') { $m = $(if ($kv -eq 'rk8v4') { 'kvrk' } else { 'kvmem' }) } else { $m = $(if ($kv -eq 'rk8v4') { 'rk8v4' } else { 'normal' }) }
-    $p = $Pre[$m]; $L0 = $ModeLimits[$m]
-
-    $unit = $(if ($on -eq '1') { '显存上限（检索窗口 + 回答）' } else { '总上下文上限' })
-    $cur = $(if ((CfgInt 'VISION' 1) -eq 0) { '0' } else { '1' })
-    $vis = Ask-Step "第 4/$n 步：看图" @(
-        "视觉权重与编码均在 CPU/内存；语言模型及图片特征仍需显存。下面的上限是这个组合的$unit") @(
-        @{ Value = '1'; Label = ('开　上限 {0,-6}　推荐，可以发图片（CPU编码；首次加载/校准较慢，耗时依图片与CPU而定）' -f $L0.v) },
-        @{ Value = '0'; Label = ('关　上限 {0,-6}　不能发图（不再省显存）' -f $L0.n) }) $cur $false
-    Set-C 'VISION' $(if ($vis -eq '0') { '0' } else { '1' })
-    $L = $ModeLimits[$m][(VisKey)]
-    $vn = "按第 4 步看图「" + @{ '1' = '开'; '0' = '关' }[$vis] + "」算"
-    $v = Get-View $m
-
-    if ($on -eq '1') {
-        $c0 = $v.Ctx; if ($c0 -lt 65536 -or $c0 -gt 262144) { $c0 = 262144 }
-        $ctx = Ask-Step "第 5/$n 步：总上下文长度（一次对话最多能记住多少 token）" @(
-            '上限 262144（256K，模型原生上限）。KVMem 作者说：约 200K 以后如果开始胡说，可以改成 184320') @(
-            @{ Value = '262144'; Label = '262144（256K）　推荐，上限' },
-            @{ Value = '184320'; Label = '184320（180K）　更稳一点' },
-            @{ Value = '131072'; Label = '131072（128K）' }) $c0 $true 65536 262144
-        Set-C "${p}_CTX" $ctx
-
-        $v = Get-View $m
-        $outMax = $v.Ctx
-        $items = @(@{ Value='auto'; Label='自动：完整前缀、检索和输出由引擎逐请求分配（推荐）' })
-        foreach ($x in @(8192,16384,32768,49152,65536)) {
-            if ($x -le $outMax) { $items += @{ Value="$x"; Label="API上限 $x（仍受实际物理输出预算约束）" } }
-        }
-        $o0 = [string](Cfg "${p}_ANSWER" 'auto')
-        $ans = Ask-Step 'API回答上限' @('自动不套用旧32K/固定36K分区；数值只限制请求，不改变物理检索比例。') $items $o0 $true 1 $outMax
-        Set-C "${p}_ANSWER" $ans
-        $mt = (Get-View $m).Mt
-    } else {
-        $rec = $L
-        $c0 = $v.Ctx; if ($c0 -gt $L -or $c0 -lt 16384) { $c0 = $L }
-        $items = @(@{ Value = "$L"; Label = ((Fmt $L) + "　推荐，这个组合的上限（实测，按桌面占 1.3 GB 算整卡还剩约 200 MiB）") })
-        foreach ($x in (@(16384, 32768, 49152, 65536, 81920, 98304) | Where-Object { $_ -lt $L } | Sort-Object -Descending)) { $items += @{ Value = "$x"; Label = (Fmt $x) } }
-        $ctx = [int](Ask-Step "第 5/$n 步：总上下文长度（全部放显存）" @(
-            "上限 $L（$vn）。客户端自己的系统提示可能就占几 K，建议不少于 32K") $items $c0 $true 16384 $L)
-        Set-C "${p}_CTX" $ctx
-
-        $outMax = $ctx - 8192
-        $o0 = $v.Mt; if ($o0 -gt $outMax -or $o0 -lt 1024) { $o0 = [Math]::Min(32768, $outMax) }
-        $items = @()
-        foreach ($x in (@(8192, 16384, 32768, 49152, $outMax) | Where-Object { $_ -le $outMax } | Sort-Object -Unique)) {
-            $lab = Fmt $x; if ($x -eq 32768) { $lab += '　推荐（Qwen 官方评测的上限）' }; if ($x -eq $outMax) { $lab += '　上限' }
-            $items += @{ Value = "$x"; Label = $lab }
-        }
-        $mt = [int](Ask-Step "第 6/$n 步：单次回答上限（一次回答最多多少 token，思考也算在里面）" @(
-            "上限 $outMax（总上下文减去 8K 留给输入）。回答越大，能放的对话历史越少") $items $o0 $true 1024 $outMax)
-        Set-C "${p}_MAX_TOKENS" $mt
-    }
-
-    $t0 = CfgInt 'THINK_BUDGET' 0; if ($t0 -gt $mt - 256) { $t0 = 0 }
-    $items = @(@{ Value = '0'; Label = "不限　　推荐。思考 + 正文 ≤ $mt，难题能想完整" })
-    foreach ($x in @(4096, 8192, 16384, 24576)) { if ($x -le $mt - 4096) { $items += @{ Value = "$x"; Label = ((Fmt $x) + "　思考到这里就收尾，保证至少留 $($mt - $x) 写正文") } } }
-    $th = [int](Ask-Step "第 7/$n 步：思考长度上限" @(
-        '到上限时引擎会让模型把思考收尾、转去写正文（不是硬截断）。限得太紧，难题可能答错') $items $t0 $true 1024 ($mt - 256))
-    Set-C 'THINK_BUDGET' $th
-    return $m
+function Run-Wizard([string]$m){
+ $x=Read-Answer ('模型：swift / base / 已有模型完整路径；回车保持 '+[string](Cfg 'MODEL' 'swift'));if($x){Set-C 'MODEL' $x}
+ $m=Ask-CapacityChoice '模式/KV：normal=普通；kvmem=KVMem；kvrk=rk8v4 KVMem / rk8v4=普通' $m @('normal','kvmem','rk8v4','kvrk')
+ $p=$Pre[$m]
+ Edit-NinferRuntimeOptions $script:C -AskVision
+ foreach($rk in @('CUDA_GRAPH','VISION_DEVICE','CPU_THREADS','VISION')){Set-C $rk $script:C[$rk]}
+ $v=Get-View $m
+ $info=Get-CapacityInfo '12g' $v.Kv ([string](Cfg 'CUDA_GRAPH' '1'))
+ if($v.On){
+  $n=Edit-CapacityBudget $script:C "${p}_RESIDENT" $info
+  Set-C "${p}_RESIDENT" $script:C["${p}_RESIDENT"]
+  $ctx=Ask-CapacityValue '逻辑上下文：64k/128k/200k/256k；小驻留建议128k' ([string](Cfg "${p}_CTX" '262144')) ([Math]::Max(16384,$n)) 262144 @() 64
+  Set-C "${p}_CTX" $ctx
+  $ans=Ask-CapacityValue 'API回答上限：推荐auto；8k/32k/64k（不改变物理分区）' ([string](Cfg "${p}_ANSWER" 'auto')) 1 ([int]$ctx) @('auto')
+  Set-C "${p}_ANSWER" $ans;$mt=$(if($ans -eq 'auto'){$n}else{[int]$ans})
+ }else{
+  if($info.Max -lt 16384){throw '当前显存不足普通模式最小窗口，请先调整运行选项或释放显存。'}
+  Show-CapacityInfo $info
+  $ctx=Ask-CapacityValue '普通模式全部驻留：历史推荐非硬上限；超过显存估算可能OOM' ([string](Cfg "${p}_CTX" '65536')) 16384 $info.Max @() 64
+  Set-C "${p}_CTX" $ctx
+  $mt=Ask-CapacityValue 'API回答上限（建议32k）' ([string](Cfg "${p}_MAX_TOKENS" '32768')) 1 ([int]$ctx)
+  Set-C "${p}_MAX_TOKENS" $mt
+ }
+ $th=Ask-CapacityValue '思考上限：推荐0=不限' ([string](Cfg 'THINK_BUDGET' '0')) 0 ([int]$mt-1)
+ Set-C 'THINK_BUDGET' $th;return $m
 }
 
-# ---------- 模型下载（系统自带 curl.exe，断点续传；没有 curl 时用 .NET） ----------
 function Download-Net([string]$url, [string]$part, [long]$total) {
     $out = $null; $resp = $null
     try {
@@ -360,6 +300,7 @@ function Download-Model([string]$k, [string]$dst) {
     if ($free -lt $need) { Fail ("硬盘空间不够：{0} 盘只剩 {1} GiB，还需要约 {2} GiB。请清理空间，或把整个文件夹挪到空间大的盘。" -f $dir.Substring(0, 1), (GiB $free), (GiB $need)) }
     $a = (Read-Answer '   [回车] 开始下载    [Q] 退出: ').ToLower()
     if ($a -eq 'q') { exit 0 }
+        if ($a -eq 'f') { continue }
     $curl = Join-Path $env:SystemRoot 'System32\curl.exe'
     $useCurl = (Test-Path -LiteralPath $curl) -and -not $env:ONECLICK_NO_CURL
     $prev = [long]-1; $stall = 0
@@ -437,12 +378,13 @@ if (-not $Mode) {
     while ($true) {
         $view = Show-Summary $Mode
         Say ''
-        if ($view.Err.Count -eq 0) { Say '   [回车] 用这套配置启动    [C] 一步步重新选    [R] 重新读空闲显存    [Q] 退出' }
+        if ($view.Err.Count -eq 0) { Say '   [回车] 用这套配置启动    [C] 一步步重新选    [F] 刷新显存    [Q] 退出' }
         else { Say '   配置有错误，请按 C 重新选（或 Q 退出）' 'Red' }
         Say '   直接换模式：[N] 普通  [K] KVMem  [R] rk8v4  [V] KVMem+rk8v4（用 设置.ini 里这个模式的数值）' 'DarkGray'
         $a = (Read-Answer '   请选择: ').ToLower()
         if ($a -eq 'q') { exit 0 }
-        if ($a -eq 'c') { $Mode = Run-Wizard $Mode; continue }
+        if ($a -eq 'f') { continue }
+        if ($a -eq 'c') { try{$Mode=Run-Wizard $Mode}catch{Write-Host $_.Exception.Message -ForegroundColor Yellow};continue }
         if ($keys.ContainsKey($a)) { $Mode = $keys[$a]; continue }
         if ($a -eq '' -and $view.Err.Count -eq 0) { break }
     }
@@ -631,6 +573,7 @@ if (-not $dry) {
     catch { Warn "写 接入信息.txt 失败：$($_.Exception.Message)" }
 }
 
+Confirm-ResidentBound (Get-CapacityInfo '12g' $kv ([string](Cfg 'CUDA_GRAPH' '1'))) $cap
 if ($dry) {
     Get-ChildItem env: | Where-Object { $_.Name -like 'NINFER_TERNARY_*' -or $_.Name -like 'NINFER_KVMEM_*' } | Sort-Object Name | ForEach-Object { Say "  环境变量：$($_.Name)=$($_.Value)" 'DarkGray' }
     Say '  （DRYRUN=1：只显示参数，没有启动引擎）' 'Yellow'; exit 0
@@ -643,18 +586,21 @@ for ($try = 1; $try -le (1 + $retry); $try++) {
     $short = $null
     $attempt = @{ Ready = $false }
     $clock = [Diagnostics.Stopwatch]::StartNew()
+    if(-not (Confirm-CapacityStart $argv)){Return-CapacityMenu $PSCommandPath;exit 1}
     & $exe $model @argv 2>&1 | ForEach-Object {
-        $line = "$_"; Write-Host $line
+        $line = "$_"; Capture-CapacityFailure $line; Write-Host $line
         if ($line -match '\blistening on https?://') { $attempt.Ready = $true }
         if ($line -match 'reservation requires (\d+) bytes, but only (\d+) bytes are available') { $script:short = @([double]$Matches[1], [double]$Matches[2]) }
     }
     $rc = $LASTEXITCODE
     if ($rc -eq 0) { break }
+  if($script:CapacityFailureLine){break}
+    if(-not $attempt.Ready -and $short -and ([string](Cfg ($Pre[$Mode]+'_RESIDENT') 'recommended')) -notin @('auto','recommended')){Say '手动驻留未改动；显存不足，请按C自行调整。' 'Yellow';break}
     if (-not $attempt.Ready -and $Mode -in @('kvmem','kvrk') -and $short -and $fit -lt 3) {
         $defMiB = ($short[0] - $short[1]) / 1MB
         $cut = [int][Math]::Ceiling(($defMiB + $KeepMiB + $StashMiB) / $TokMiB[$kv] / 1024) * 1024
         $newCap = $cap - [Math]::Max(1024, $cut)
-        if ($newCap -lt [int]($ctx / 8) + 8192 + 256) { Say '显存不足，无法保留推荐检索及8K输出。请释放显存或降低逻辑窗口。' 'Red'; break }
+        if ($newCap -lt 8448) { Say '显存不足，不足最小启动预算。请释放显存或降低逻辑窗口。' 'Red'; break }
         $fit++; $cap = $newCap; $win = $cap; $ans = 0
         if ($view.AutoOut) { $mt = $cap }
         $env:NINFER_TERNARY_KVMEM_SCORE_BUDGET = "$cap"
@@ -672,4 +618,5 @@ for ($try = 1; $try -le (1 + $retry); $try++) {
     if (-not $attempt.Ready) { Say '启动失败，请按上面的具体错误调整配置。' 'Yellow'; break }
     if ($try -le $retry) { Say '15 秒后自动重启……'; Start-Sleep -Seconds 15 }
 }
+if($script:CapacityFailureLine){Register-CapacityFailure;Return-CapacityMenu $PSCommandPath ([bool]$NoSync)}
 exit $rc

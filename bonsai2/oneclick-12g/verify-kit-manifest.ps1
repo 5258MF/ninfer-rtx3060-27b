@@ -11,8 +11,12 @@ $ErrorActionPreference = "Stop"
 if (-not $KitRoot) { $KitRoot = $PSScriptRoot }
 
 $EmbeddedExpected = [ordered]@{
-    "launcher/runtime-options.ps1" = @{ Sha256 = "68de94cb47a0e70f65b8dec340f28c16b0b3dc2fdf19e80909696b89199189bc"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "Runtime options update" }
-    "RUNTIME-OPTIONS.txt" = @{ Sha256 = "8134d54310d5f2ab752c1fdcaf581ac99446b805f75e4e927f6010d259ba7190"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "Runtime options update" }
+    "启动.bat" = @{ Sha256 = "d5e472495c94aae20f5065dc6b9436fec4dfb169325101b1d740f53c89c37b63"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "BAT entry arguments and exit status" }
+
+    "launcher/capacity-options.ps1" = @{ Sha256 = "998110abdb725c00833b7b0d413b756270f2ae7046e3b6a30b7684f2514c3ba9"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "VRAM capacity bounds and numbered choices" }
+
+    "launcher/runtime-options.ps1" = @{ Sha256 = "20f4a6346ec3e780d522283cf7356b576cd2ca454cd9c3e471051f08157e5b65"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "Runtime options update" }
+    "RUNTIME-OPTIONS.txt" = @{ Sha256 = "ebe02280149724b21083bfd1890ecee4d92376615aa8144590fb1193c6367453"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "Runtime options update" }
     "engine/cpu-openblas.dll" = @{ Sha256 = "6b2103f2ae4d8547998b5d188e9801fba6cb12404ae8e4bfff319e8cc1949000"; MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2020-01-01T00:00:00", [System.DateTimeKind]::Utc); Role = "CPU-only OpenBLAS backend" }
 
     "engine/ninfer-serve.exe"       = @{
@@ -51,7 +55,7 @@ $EmbeddedExpected = [ordered]@{
         Role            = "FFmpeg avutil runtime DLL"
     }
     "launcher/launch.ps1"           = @{
-        Sha256          = "7d39656e62cb1f00bb426bccc50cae3cb884bb411a2814309350cd45f80541dc"
+        Sha256          = "e91298c5bb46775722975af6fd2f0741de4ce4b312a1f6a82eaaf9d2e4f25e8e"
         MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2026-10-03T14:00:00", [System.DateTimeKind]::Utc)
         Role            = "One-click interactive launcher script"
     }
@@ -61,7 +65,7 @@ $EmbeddedExpected = [ordered]@{
         Role            = "Connectivity and speed test script"
     }
     "verify-arch-engine.ps1"        = @{
-        Sha256          = "2ff3f94704e301d5f51e0dcbe655ea8216fd00fa93d7237c04fef0a9e23fe711"
+        Sha256          = "f0d7fccf447590bde84424aa8839ff6d4c0eccfe92f463ed2e8cd54618bb05d9"
         MinLastWriteUtc = [datetime]::SpecifyKind([datetime]"2026-10-03T14:00:00", [System.DateTimeKind]::Utc)
         Role            = "End-to-end hardware & needle verification harness"
     }
