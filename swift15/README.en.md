@@ -2,11 +2,11 @@
 
 **Language:** [简体中文](README.md) | English
 
-The current engine source is **0.1.4** and is shared by IQ2_S and IQ3_XXS. The available Swift one-click package remains **IQ2S 0.1.2**; an IQ3XXS package has not been released yet and will get its own download entry later. Swift and Bonsai2 packages use the same Baidu and Quark links on the [project home](../README.en.md#downloads). See the [changelog](../CHANGELOG.md).
+The shared Swift engine and both IQ2S / IQ3XXS one-click packages are **0.1.4**. All four Swift/Bonsai2 packages use the [shared download folders](../README.en.md#downloads). See the [changelog](../CHANGELOG.md).
 
-This directory has one Swift 1.5 engine source tree for both quantization formats. Their NInfer format mappings and GPU kernels are part of the same CMake project, so the engine source does not need to be duplicated. The IQ2S launcher is in `oneclick-iq2s/`; `oneclick-iq3xxs/` contains the IQ3XXS development profile. Both share `engine/`. The IQ3XXS profile is not a published portable package.
+This directory has one Swift 1.5 engine source tree for both quantization formats. Their NInfer format mappings and GPU kernels are part of the same CMake project, so the engine source does not need to be duplicated. The IQ2S launcher is in `oneclick-iq2s/`; `oneclick-iq3xxs/` contains the portable IQ3XXS launcher, first-run downloader and MTP-Q4 converter. Both share `engine/`.
 
-Current source is **0.1.4** (`VERSION`). The [Swift 0.1.4 source Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.4) includes the latest BAT/capacity-calibration fixes and this engine family only. Cloud-package versions are unchanged.
+Current source is **0.1.4** (`VERSION`). The [Swift 0.1.4 source Release](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.4) includes the latest BAT/capacity-calibration fixes and this engine family only. The 2026-10-13 portable-kit launcher updates are on main.
 
 The 2026-10-05 source update adds CPU vision encoding with optional OpenBLAS acceleration, automatic thread calibration and caching, and a reference CPU fallback when OpenBLAS is unavailable. The same engine path serves IQ2S and IQ3XXS. The handoff records passing IQ2S/IQ3XXS image checks and CPU-backend unit tests; this does not qualify every image, CPU, or long-context configuration.
 
@@ -18,6 +18,7 @@ On 2026-10-04, the Swift engine also received VRAM budgeting, content scoring, c
 |---|---|
 | [engine/](engine/) | Complete CMake project, implementation, applications, tests, and third-party source |
 | [scripts/build-sm86.bat](scripts/build-sm86.bat) | Windows build script for sm_86 |
+| [oneclick-iq3xxs/](oneclick-iq3xxs/) | IQ3XXS portable launcher, first-run model download and MTP-Q4 conversion |
 | [oneclick-iq2s/](oneclick-iq2s/) | Current IQ2S launcher, tests, settings, and user guide |
 | [oneclick-iq2s/verify-kit-manifest.ps1](oneclick-iq2s/verify-kit-manifest.ps1) | Integrity checks for release files and Chinese filenames |
 | [oneclick-iq2s/verify-arch-engine.ps1](oneclick-iq2s/verify-arch-engine.ps1) | Engine API, output-cap, tool round-trip, and vision checks |
@@ -27,7 +28,7 @@ On 2026-10-04, the Swift engine also received VRAM budgeting, content scoring, c
 
 ## Getting Started
 
-- The currently available package is IQ2S 0.1.2: [project downloads](../README.en.md#downloads).
+- IQ2S and IQ3XXS 0.1.4 packages: [project downloads](../README.en.md#downloads).
 - Configure and run it: [usage guide](../README.en.md#swift-15-setup-and-usage).
 - Build from source: [build guide](../README.en.md#source-and-build).
 - Learn about the internals: [implementation](../README.en.md#implementation).

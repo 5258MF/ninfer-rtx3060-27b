@@ -1,0 +1,4 @@
+aa3e02a2bcf2ed78298c35f4e0e9172bbc14a2bcea05dd6e4f0d2216bda62d3c  ninfer-3060-swift15-q2s-mtp-oneclick-0.1.4.zip
+5876db19ecb3807fef35eb12a0894a5af227398cbd6beb0930ef13889361d5f8  ninfer-3060-swift15-iq3xxs-mtp-oneclick-0.1.4.zip
+5b3ef81eb5db134598eca4d65a78e4de8d028a46c09ed592142e70c74cfeb156  ninfer-3060-12g-bonsai2-oneclick-0.1.5.zip
+dcf9b03e3b2f5170056723fe231c52c8c45fd7cafe19aacec11d1e78f5c2765f  ninfer-3060-8g-bonsai2-oneclick-0.1.5.zip

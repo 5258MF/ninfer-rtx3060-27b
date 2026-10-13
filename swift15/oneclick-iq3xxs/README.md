@@ -1,15 +1,13 @@
-# Swift 1.5 IQ3XXS 开发启动器
+# Swift 1.5 IQ3XXS 懒人包
 
 **简体中文 | [English](README.en.md)**
 
-与 IQ2S 共用 [`../engine/`](../engine/) 源码。这里公开已在 RTX 3060 12GB 上检查的本地开发配置，尚未发布独立网盘懒人包。
+当前版本 **0.1.4**，与 IQ2S 共用 [Swift 引擎源码](../engine/)。独立懒人包已上传，下载入口见[项目首页](../../README.md#下载)。
 
-默认 rk4v4、关闭 CUDA Graph、CPU 看图、自动 CPU 线程；默认推荐33K驻留（不是硬上限）、128K逻辑上下文、API 申请上界随驻留容量变化，MTP-Q4 / draft3 / 完整输出头。系统、developer 和工具定义按实际前缀保留；实际检索和输出看 `[kvmem-alloc]` 日志。API 上界不等于物理输出预算，未完成连续 32K／64K 输出测试。
+完整解压后双击 `启动.bat`。首次运行下载 `swift15_iq3xxs_mtp.ninfer`，校验 SHA256 后用包内补丁转换为 `swift15_iq3xxs_mtpq4.ninfer`；无需 Python，需约 21 GiB 空闲磁盘。已有转换后模型可放进 `model/`，或设置 `NINFER_IQ3_MODEL` 指向它。模型与二进制依赖随网盘包准备，仓库公开启动器和完整引擎源码。
 
-将编译好的 Swift 引擎及所需 DLL 放入 `engine/`，MTP-Q4 模型 `swift15_iq3xxs_mtpq4.ninfer` 放入 `model/`。也可设置 `NINFER_IQ3_ENGINE`、`NINFER_IQ3_MODEL` 指向已有文件。默认核对已验收构建的引擎哈希；自行重新编译后，用 `NINFER_IQ3_ENGINE_SHA256` 指定自己构建的 SHA256。`capacity-policy.json` 保留历史测量快照；当前允许范围由 `launcher/capacity-options.ps1` 按实时显存和匹配组合校准确定。
+默认 RK4V4、关闭 CUDA Graph、CPU 视觉与自动 CPU 线程、128K 总上下文。驻留选择默认为 `auto`，按当前空闲显存估算上限；按 C 可改为推荐值或手动容量。系统／工具前缀、检索和输出由引擎逐请求分配，实际预算见 `[kvmem-alloc]` 日志。
 
-`启动.bat` 打开菜单，`预览参数.bat` 只显示参数。按 C 可选择推荐、auto或范围内自定义驻留；未校准组合采用保守估算，读不到显存或越界时拒绝加载。脚本不会自动下载模型或停止其他推理进程。
+`启动.bat dryrun` 或 `预览参数.bat` 只预览参数；服务启动后用 `测试.bat` 检查接口。默认接口为 `http://127.0.0.1:8084/v1`，模型 ID 为 `qwen3.8-27b`。包内不附测试专用 DSH 入口或会话状态。自编译引擎可用 `NINFER_IQ3_ENGINE` 与 `NINFER_IQ3_ENGINE_SHA256` 指定路径及哈希。
 
-启动服务后，任意 OpenAI／Anthropic 兼容客户端均可连接 `http://127.0.0.1:8084`，模型 ID 为 `swift15-iq3xxs`，逻辑上下文 131072。API 上界随驻留容量变化，实际输出由每轮完整前缀和检索预算决定；包内不附测试专用 DSH 入口或预设。
-
-CPU 视觉编码仍需语言模型、KV 和最终图像特征的显存。短工具链已验收；完整 Graph 矩阵、新窗口长压力和连续 32K／64K 输出没有全部完成。修复记录见 [`../../CHANGELOG.md`](../../CHANGELOG.md)。
+2026-10-13 已通过短对话、超大输出申请、多工具调用、CPU 看图及编辑历史请求，并验证首次下载的断点续传、SHA256 和真实模型的 PowerShell 转换。没有据此确认极限上下文或完整 32K／64K 长输出。CPU 视觉仍需最终图像特征、语言模型和 KV 使用 GPU。

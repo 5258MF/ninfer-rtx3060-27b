@@ -2,7 +2,7 @@
 
 **简体中文 | [English](README.en.md)**
 
-当前源码：**Swift 1.5 IQ2S / IQ3XXS 共用引擎 0.1.4，Bonsai2 8G / 12G 共用源码 0.1.5**。当前 Swift 懒人包仍是 IQ2S 0.1.2；IQ3XXS 懒人包后续发布。三款现有懒人包共用下方同一组百度网盘和夸克网盘链接。详情见[更新记录](CHANGELOG.md)。 Swift 0.1.4、Bonsai2 0.1.5 源码已分别重新发布，包含最新 BAT 与容量校准修正。
+当前源码与懒人包：**Swift 1.5 IQ2S / IQ3XXS 0.1.4，Bonsai2 8G / 12G 0.1.5**。四款懒人包共用下方的百度、夸克网盘目录。详情见[更新记录](CHANGELOG.md)。
 
 为 Windows 提供 Swift 1.5 和 Bonsai2 的本地推理方案，支持对话和图片输入，也支持工具调用与 KVMem 长上下文。懒人包解压后双击启动，模型在第一次运行时下载。
 
@@ -10,23 +10,31 @@
 
 | 版本 | 显卡与显存 | 模型 | 入口 |
 |---|---|---|---|
-| **Swift 1.5（默认推荐）** | RTX 30 系，12 GB 以上；RTX 40 系可运行但未实测 | 当前 IQ2_S 懒人包约 9.55 GiB；共用引擎源码支持 IQ2_S / IQ3_XXS | [使用指南](#swift-15-使用说明) |
+| **Swift 1.5（默认推荐）** | RTX 30 系，12 GB 以上；RTX 40 系可运行但未实测 | IQ2S MTP-Q4 约 9.46 GiB；IQ3XXS MTP-Q4 约 10.24 GiB；共用引擎源码 | [使用指南](#swift-15-使用说明) |
 | **Bonsai2 12G** | 按 RTX 3060 12GB 调整，面向 RTX 30 系 | Swift-Bonsai-2 三元模型，约 7.7 GiB | [12G 版说明](README-12GB.md) |
 | **Bonsai2 8G** | 面向 RTX 30 系 8GB；测试在 12GB 卡限制显存完成 | Swift-Bonsai-2 ptq1，约 6.6 GiB | [8G 版说明](README-8GB.md) |
 
-Swift 1.5 默认总上下文为 200K，最多可配置 256K；KVMem 会从历史中选取部分内容放入显存。容量上限与长文召回效果请一起看[测试结果与已知限制](#测试结果与已知限制)。
+Swift IQ2S 默认总上下文为 200K，IQ3XXS 为 128K，两者最多可配置 256K；KVMem 会从历史中选取部分内容放入显存。容量上限与长文召回效果请一起看[测试结果与已知限制](#测试结果与已知限制)。
 
 ## 下载
 
 懒人包不包含模型。请完整解压，保留 `engine`、`launcher` 和 `patch` 等目录。
 
-| 版本 | 文件名 | 百度网盘 | 提取码 | 夸克网盘 | 提取码 |
-|---|---|---|---|---|---|
-| Swift 1.5 Q2S · 0.1.2 | `ninfer-3060-swift15-q2s-mtp-oneclick-0.1.2.zip` | [百度网盘](https://pan.baidu.com/s/1Dyyb-SOULerfXGzDJqLlyQ) | `jqtg` | [夸克网盘](https://pan.quark.cn/s/9fd59ead2458) | `YDvh` |
-| Bonsai2 12G · 0.1.3 | `ninfer-3060-12g-bonsai2-oneclick-0.1.3.zip` | [百度网盘](https://pan.baidu.com/s/1Dyyb-SOULerfXGzDJqLlyQ) | `jqtg` | [夸克网盘](https://pan.quark.cn/s/9fd59ead2458) | `YDvh` |
-| Bonsai2 8G · 0.1.3 | `ninfer-3060-8g-bonsai2-oneclick-0.1.3.zip` | [百度网盘](https://pan.baidu.com/s/1Dyyb-SOULerfXGzDJqLlyQ) | `jqtg` | [夸克网盘](https://pan.quark.cn/s/9fd59ead2458) | `YDvh` |
+四个包都在同一个共享目录里，打开任一网盘后按文件名选择。
 
-**发布状态：目前三款懒人包已统一放在同一组百度、夸克网盘分享链接中。** 按文件名选择 Swift 1.5 Q2S 0.1.2、Bonsai2 12G 0.1.3 或 Bonsai2 8G 0.1.3。IQ3XXS 共用同一 Swift 引擎源码，但对应懒人包尚未发布。版本识别信息、修复记录和相关报错处理见 [CHANGELOG.md](CHANGELOG.md)。
+| 网盘 | 共享目录 | 提取码 |
+|---|---|---|
+| 百度网盘 | [打开共享目录](https://pan.baidu.com/s/1S8hs9-yb3NQQxajvBHijiQ) | `v2sh` |
+| 夸克网盘 | [打开共享目录](https://pan.quark.cn/s/d7c6374ec1ed) | `XPzf` |
+
+| 懒人包 | 版本 | 文件名 |
+|---|---|---|
+| Swift 1.5 IQ2S | 0.1.4 | `ninfer-3060-swift15-q2s-mtp-oneclick-0.1.4.zip` |
+| Swift 1.5 IQ3XXS | 0.1.4 | `ninfer-3060-swift15-iq3xxs-mtp-oneclick-0.1.4.zip` |
+| Bonsai2 12G | 0.1.5 | `ninfer-3060-12g-bonsai2-oneclick-0.1.5.zip` |
+| Bonsai2 8G | 0.1.5 | `ninfer-3060-8g-bonsai2-oneclick-0.1.5.zip` |
+
+压缩包校验值见 [PACKAGES-SHA256SUMS.txt](PACKAGES-SHA256SUMS.txt)。IQ3XXS 已提供独立懒人包，支持首次下载、SHA256 校验和 MTP-Q4 转换。四包均于 2026-10-13 重新构建，通过短请求和解压自检；验收范围见[更新记录](CHANGELOG.md)。
 
 ### 已转换的无审查 NInfer 模型
 
@@ -37,11 +45,11 @@ Swift 1.5 默认总上下文为 200K，最多可配置 256K；KVMem 会从历史
 
 Abliterated 版本会削弱模型的拒答或安全过滤能力。使用前请阅读各自模型卡中的来源、许可和使用警告；Swift 版本的模型卡建议用于研究和本地受控推理，不建议用于面向公众或未成年人的服务。
 
-当前源码 Release：[Swift 0.1.4](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.4) 和 [Bonsai2 0.1.5](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-v0.1.5)，各附件只含对应引擎系列，均包含最新 BAT／容量修正。网盘懒人包版本和链接不变。
+当前源码 Release：[Swift 0.1.4](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.4) 和 [Bonsai2 0.1.5](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-v0.1.5)，各附件只含对应引擎系列，均包含最新 BAT／容量修正。本次懒人包的启动器源码已同步到 main。
 
 ## 快速开始
 
-下面以 Swift 1.5 为例：
+下面以 Swift 1.5 IQ2S 为例：
 
 1. 准备 Windows 10 / 11、支持 CUDA 13 的 NVIDIA 驱动、12 GB 以上显存。内存建议 32 GB，第一次下载和转换模型需约 22 GB 空闲磁盘。
 2. 下载懒人包，解压到简单路径，例如 `D:\ninfer-swift15`。
@@ -69,7 +77,7 @@ Abliterated 版本会削弱模型的拒答或安全过滤能力。使用前请�
 
 ### 启动和停止
 
-1. 双击 `启动.bat`。默认选择 rk4v4、完整 MTP 输出头、200K 总上下文和自动输出。
+1. 在 IQ2S 包中双击 `启动.bat`。默认选择 rk4v4、完整 MTP 输出头、200K 总上下文和自动输出。
 2. 回车确认配置。首次使用会提示下载和转换模型，再按提示确认；下载可以断点续传。
 3. 等待窗口出现 `listening`。首次遇到没有校准记录的显卡还会测量运行路线，因此比后续启动慢。
 4. 双击 `测试.bat` 检查回答和速度。用完关闭启动窗口即可停止引擎。
@@ -171,7 +179,7 @@ Harness 在第一次请求前即可配置：`contextWindow` 填总上下文，`m
 
 模型来源：[魔搭社区 Swift-1.5-Qwen3.8-27B-GSQ-RCO-NInfer](https://www.modelscope.cn/models/fyb423/Swift-1.5-Qwen3.8-27B-GSQ-RCO-NInfer)。
 
-合并后的网盘模型库（Qwen 3.8 27B）：[百度网盘](https://pan.baidu.com/s/1Dyyb-SOULerfXGzDJqLlyQ)（提取码：`jqtg`） · [夸克网盘](https://pan.quark.cn/s/9fd59ead2458)（提取码：`YDvh`）。
+合并后的 Qwen 3.8 27B 模型库使用[上方同一组共享下载目录](#下载)。
 
 - 原始下载文件：`swift15_iq2s_mtp.ninfer`，10,257,632,000 字节。
 - 启动器使用包内 `patch` 转换成 `swift15_iq2_s_mtpq4.ninfer`，10,155,600,640 字节。

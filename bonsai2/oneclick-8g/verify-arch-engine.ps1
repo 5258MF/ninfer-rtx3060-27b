@@ -1,4 +1,4 @@
-# End-to-end verification harness for the ninfer-3060-8g-oneclick kit (Bonsai-2 ptq1 + Q4 MTP).
+﻿# End-to-end verification harness for the ninfer-3060-8g-oneclick kit (Bonsai-2 ptq1 + Q4 MTP).
 # ASCII-only source to avoid Windows PowerShell 5.1 codepage issues.
 #
 # Scope: kvmem / kvrk4. Small-window regression checks; not a full 8GB hardware qualification.

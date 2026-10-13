@@ -4,6 +4,7 @@ $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'capacity-options.ps1')
 
 . (Join-Path $PSScriptRoot 'runtime-options.ps1')
+. (Join-Path $PSScriptRoot 'model-download.ps1')
 
 $Here=Split-Path $PSScriptRoot -Parent
 
@@ -22,7 +23,7 @@ if($env:NINFER_IQ3_ENGINE){$Exe=$env:NINFER_IQ3_ENGINE}
 $Model=Join-Path $Here 'model/swift15_iq3xxs_mtpq4.ninfer'
 if($env:NINFER_IQ3_MODEL){$Model=$env:NINFER_IQ3_MODEL}
 
-$ExpectedEngine='fe444757618e651c826f2edbeb5c7dccafb678983a4e57b63281cc32732e3f3b'
+$ExpectedEngine='50c7f6890c16b45ee733024e74288196caefce0b49beb238a7c5fbb5375ca5a7'
 if($env:NINFER_IQ3_ENGINE_SHA256){$ExpectedEngine=$env:NINFER_IQ3_ENGINE_SHA256}
 
 $TestInput=New-Object System.Collections.Queue
@@ -31,7 +32,7 @@ function Read-Answer([string]$Prompt){if($TestInput.Count -gt 0){$x=[string]$Tes
 
 function Load-Config {
 
- $c=[ordered]@{KV='rk4v4';CUDA_GRAPH='0';VISION='1';VISION_DEVICE='cpu';CPU_THREADS='auto';MARGIN_MIB='300';PORT='8084';RESIDENT='recommended';CTX='131072';OUT='auto';THINK='0'}
+ $c=[ordered]@{KV='rk4v4';CUDA_GRAPH='0';VISION='1';VISION_DEVICE='cpu';CPU_THREADS='auto';MARGIN_MIB='300';PORT='8084';RESIDENT='auto';CTX='131072';OUT='auto';THINK='0'}
 
  if(Test-Path $CfgFile){foreach($line in Get-Content $CfgFile -Encoding UTF8){if($line -match '^\s*([A-Z_]+)\s*=\s*(.*?)\s*$' -and $c.Contains($matches[1])){$c[$matches[1]]=$matches[2]}}}
 
@@ -56,7 +57,7 @@ function Save-Config($c) {
 
  Assert-Config $c
 
- $lines=@('; IQ3XXS local development launcher; no GPU power settings.')
+ $lines=@('; Swift 1.5 IQ3XXS portable launcher; no GPU power settings.')
 
  foreach($k in $c.Keys){$lines+=($k+'='+$c[$k])}
 
@@ -81,7 +82,7 @@ function New-Plan($c,$policy) {
  if($think -lt 0 -or $think -ge $api){throw 'THINK必须为0或小于API回答上限'}
  $approved=($c.KV -eq 'rk4v4' -and $c.CUDA_GRAPH -eq '0' -and $cap -eq 33792 -and $ctx -eq 131072)
  $status=$(if($approved){'推荐配置；历史短测通过'}else{'用户自选配置；未作为此组合重新验收'})
- $a=@($Model,'--host','127.0.0.1','--port',[string]$c.PORT,'--model-id','swift15-iq3xxs','--max-concurrency','1','--kv-dtype',[string]$c.KV,'--spec','mtp','--draft-tokens','3','--max-context',"$ctx",'--default-max-tokens',[string]$api,'--prefill-chunk','512','--device-state-slots','0','--kv-capacity','auto','--kvmem-window-pages',[string]($cap/64),'--host-kv-mib',"$hostMiB",'--embedding-host','--gdn-state-fp16')
+ $a=@($Model,'--host','127.0.0.1','--port',[string]$c.PORT,'--model-id','qwen3.8-27b','--max-concurrency','1','--kv-dtype',[string]$c.KV,'--spec','mtp','--draft-tokens','3','--max-context',"$ctx",'--default-max-tokens',[string]$api,'--prefill-chunk','512','--device-state-slots','0','--kv-capacity','auto','--kvmem-window-pages',[string]($cap/64),'--host-kv-mib',"$hostMiB",'--embedding-host','--gdn-state-fp16','--post-thinking-temperature','0.2','--recover-invariant-failures')
 
  if($think -gt 0){$a+=@('--default-thinking-budget',[string]$think)}
  if($c.VISION -eq '1'){$a+=@('--vision','--vision-residency','cpu','--vision-max-merged','4096')}
@@ -156,11 +157,11 @@ $policy=Read-Policy;try{$plan=New-Plan $c $policy}catch{Write-Host $_.Exception.
 
 Assert-Idle $policy
 
-if(-not(Test-Path $Exe) -or -not(Test-Path $Model)){throw '缺少本地Swift引擎或IQ3XXS MTP-Q4模型；开发版不自动下载/转换'}
+if(-not(Test-Path -LiteralPath $Exe)){throw '缺少 Swift 引擎，请完整解压懒人包。'}
 
 if((Get-FileHash $Exe -Algorithm SHA256).Hash.ToLowerInvariant() -ne $ExpectedEngine){throw 'Swift引擎哈希不匹配；拒绝使用其他引擎'}
 
-if((Get-Item $Model).Length -ne 10990447360){throw 'IQ3XXS MTP-Q4模型大小不匹配；此处未做全文件哈希验证'}
+Ensure-IQ3Model
 
 if(-not (Confirm-CapacityStart $plan.Arguments)){Return-CapacityMenu $PSCommandPath;exit 1}
 Save-Config $c

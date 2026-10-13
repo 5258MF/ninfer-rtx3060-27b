@@ -150,7 +150,7 @@ function Get-View([string]$m) {
         $r.Cap = $r.Ctx
     }
     if ($r.Mt -gt $r.Ctx) { $r.Err += "单次回答（$($r.Mt)）不能比总上下文（$($r.Ctx)）还大" }
-    if ($r.Cap -gt $r.Lim) { $r.Warn += "显存部分 $($r.Cap) 超过这个组合的历史参考值（非硬上限） $($r.Lim)，12 GB 显存可能放不下" }
+    if (-not $r.On -and $r.Cap -gt $r.Lim) { $r.Warn += "显存部分 $($r.Cap) 超过这个组合的历史参考值（非硬上限） $($r.Lim)，12 GB 显存可能放不下" }
     if ($r.Think -gt 0 -and $r.Think -ge $r.Mt) { $r.Warn += "思考上限（$($r.Think)）不比单次回答（$($r.Mt)）小，等于不限" }
     return $r
 }
@@ -457,7 +457,7 @@ switch ($Mode) {
         $hostMib = CfgInt "${p}_HOST_MIB" 10240
         if ($sink -ge $win) { Fail "KVMEM_SINK（$sink）必须比 ${p}_WINDOW（$win）小。" }
         $cap = [int]$view.Cap; $mt = [int]$view.Mt
-        if ($cap -gt $lim) { Warn "${p}_WINDOW + ${p}_ANSWER = $cap，超过 $lim，12 GB 显存可能放不下。" }
+        if ($cap -gt $lim) { Say "本次驻留 $cap；历史参考 $lim。当前可选范围以显存检测为准。" 'DarkGray' }
         if ($ctx -le $cap) { Warn "${p}_CTX（$ctx）不比显存部分（$cap）大，KVMem 起不到作用，不如用普通模式。" }
         $env:NINFER_TERNARY_KVMEM_CPU_RETRIEVAL = $(if ($CpuRetrieval) { '1' } else { '0' })
         $env:NINFER_TERNARY_KVMEM = '1'

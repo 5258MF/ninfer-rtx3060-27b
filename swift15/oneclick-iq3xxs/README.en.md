@@ -1,15 +1,13 @@
-# Swift 1.5 IQ3XXS Development Launcher
+# Swift 1.5 IQ3XXS Portable Kit
 
 **[简体中文](README.md) | English**
 
-IQ3XXS shares [`../engine/`](../engine/) with IQ2S. This is a local development profile checked on an RTX 3060 12GB, not a published portable cloud package.
+Version **0.1.4** shares the [Swift engine source](../engine/) with IQ2S. The standalone kit is available from the [shared downloads](../../README.en.md#downloads).
 
-Defaults: rk4v4, CUDA Graph off, CPU vision with automatic CPU threads, recommended 33K resident KV (not a hard cap), 128K logical context, an API request ceiling that follows resident capacity, MTP-Q4/draft3 and the full output head. The engine allocates the complete instruction/tool prefix per request; see `[kvmem-alloc]` for actual retrieval and output budgets. Continuous 32K/64K output has not been qualified.
+Extract the complete kit and run `启动.bat`. On first use, the launcher downloads `swift15_iq3xxs_mtp.ninfer`, verifies SHA256 and applies the bundled MTP-Q4 patch to produce `swift15_iq3xxs_mtpq4.ninfer`. No Python is required; allow about 21 GiB of free disk space. Existing converted models can be placed in `model/` or selected with `NINFER_IQ3_MODEL`. Runtime binaries and patch payloads are supplied in the cloud kit; this repository contains the launcher and full engine source.
 
-Place a built Swift engine and DLLs in `engine/`, and `swift15_iq3xxs_mtpq4.ninfer` in `model/`, or set `NINFER_IQ3_ENGINE` / `NINFER_IQ3_MODEL`. For your own engine build, set `NINFER_IQ3_ENGINE_SHA256` to its SHA256. The included `capacity-policy.json` is a historical measurement snapshot. Current bounds come from `launcher/capacity-options.ps1`, using live VRAM and matching calibration.
+Defaults: RK4V4, CUDA Graph off, CPU vision with automatic CPU threads, 128K logical context and `auto` resident capacity based on available VRAM. Press C to choose a recommendation or manual capacity. The engine allocates the complete instruction/tool prefix, retrieval and output per request; actual budgets appear in `[kvmem-alloc]` logs.
 
-`启动.bat` opens the menu; `预览参数.bat` previews arguments. Press C to select recommended, auto or manual resident capacity within the current bound. Untested combinations use conservative estimates; missing VRAM information or out-of-range settings block startup. No model is downloaded and no existing inference process is terminated.
+Use `启动.bat dryrun` or `预览参数.bat` to preview arguments and `测试.bat` after starting the server. API: `http://127.0.0.1:8084/v1`, model ID `qwen3.8-27b`. No test-specific DSH entry or session state is included. Custom builds can use `NINFER_IQ3_ENGINE` and `NINFER_IQ3_ENGINE_SHA256` to select the executable and its hash.
 
-After starting the server, connect any compatible OpenAI/Anthropic client to `http://127.0.0.1:8084`. Model ID: `swift15-iq3xxs`; logical context: 131072. The API ceiling is finite and follows resident capacity; the engine sets actual output limits from each request’s full prefix and retrieval budget. No DSH test presets or launchers are bundled.
-
-CPU vision still requires GPU memory for the language model, KV and final image features. Short tool chains passed in the handoff; the full Graph matrix, new-window stress and continuous 32K/64K output were not fully tested. See the [changelog](../../CHANGELOG.md).
+The 2026-10-13 checks covered short chat, large output requests, multiple tools, CPU images, edited history, resumed download with SHA256 verification and native PowerShell conversion of the full model. These checks do not qualify maximum context or continuous 32K/64K output. Final image features, language-model inference and KV still use the GPU.

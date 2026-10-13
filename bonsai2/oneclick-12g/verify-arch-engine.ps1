@@ -1,4 +1,4 @@
-# Local regression harness. ASCII-only for Windows PowerShell 5.1.
+﻿# Local regression harness. ASCII-only for Windows PowerShell 5.1.
 # Exit codes: 0 = executed checks passed; 1 = failed; 2 = inconclusive.
 # Small-window tests do not establish full-context speed/quality or strict tool schemas.
 [CmdletBinding()]

@@ -1,4 +1,4 @@
-# 通用启动器：2026-10-06 动态分配纠正
+﻿# 通用启动器：2026-10-06 动态分配纠正
 
 本文件优先于旧分配说明。启动包不指定用户的智能体框架；DSH minimal/standard及压缩预设只属于实验夹具，已移到D:/models/experiment-records/20261006/test-fixtures。
 

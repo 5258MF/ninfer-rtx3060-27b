@@ -8,7 +8,7 @@ A Windows inference build for RTX 30 series GPUs with 8 GB VRAM. It uses the Swi
 
 ## Download and Start
 
-Download `ninfer-3060-8g-bonsai2-oneclick-0.1.3.zip`. The shared cloud links and access codes are on the [project home](README.en.md#downloads).
+Download `ninfer-3060-8g-bonsai2-oneclick-0.1.5.zip`. The shared cloud links and access codes are on the [project home](README.en.md#downloads).
 
 Requirements: Windows 10/11, an NVIDIA driver that supports CUDA 13, and 32 GB RAM recommended. Allow about 15 GB of free disk space for the first conversion. Extract the full archive and double-click `启动.bat`. The model will be downloaded and converted on first launch. Run `测试.bat` once the server shows `listening`.
 
@@ -18,7 +18,7 @@ Requirements: Windows 10/11, an NVIDIA driver that supports CUDA 13, and 32 GB R
 
 ## Launch and Connect a Client
 
-Extract the complete package and run `启动.bat`. Press Enter to use the current settings or C to open the wizard. The first launch downloads the model; the 8G package also converts its MTP head. Run `测试.bat` after `listening` appears. Configure the client using the generated `接入信息.txt`.
+Extract the complete package and run `启动.bat`. The default menu opens the RK4V4 KVMem / 128K profile. Press Enter to use the current settings or C to open the wizard. The first launch downloads the model; the 8G package also converts its MTP head. Run `测试.bat` after `listening` appears. Configure the client using the generated `接入信息.txt`.
 
 Default Base URL: `http://127.0.0.1:8084/v1`. Model ID: `qwen3.8-27b`. The client context and output limits must match the launch settings.
 

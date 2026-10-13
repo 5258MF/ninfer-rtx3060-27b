@@ -145,7 +145,7 @@ function Get-View([string]$m) {
         $r.Cap = $r.Ctx
     }
     if ($r.Mt -gt $r.Ctx) { $r.Err += "单次回答（$($r.Mt)）不能比总上下文（$($r.Ctx)）还大" }
-    if ($r.Cap -gt $r.Lim) { $r.Warn += "显存部分 $($r.Cap) 超过这个模式的历史参考值（非硬上限） $($r.Lim)，8 GB 显存可能放不下" }
+    if (-not $r.On -and $r.Cap -gt $r.Lim) { $r.Warn += "显存部分 $($r.Cap) 超过这个模式的历史参考值（非硬上限） $($r.Lim)，8 GB 显存可能放不下" }
     if ($r.Think -gt 0 -and $r.Think -ge $r.Mt) { $r.Warn += "思考上限（$($r.Think)）不比单次回答（$($r.Mt)）小，等于不限" }
     return $r
 }
@@ -421,7 +421,7 @@ if (-not $Mode) {
     if ($Modes -contains $m) { $Mode = $m }
 }
 if (-not $Mode) {
-    $Mode = 'kvmem'
+    $Mode = 'kvrk4'
     if (Test-Path -LiteralPath $modeFile) {
         $x = ((Get-Content -LiteralPath $modeFile -EA SilentlyContinue | Select-Object -First 1) + '').Trim().ToLower()
         if ($Modes -contains $x) { $Mode = $x }

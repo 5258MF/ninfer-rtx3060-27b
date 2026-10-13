@@ -1,0 +1,13 @@
+{
+  "package": "ninfer-3060-12g-bonsai2-oneclick-0.1.5",
+  "version": "0.1.5",
+  "packaged_date": "2026-10-13",
+  "source_commit": "7fdbbb76d65f69ba890bc135dd7529cd81dd9d6f",
+  "engine_build_exit": 0,
+  "models_bundled": false,
+  "private_settings_bundled": false,
+  "dll_count": 12,
+  "engines": {
+    "ninfer-serve.exe": "53207a12134f36621351ad6933ee307cb7386eb57f12b924bc1373a867e2a9e1"
+  }
+}

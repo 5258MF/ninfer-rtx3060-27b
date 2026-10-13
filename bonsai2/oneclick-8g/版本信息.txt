@@ -1,0 +1,5 @@
+﻿ninfer-3060-8g-bonsai2-oneclick-0.1.5
+版本 0.1.5
+打包日期 2026-10-13
+源码基线 7fdbbb76d65f69ba890bc135dd7529cd81dd9d6f
+模型权重首次运行另行下载，不包含在 ZIP 中。

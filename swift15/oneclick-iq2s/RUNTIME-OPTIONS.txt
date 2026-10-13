@@ -1,4 +1,4 @@
-运行配置更新（2026-10-05）
+﻿运行配置更新（2026-10-05）
 CUDA_GRAPH=1 开启（兼容原默认）；CUDA_GRAPH=0 关闭。
 Swift关闭Graph时不传 --cuda-graph-allowance-mib；开启沿用144MiB预留。
 VISION=1：CPU视觉编码；VISION=0：关闭看图。旧VISION=2兼容为1。

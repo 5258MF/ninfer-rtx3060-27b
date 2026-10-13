@@ -1,0 +1,13 @@
+{
+  "package": "ninfer-3060-swift15-q2s-mtp-oneclick-0.1.4",
+  "version": "0.1.4",
+  "packaged_date": "2026-10-13",
+  "source_commit": "7fdbbb76d65f69ba890bc135dd7529cd81dd9d6f",
+  "engine_build_exit": 0,
+  "models_bundled": false,
+  "private_settings_bundled": false,
+  "dll_count": 19,
+  "engines": {
+    "ninfer-serve.exe": "50c7f6890c16b45ee733024e74288196caefce0b49beb238a7c5fbb5375ca5a7"
+  }
+}

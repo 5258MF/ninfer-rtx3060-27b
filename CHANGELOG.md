@@ -5,6 +5,20 @@
 按版本和日期记录已发生的改动。源码更新与网盘包更新分别标明，避免把源码中的修复误认为已经进入旧下载包。
 
 
+## 2026-10-13：四套懒人包发布与共享网盘更新
+
+Swift IQ2S / IQ3XXS 懒人包更新为 **0.1.4**，Bonsai2 12G / 8G 为 **0.1.5**。四包放在同一组百度、夸克共享目录中，链接与提取码集中在[首页下载区](README.md#下载)，压缩包哈希见 [PACKAGES-SHA256SUMS.txt](PACKAGES-SHA256SUMS.txt)。
+
+- 从当前共用源码重编译 Swift、Bonsai RK8 和 RK4 引擎；Bonsai 本地源码补齐此前公开的孤儿 KV 页回收修复。
+- 四套启动器源码与分发包同步。驻留默认为 `auto`，启动前重新检查显存；8G 默认进入 RK4V4 KVMem／128K 菜单。完整前缀、检索和输出继续按请求分配。
+- IQ3XXS 由本机开发入口补齐为独立懒人包：包含自己的引擎与依赖、首次下载、SHA256 校验、PowerShell MTP-Q4 转换和测试入口；与 IQ2S 继续共用引擎源码。
+- 随包附 CPU OpenBLAS、引擎与模型相关许可证；不包含个人设置、会话、测试日志或 MCP 连接信息。
+- 四包共 20 个短请求通过，涵盖短对话、超大输出申请、多工具调用、CPU 看图和编辑历史；四个 BAT 在中文及空格路径预览通过。IQ3XXS 首次下载断点续传及真实模型的 PowerShell 转换通过。四个 ZIP 的 CRC、UTF-8 中文文件名和解压后清单自检通过。
+
+测试使用 RTX 3060 12GB；8G 按整卡 8GiB 预算模拟，没有在真实 8GB 卡验收，也没有据此确认极限上下文或完整 32K／64K 长输出。此次同步 main 的启动器和下载资料，保留现有源码 Release 快照。
+
+English: The shared download folders now contain Swift IQ2S / IQ3XXS 0.1.4 and Bonsai2 12G / 8G 0.1.5. Launcher source matches the new portable kits, including standalone IQ3XXS first-run download and verified MTP-Q4 conversion. Twenty short requests, four BAT previews in Chinese/space paths, and archive extraction checks passed. The 8GB profile was tested on 12GB hardware under an 8GiB budget; maximum-context and long-output qualification remain outside these checks. Existing source Release snapshots are retained.
+
 ## 2026-10-06：Swift 0.1.4 / Bonsai2 0.1.5 源码重新发布
 
 按用户要求，用最新 BAT、数字菜单和按模型校准的容量逻辑重新发布 [Swift 0.1.4](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.4) 与 [Bonsai2 0.1.5](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-v0.1.5)。沿用此前撤回的版本号；标签和独立源码附件更新至本次提交。公开脚本保留路径覆盖、参数读取和非交互预览，修复 Bonsai 缺模型路径的未初始化容量检查。改动、短测点和验收范围见下一节。网盘懒人包版本、链接与文件未替换。

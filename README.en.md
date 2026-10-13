@@ -2,7 +2,7 @@
 
 **Language:** [简体中文](README.md) | English
 
-Current sources: **Swift 1.5 shared IQ2S / IQ3XXS engine 0.1.4; Bonsai2 shared 8G / 12G source 0.1.5**. The available Swift one-click package remains IQ2S 0.1.2; the IQ3XXS package will be published later. All three current one-click packages use the same Baidu and Quark folder links below. See the [changelog](CHANGELOG.md). Swift 0.1.4 and Bonsai2 0.1.5 have been republished with the latest BAT and capacity-calibration fixes.
+Current sources and one-click packages: **Swift 1.5 IQ2S / IQ3XXS 0.1.4; Bonsai2 8G / 12G 0.1.5**. All four packages share the Baidu and Quark folders below. See the [changelog](CHANGELOG.md).
 
 Run Swift 1.5 and Bonsai2 locally on Windows, with chat, image input, tool calling, and long-context KVMem. The one-click package starts after extraction; the model is downloaded on first launch.
 
@@ -10,23 +10,31 @@ Run Swift 1.5 and Bonsai2 locally on Windows, with chat, image input, tool calli
 
 | Build | GPU and VRAM | Model | Guide |
 |---|---|---|---|
-| **Swift 1.5 (recommended)** | RTX 30 series with 12 GB or more; RTX 40 series may work but has not been tested | Current IQ2_S package, about 9.55 GiB; shared source supports IQ2_S / IQ3_XXS | [Usage guide](#swift-15-setup-and-usage) |
+| **Swift 1.5 (recommended)** | RTX 30 series with 12 GB or more; RTX 40 series may work but has not been tested | IQ2S MTP-Q4: about 9.46 GiB; IQ3XXS MTP-Q4: about 10.24 GiB; shared engine source | [Usage guide](#swift-15-setup-and-usage) |
 | **Bonsai2 12G** | Tuned for RTX 3060 12 GB and intended for RTX 30 series | Swift-Bonsai-2 ternary model, about 7.7 GiB | [12G guide](README-12GB.en.md) |
 | **Bonsai2 8G** | For RTX 30 series cards with 8 GB; tested with VRAM limited on a 12 GB card | Swift-Bonsai-2 ptq1, about 6.6 GiB | [8G guide](README-8GB.en.md) |
 
-Swift 1.5 defaults to a 200K total context and can be configured up to 256K. KVMem selects some history for the active GPU window. See [test results and known limits](#test-results-and-known-limits) together with the context limits.
+Swift IQ2S defaults to a 200K total context; IQ3XXS defaults to 128K. Both can be configured up to 256K. KVMem selects some history for the active GPU window. See [test results and known limits](#test-results-and-known-limits) together with the context limits.
 
 ## Downloads
 
 The one-click packages do not include model files. Extract the full archive and keep directories such as `engine`, `launcher`, and `patch`.
 
-| Build | Archive | Baidu Netdisk | Code | Quark | Code |
-|---|---|---|---|---|---|
-| Swift 1.5 Q2S · 0.1.2 | `ninfer-3060-swift15-q2s-mtp-oneclick-0.1.2.zip` | [Baidu](https://pan.baidu.com/s/1Dyyb-SOULerfXGzDJqLlyQ) | `jqtg` | [Quark](https://pan.quark.cn/s/9fd59ead2458) | `YDvh` |
-| Bonsai2 12G · 0.1.3 | `ninfer-3060-12g-bonsai2-oneclick-0.1.3.zip` | [Baidu](https://pan.baidu.com/s/1Dyyb-SOULerfXGzDJqLlyQ) | `jqtg` | [Quark](https://pan.quark.cn/s/9fd59ead2458) | `YDvh` |
-| Bonsai2 8G · 0.1.3 | `ninfer-3060-8g-bonsai2-oneclick-0.1.3.zip` | [Baidu](https://pan.baidu.com/s/1Dyyb-SOULerfXGzDJqLlyQ) | `jqtg` | [Quark](https://pan.quark.cn/s/9fd59ead2458) | `YDvh` |
+All four packages are in the same shared folders. Open either provider and choose the archive by filename.
 
-**Release status:** The three available one-click packages are in the same Baidu and Quark shared folders. Choose Swift 1.5 Q2S 0.1.2, Bonsai2 12G 0.1.3, or Bonsai2 8G 0.1.3 by archive name. The IQ3XXS engine source is shared with IQ2S, but its one-click package is not available yet. Build identification, fixes, and startup troubleshooting are in [CHANGELOG.md](CHANGELOG.md).
+| Provider | Shared folder | Access code |
+|---|---|---|
+| Baidu Netdisk | [Open shared folder](https://pan.baidu.com/s/1S8hs9-yb3NQQxajvBHijiQ) | `v2sh` |
+| Quark | [Open shared folder](https://pan.quark.cn/s/d7c6374ec1ed) | `XPzf` |
+
+| Package | Version | Archive |
+|---|---|---|
+| Swift 1.5 IQ2S | 0.1.4 | `ninfer-3060-swift15-q2s-mtp-oneclick-0.1.4.zip` |
+| Swift 1.5 IQ3XXS | 0.1.4 | `ninfer-3060-swift15-iq3xxs-mtp-oneclick-0.1.4.zip` |
+| Bonsai2 12G | 0.1.5 | `ninfer-3060-12g-bonsai2-oneclick-0.1.5.zip` |
+| Bonsai2 8G | 0.1.5 | `ninfer-3060-8g-bonsai2-oneclick-0.1.5.zip` |
+
+Archive hashes: [PACKAGES-SHA256SUMS.txt](PACKAGES-SHA256SUMS.txt). IQ3XXS now has a standalone portable kit with first-run download, SHA256 verification and MTP-Q4 conversion. All four kits were rebuilt on 2026-10-13 and passed short API requests and extraction checks; see the [changelog](CHANGELOG.md).
 
 ### Converted Abliterated NInfer Models
 
@@ -37,11 +45,11 @@ These Huihui Qwen3.8 27B Abliterated models have been converted to NInfer format
 
 Abliterated variants reduce refusal or safety filtering. Read each model card for provenance, licensing, and usage warnings before use. The Swift model card recommends research and controlled local inference, not public-facing services or use by minors.
 
-Current source Releases: [Swift 0.1.4](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.4) and [Bonsai2 0.1.5](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-v0.1.5), one engine family per asset, with the latest BAT/capacity fixes. Cloud-package versions and links are unchanged.
+Current source Releases: [Swift 0.1.4](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/swift15-v0.1.4) and [Bonsai2 0.1.5](https://github.com/5258MF/ninfer-rtx3060-27b/releases/tag/bonsai2-v0.1.5), one engine family per asset, with the latest BAT/capacity fixes. The latest portable-kit launcher sources are on main.
 
 ## Quick Start
 
-The steps below use Swift 1.5 as an example:
+The steps below use Swift 1.5 IQ2S as an example:
 
 1. Prepare Windows 10/11, an NVIDIA driver that supports CUDA 13, and at least 12 GB of VRAM. 32 GB of system RAM is recommended. Allow about 22 GB of free disk space for the first model download and conversion.
 2. Download the one-click package and extract it to a short path, such as `D:\ninfer-swift15`.
@@ -69,7 +77,7 @@ Extract the complete package to a short path, such as `D:\ninfer-swift15`. Keep 
 
 ### Start and Stop
 
-1. Double-click `启动.bat`. The defaults are rk4v4, the full MTP output head, a 200K total context, and automatic output allocation.
+1. Double-click `启动.bat` in the IQ2S kit. The defaults are rk4v4, the full MTP output head, a 200K total context, and automatic output allocation.
 2. Press Enter to confirm. On first use, confirm the model download and conversion when prompted. Downloads can resume.
 3. Wait for `listening`. If this GPU has no calibration record yet, the engine also measures its execution routes, so the first start takes longer.
 4. Run `测试.bat` to check the response and speed. Close the launcher window to stop the engine.
@@ -171,7 +179,7 @@ In 0.1.0, large client output limits are capped by the server configuration. KVM
 
 Model source: [ModelScope Swift-1.5-Qwen3.8-27B-GSQ-RCO-NInfer](https://www.modelscope.cn/models/fyb423/Swift-1.5-Qwen3.8-27B-GSQ-RCO-NInfer).
 
-Consolidated cloud model library (Qwen 3.8 27B): [Baidu Netdisk](https://pan.baidu.com/s/1Dyyb-SOULerfXGzDJqLlyQ) (code: `jqtg`) · [Quark](https://pan.quark.cn/s/9fd59ead2458) (code: `YDvh`).
+The consolidated Qwen 3.8 27B library uses the [shared download folders above](#downloads).
 
 - Original download: `swift15_iq2s_mtp.ninfer`, 10,257,632,000 bytes.
 - The launcher applies the package patch to create `swift15_iq2_s_mtpq4.ninfer`, 10,155,600,640 bytes.
